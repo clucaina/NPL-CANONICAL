@@ -18,19 +18,62 @@ jobs:
         with:
           ref: sync/c13-cognitive-runtime
           fetch-depth: 0
-      - name: Verify C13 source payload
+
+      - name: Expand C12 recovery source
         shell: bash
         run: |
-          echo "e71d7dd3c20e01f2233b5f25c28a7adb30e9c38ee40d15f14efc0da93b7db024  sync/c13-source-no-brain.tar.gz" | sha256sum -c -
-      - name: Expand canonical C13 source tree
+          rm -rf /tmp/c12-recovery
+          mkdir -p /tmp/c12-recovery
+          unzip -q NPL-CANONICAL-GITHUB-READY.zip -d /tmp/c12-recovery
+          ROOT="$(python - <<'PY'
+          import json, os
+          for base, dirs, files in os.walk('/tmp/c12-recovery'):
+              if 'package.json' not in files:
+                  continue
+              fn = os.path.join(base, 'package.json')
+              try:
+                  v = json.load(open(fn)).get('version')
+              except Exception:
+                  continue
+              if v == '0.14.0-cognitive-fabric-c12':
+                  print(base)
+                  break
+          PY
+          )"
+          test -n "$ROOT"
+          echo "C12_ROOT=$ROOT"
+          rsync -a --exclude='.git' "$ROOT"/ ./
+
+      - name: Rebuild and apply C13 delta
         shell: bash
         run: |
-          tar -xzf sync/c13-source-no-brain.tar.gz
+          cat sync/delta/part-*.b64 | tr -d '\n' | base64 -d > /tmp/c13-delta-core.tar.xz
+          echo "38d633c2dd536d18cb88deb15d976d73aab9a44fd5dfc18f95a5f863d11dda67  /tmp/c13-delta-core.tar.xz" | sha256sum -c -
+          tar -xJf /tmp/c13-delta-core.tar.xz -C .
+
+      - name: Verify visible C13 source
+        shell: bash
+        run: |
           test "$(node -p "require('./package.json').version")" = "0.15.0-cognitive-runtime-c13"
           test -f src/domain/human-model/c13/runtime.ts
+          test -f src/domain/human-model/c13/systems.ts
           test -f src/product/c13/app.js
+          test -f src/product/c13/index.html
           test -f tests/c13/c13-cognitive-runtime.test.mjs
+          test -f docs/COGNITIVE_RUNTIME_REGISTRY.json
+          test -f docs/EVENT_REGISTRY.json
+          test -f docs/PROJECTION_REGISTRY.json
           test -f docs/C13-PROTECTED-HASHES.txt
+          test -f src/components/BrainViewer.tsx
+          test -f public/assets/brain/manifest.json
+          test -f public/assets/brain/brain.glb
+
+      - name: Clean bootstrap payload
+        shell: bash
+        run: |
+          rm -rf sync/delta sync/chunks
+          rm -f sync/c13-source-no-brain.tar.gz
+
       - name: Commit expanded source
         shell: bash
         run: |
