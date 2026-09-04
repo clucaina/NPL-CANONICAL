@@ -19,29 +19,43 @@ jobs:
           ref: sync/c13-cognitive-runtime
           fetch-depth: 0
 
-      - name: Expand C12 recovery source
+      - name: Expand recovery source and identify C12 root
         shell: bash
         run: |
-          rm -rf /tmp/c12-recovery
-          mkdir -p /tmp/c12-recovery
-          unzip -q NPL-CANONICAL-GITHUB-READY.zip -d /tmp/c12-recovery
-          ROOT="$(python - <<'PY'
+          rm -rf /tmp/npl-recovery
+          mkdir -p /tmp/npl-recovery
+          unzip -q NPL-CANONICAL-GITHUB-READY.zip -d /tmp/npl-recovery
+          python - <<'PY'
           import json, os
-          for base, dirs, files in os.walk('/tmp/c12-recovery'):
-              if 'package.json' not in files:
-                  continue
-              fn = os.path.join(base, 'package.json')
-              try:
-                  v = json.load(open(fn)).get('version')
-              except Exception:
-                  continue
-              if v == '0.14.0-cognitive-fabric-c12':
-                  print(base)
-                  break
+          print('RECOVERY PACKAGE CANDIDATES:')
+          for base, dirs, files in os.walk('/tmp/npl-recovery'):
+              if 'package.json' in files:
+                  fn=os.path.join(base,'package.json')
+                  try: v=json.load(open(fn)).get('version')
+                  except Exception: v='UNREADABLE'
+                  print(base, v, 'c12_domain=', os.path.isdir(os.path.join(base,'src/domain/human-model/c12')), 'c12_product=', os.path.isdir(os.path.join(base,'src/product/c12')))
+          PY
+          ROOT="$(python - <<'PY'
+          import os
+          candidates=[]
+          for base, dirs, files in os.walk('/tmp/npl-recovery'):
+              score=0
+              if 'package.json' in files: score += 1
+              if os.path.isdir(os.path.join(base,'src/domain/human-model/c12')): score += 5
+              if os.path.isdir(os.path.join(base,'src/product/c12')): score += 5
+              if os.path.isfile(os.path.join(base,'docs/COGNITIVE_FABRIC_REGISTRY.json')): score += 4
+              if os.path.isfile(os.path.join(base,'docs/C12-GATE.json')): score += 3
+              if os.path.isfile(os.path.join(base,'NPL-ESTADO.txt')): score += 1
+              if score: candidates.append((score,base))
+          candidates.sort(reverse=True)
+          if candidates and candidates[0][0] >= 8:
+              print(candidates[0][1])
           PY
           )"
+          echo "RECOVERY_ROOT=$ROOT"
           test -n "$ROOT"
-          echo "C12_ROOT=$ROOT"
+          test -d "$ROOT/src/domain/human-model/c12"
+          test -d "$ROOT/src/product/c12"
           rsync -a --exclude='.git' "$ROOT"/ ./
 
       - name: Rebuild and apply C13 delta
@@ -67,6 +81,12 @@ jobs:
           test -f src/components/BrainViewer.tsx
           test -f public/assets/brain/manifest.json
           test -f public/assets/brain/brain.glb
+          test -d src/domain/human-model/c1
+          test -d src/domain/human-model/c7
+          test -d src/domain/human-model/c9
+          test -d src/domain/human-model/c10
+          test -d src/domain/human-model/c11
+          test -d src/domain/human-model/c12
 
       - name: Clean bootstrap payload
         shell: bash
