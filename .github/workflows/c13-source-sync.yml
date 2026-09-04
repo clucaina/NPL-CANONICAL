@@ -25,16 +25,6 @@ jobs:
           rm -rf /tmp/npl-recovery
           mkdir -p /tmp/npl-recovery
           unzip -q NPL-CANONICAL-GITHUB-READY.zip -d /tmp/npl-recovery
-          python - <<'PY'
-          import json, os
-          print('RECOVERY PACKAGE CANDIDATES:')
-          for base, dirs, files in os.walk('/tmp/npl-recovery'):
-              if 'package.json' in files:
-                  fn=os.path.join(base,'package.json')
-                  try: v=json.load(open(fn)).get('version')
-                  except Exception: v='UNREADABLE'
-                  print(base, v, 'c12_domain=', os.path.isdir(os.path.join(base,'src/domain/human-model/c12')), 'c12_product=', os.path.isdir(os.path.join(base,'src/product/c12')))
-          PY
           ROOT="$(python - <<'PY'
           import os
           candidates=[]
@@ -61,7 +51,20 @@ jobs:
       - name: Rebuild and apply C13 delta
         shell: bash
         run: |
-          cat sync/delta/part-*.b64 | tr -d '\n' | base64 -d > /tmp/c13-delta-core.tar.xz
+          test "$(wc -c < sync/delta/part-002.b64)" -eq 16000
+          {
+            cat sync/delta/part-000.b64
+            cat sync/delta/part-001.b64
+            head -c 8000 sync/delta/part-002.b64
+            cat sync/delta/part-003.b64
+            cat sync/delta/part-004.b64
+            tail -c 8000 sync/delta/part-002.b64
+            cat sync/delta/part-006.b64
+            cat sync/delta/part-007.b64
+            cat sync/delta/part-008.b64
+            cat sync/delta/part-009.b64
+            cat sync/delta/part-010.b64
+          } | tr -d '\n' | base64 -d > /tmp/c13-delta-core.tar.xz
           echo "38d633c2dd536d18cb88deb15d976d73aab9a44fd5dfc18f95a5f863d11dda67  /tmp/c13-delta-core.tar.xz" | sha256sum -c -
           tar -xJf /tmp/c13-delta-core.tar.xz -C .
 
