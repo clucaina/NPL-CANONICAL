@@ -1,0 +1,45 @@
+name: C13 source sync
+
+on:
+  push:
+    branches:
+      - sync/c13-cognitive-runtime
+
+permissions:
+  contents: write
+
+jobs:
+  expand-c13-source:
+    if: ${{ !contains(github.event.head_commit.message, '[c13-expanded]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sync branch
+        uses: actions/checkout@v4
+        with:
+          ref: sync/c13-cognitive-runtime
+          fetch-depth: 0
+      - name: Verify C13 source payload
+        shell: bash
+        run: |
+          echo "e71d7dd3c20e01f2233b5f25c28a7adb30e9c38ee40d15f14efc0da93b7db024  sync/c13-source-no-brain.tar.gz" | sha256sum -c -
+      - name: Expand canonical C13 source tree
+        shell: bash
+        run: |
+          tar -xzf sync/c13-source-no-brain.tar.gz
+          test "$(node -p "require('./package.json').version")" = "0.15.0-cognitive-runtime-c13"
+          test -f src/domain/human-model/c13/runtime.ts
+          test -f src/product/c13/app.js
+          test -f tests/c13/c13-cognitive-runtime.test.mjs
+          test -f docs/C13-PROTECTED-HASHES.txt
+      - name: Commit expanded source
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No source changes to commit"
+            exit 0
+          fi
+          git commit -m "C13 cognitive runtime: expand canonical source tree [c13-expanded]"
+          git push origin HEAD:sync/c13-cognitive-runtime
