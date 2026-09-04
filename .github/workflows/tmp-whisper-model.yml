@@ -9,18 +9,18 @@ jobs:
   fetch-model:
     runs-on: ubuntu-latest
     steps:
-      - name: Download multilingual Whisper tiny model
+      - name: Download multilingual Whisper base model
         shell: bash
         run: |
           set -euo pipefail
           curl -L --fail --retry 3 \
-            -o ggml-tiny.bin \
-            'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin?download=true'
-          ls -lh ggml-tiny.bin
+            -o ggml-base.bin \
+            'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin?download=true'
+          ls -lh ggml-base.bin
       - name: Upload model artifact
         uses: actions/upload-artifact@v4
         with:
-          name: whisper-ggml-tiny
-          path: ggml-tiny.bin
+          name: whisper-ggml-base
+          path: ggml-base.bin
           retention-days: 1
           if-no-files-found: error
