@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#06151e"><title>NPL WORLD · Alicante · Prototipo 3D</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;600;700&display=swap');
+:root{color-scheme:dark;--glass:rgba(5,21,30,.79);--line:rgba(183,230,239,.18);--cyan:#65dbf3;--amber:#f2c27d}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#102735;color:#e9f6f8;font-family:'DM Sans',sans-serif}canvas{display:block}#view{position:fixed;inset:0;outline:0}#view canvas{width:100%;height:100%;cursor:grab}#view canvas:active{cursor:grabbing}.glass{background:var(--glass);border:1px solid var(--line);box-shadow:0 18px 55px #031a2555;backdrop-filter:blur(18px);border-radius:17px}header{position:fixed;left:23px;right:23px;top:19px;display:flex;align-items:flex-start;justify-content:space-between;pointer-events:none;z-index:3}.brand{display:flex;gap:12px;align-items:center;text-shadow:0 1px 10px #102e38}#logo{background:linear-gradient(125deg,#52c3ea,#d1ffff);color:#002734;font:bold 21px 'Space Grotesk';padding:11px 10px;border-radius:14px;letter-spacing:-2px}.brand strong{display:block;font:800 21px 'Space Grotesk';letter-spacing:2px}.brand small{font-size:10px;letter-spacing:2.1px;color:#c4e1e9}.actions{display:flex;gap:8px;pointer-events:auto}.btn{appearance:none;background:rgba(5,24,34,.85);border:1px solid rgba(203,249,255,.24);border-radius:11px;padding:13px 14px;color:#ecfbff;cursor:pointer;font-weight:700;font-family:inherit;font-size:12px;transition:background .2s,transform .2s}.btn:hover{background:#164658;transform:translateY(-1px)}.btn.active{border-color:#79d7e8;background:#1c5262}.btn.gold{border-color:#e3b76699;color:#f9dfad}#mission{position:fixed;left:23px;top:104px;width:332px;padding:21px;z-index:3;pointer-events:auto}#eyebrow{color:var(--amber);letter-spacing:1.6px;font-weight:800;font-size:10px}#mission h2{font:700 23px 'Space Grotesk';margin:10px 0 9px}#mission p{font-size:13px;line-height:1.6;color:#cee2e7;margin:0 0 15px}#missionMeter{height:6px;background:#34505d;border-radius:99px;overflow:hidden}#missionMeter b{display:block;height:100%;width:0;background:linear-gradient(90deg,#59ddf0,#f6ca85);transition:width .5s}#missionSub{display:flex;justify-content:space-between;font-size:11px;margin:10px 0;color:#cce8f0}#objective{font-weight:700;color:#fff}#radar{height:106px;border:1px solid #4c708155;border-radius:12px;margin:16px 0 0;position:relative;overflow:hidden;background:radial-gradient(circle at center,#36607020 0 2px,transparent 3px),repeating-radial-gradient(circle at center,transparent 0 24px,#85ddea24 25px 26px),linear-gradient(90deg,#39748622 49.7%,#83becd33 50%,#39748622 50.3%)}#radar::after{content:'MARINA  →';position:absolute;right:10px;bottom:8px;font-size:9px;letter-spacing:1px;color:#a2dbec}#radarUser{position:absolute;left:50%;top:60%;width:11px;height:11px;background:#8bf6ff;border:2px solid #07313e;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 15px #4ae3fa}#radarDot{position:absolute;left:65%;top:32%;width:9px;height:9px;background:#ffcd81;border-radius:50%;box-shadow:0 0 12px #f9aa32}.foot{position:fixed;bottom:21px;left:23px;display:flex;align-items:center;gap:11px;padding:12px 15px;z-index:3}#avatarIcon{border-radius:100px;background:#224658;width:35px;height:35px;display:grid;place-items:center;font-size:17px}#playerName{font-weight:800;font-size:13px}#playerSubtitle{font-size:10px;color:#a8cfd7;letter-spacing:1px;margin-top:3px}#hudRight{position:fixed;right:23px;bottom:24px;z-index:4;width:235px;display:flex;flex-direction:column;gap:7px}#hudRight .btn{width:100%;text-align:left;padding:12px}#help{position:fixed;bottom:23px;left:50%;transform:translateX(-50%);border-radius:99px;padding:10px 20px;font-size:11px;background:rgba(4,19,27,.81);border:1px solid #ffffff22;white-space:nowrap;z-index:3;letter-spacing:.2px}#toast{position:fixed;top:88px;left:50%;transform:translateX(-50%);width:min(540px,90vw);z-index:5;text-align:center;padding:11px 17px;font-size:12px;color:#defaff;background:#062330cc;border:1px solid #ffffff22;border-radius:999px}#dialog{display:none;position:fixed;right:26px;top:105px;width:355px;z-index:9;padding:22px}#dialog h2{margin:0 0 8px;font:700 22px 'Space Grotesk'}#dialog p{font-size:13px;line-height:1.6;color:#cce3e9}#dialog button{margin-top:5px}#loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:20;background:linear-gradient(135deg,#071723,#123543);transition:opacity .55s}#loading .center{width:min(450px,88vw);text-align:center}#loadingIcon{font:800 62px 'Space Grotesk';letter-spacing:-5px;color:#7be4f2}#loading h1{font:700 33px 'Space Grotesk';margin:5px 0 8px}#loading p{font-size:13px;color:#bddde1;line-height:1.6}#loadbar{margin:26px auto 14px;height:4px;background:#47677380;width:80%;border-radius:3px;overflow:hidden}#loadbar b{display:block;height:100%;width:8%;background:#89e9f7;transition:width .5s}#start{display:none;margin:auto;padding:14px 23px;font-size:13px;background:#77dfee;color:#062533;border:0;border-radius:9px;font-weight:800;cursor:pointer}#fileInput{display:none}#credit{position:fixed;right:25px;bottom:193px;z-index:3;font-size:10px;color:#d6e8edcc;background:#06192299;padding:6px;border-radius:6px}#err{display:none;position:fixed;top:0;left:0;right:0;background:#8d2222;color:white;z-index:50;padding:12px;font-size:13px}#mobilePad{display:none;position:fixed;bottom:100px;left:20px;z-index:7}#mobilePad button{width:52px;height:52px;background:#052a3bbd;border:1px solid #ffffff4a;border-radius:12px;color:white;font-size:24px;touch-action:none}#mobilePad .movrow{display:flex;gap:5px}@media(max-width:850px){header{left:12px;right:12px;top:12px}#logo{font-size:15px;padding:10px}.brand strong{font-size:15px}.brand small{font-size:8px}.actions{gap:3px}.actions .btn{font-size:0;padding:11px}.actions .btn::first-letter{font-size:15px}#mission{left:11px;top:75px;width:min(265px,75vw);padding:13px}#mission h2{font-size:17px}#mission p{font-size:11px}#radar{display:none}#hudRight{right:11px;width:90px;bottom:90px}#hudRight .btn{font-size:10px;padding:8px}#help{display:none}.foot{left:11px;bottom:15px}#credit{display:none}#mobilePad{display:block}#toast{top:auto;bottom:7px;max-width:80%;left:50%;font-size:10px}#dialog{left:10px;right:10px;top:auto;bottom:140px;width:auto}}
+body.photo header,body.photo #mission,body.photo #hudRight,body.photo #help,body.photo .foot,body.photo #toast,body.photo #credit,body.photo #mobilePad{display:none!important}body.photo #dialog{display:none!important}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
+</head><body>
+<div id="view"></div><div id="err"></div>
+<header><div class="brand"><div id="logo">N✦</div><div><strong>NPL WORLD</strong><small>ALICANTE · PRUEBA TÉCNICA · NO MVP FINAL</small></div></div><div class="actions"><button class="btn gold" id="realBtn">◈ ALICANTE REAL</button><button class="btn" id="camBtn">◉ CÁMARA</button><button class="btn" id="qualityBtn">◈ CALIDAD</button><button class="btn" id="lightBtn">☀ LUZ</button><button class="btn" id="modelBtn">♟ AVATAR GLB</button><button class="btn" id="helpBtn">? AYUDA</button></div></header>
+<section id="mission" class="glass"><div id="eyebrow">MISIÓN 01 · ALICANTE BAJO LA LUPA</div><h2 id="missionTitle">La ciudad como laboratorio</h2><p id="missionText">Explora una reinterpretación 3D de la Explanada de España y la Marina. Acércate a los puntos de investigación y pulsa E.</p><div id="missionMeter"><b></b></div><div id="missionSub"><span id="objective">HITOS DOCUMENTALES</span><span id="score">0/5</span></div><button class="btn gold" id="targetBtn">✦ MOSTRAR DESTINO</button><div id="radar"><i id="radarUser"></i><i id="radarDot"></i></div></section>
+<div class="foot glass"><div id="avatarIcon">L</div><div><div id="playerName">EXPLORADORA</div><div id="playerSubtitle">Modelo genérico · no personalizado</div></div></div><div id="hudRight"><button class="btn" id="interactBtn">✧ &nbsp; E · INVESTIGAR</button><button class="btn" id="photoBtn">▧ &nbsp; MODO FOTO</button><button class="btn" id="viewBtn">◉ &nbsp; PRIMERA PERSONA</button><button class="btn" id="resetBtn">↺ &nbsp; VOLVER AL INICIO</button></div>
+<div id="help">W A S D · mover &nbsp; | &nbsp; RATÓN · orbitar &nbsp; | &nbsp; SHIFT · correr &nbsp; | &nbsp; E · investigar &nbsp; | &nbsp; V · cámara &nbsp; | &nbsp; P · foto</div><div id="credit">Escena artística: NO es fotogrametría real. Avatar de prueba externo: NO representa a Lucía.</div><div id="toast">Preparando escena 3D…</div><div id="dialog" class="glass"><h2 id="dialogTitle"></h2><p id="dialogText"></p><button class="btn" id="dialogClose">CERRAR · ESC</button></div><input type="file" id="fileInput" accept=".glb,.gltf,model/gltf-binary,model/gltf+json" />
+<div id="mobilePad"><div style="display:flex;justify-content:center"><button data-key="KeyW">↑</button></div><div class="movrow"><button data-key="KeyA">←</button><button data-key="KeyS">↓</button><button data-key="KeyD">→</button></div></div>
+<div id="loading"><div class="center"><div id="loadingIcon">N✦</div><h1>NPL WORLD</h1><p id="loadText">Creando una escena 3D navegable de la Explanada, fachadas mediterráneas y puerto de Alicante.</p><div id="loadbar"><b id="loadfill"></b></div><button id="start">ENTRAR A ALICANTE →</button></div></div>
+<script type="module">
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+// NPL WORLD: una escena jugable libre con arte procedural. No contiene fotogrametría real.
+const $=id=>document.getElementById(id), toast=(s)=>{$('toast').textContent=s};
+const scene=new THREE.Scene();scene.background=new THREE.Color('#a1becd');scene.fog=new THREE.FogExp2('#a9c1cb',.0018);
+const camera=new THREE.PerspectiveCamera(63,innerWidth/innerHeight,.07,1200);
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance',alpha:false});renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.28;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.setClearColor('#a0c9d8');$('view').appendChild(renderer.domElement);
+const hemi=new THREE.HemisphereLight(0xeaf7ff,0x775d43,2.1);scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xffe8bd,3.0);sun.position.set(-80,125,-64);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-145;sun.shadow.camera.right=145;sun.shadow.camera.top=145;sun.shadow.camera.bottom=-145;sun.shadow.camera.near=.5;sun.shadow.camera.far=350;sun.shadow.bias=-.0001;scene.add(sun);
+const fill=new THREE.DirectionalLight(0xa5d7ee,.65);fill.position.set(80,40,20);scene.add(fill);
+const m=(hex,rough=.82,metal=0)=>new THREE.MeshStandardMaterial({color:hex,roughness:rough,metalness:metal});
+const sand=m('#dccbb1'),stone=m('#ddd6c8'),plaster=m('#e6d6be'),asphalt=m('#313c44'),glass=new THREE.MeshPhysicalMaterial({color:0x637e87,metalness:.1,roughness:.13,transparent:true,opacity:.78,clearcoat:.68}),black=m('#1d2930'),steel=m('#a7b9bd',.34,.68),gold=m('#e6ac6a',.52,.38);
+const unitBox=new THREE.BoxGeometry(1,1,1),unitSphere=new THREE.SphereGeometry(1,14,10);
+const meshes=[];
+function add(geom,mat,x=0,y=0,z=0,shadow=true){const v=new THREE.Mesh(geom,mat);v.position.set(x,y,z);v.castShadow=shadow;v.receiveShadow=true;scene.add(v);return v}
+function box(x,y,z,w,h,d,mat,sh=true){const o=add(unitBox,mat,x,y,z,sh);o.scale.set(w,h,d);return o}
+// Batching identical facade details keeps the city playable on integrated GPUs.
+const facadePools=new Map(), poolTransform=new THREE.Object3D();
+function facBox(mat,x,y,z,w,h,d){let rec=facadePools.get(mat.uuid);if(!rec){const mesh=new THREE.InstancedMesh(unitBox,mat,9000);mesh.count=0;mesh.castShadow=false;mesh.receiveShadow=true;mesh.frustumCulled=false;scene.add(mesh);rec={mesh,n:0};facadePools.set(mat.uuid,rec)}if(rec.n>=9000)return;poolTransform.position.set(x,y,z);poolTransform.rotation.set(0,0,0);poolTransform.scale.set(w,h,d);poolTransform.updateMatrix();rec.mesh.setMatrixAt(rec.n++,poolTransform.matrix);rec.mesh.count=rec.n;rec.mesh.instanceMatrix.needsUpdate=true}
+function cyl(x,y,z,r1,r2,h,mat,segments=12){return add(new THREE.CylinderGeometry(r1,r2,h,segments),mat,x,y,z)}
+function sphere(x,y,z,sx,sy,sz,mat){const a=add(unitSphere,mat,x,y,z);a.scale.set(sx,sy,sz);return a}
+function canvasTex(size,paint,repX=1,repY=1){const c=document.createElement('canvas');c.width=c.height=size;const ctx=c.getContext('2d');paint(ctx,size);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(repX,repY);t.anisotropy=8;return t}
+const seeded=n=>{let a=n>>>0;return()=>{a=(a*1664525+1013904223)>>>0;return a/4294967296}};const rng=seeded(4242);
+const noiseTex=canvasTex(512,(c,s)=>{c.fillStyle='#cfc2ad';c.fillRect(0,0,s,s);for(let i=0;i<23000;i++){let x=rng()*s,y=rng()*s,a=rng()*.075;c.fillStyle=`rgba(${rng()>.5?255:0},${rng()>.5?255:0},${rng()>.5?255:0},${a})`;c.fillRect(x,y,1+rng()*2,1+rng()*2)}},18,30);
+const paving=new THREE.MeshStandardMaterial({map:noiseTex,roughness:.94});
+// Explanada wave pattern (mosaic-inspired; NOT an exact survey of the original paving)
+const promenadeTex=canvasTex(1024,(c,s)=>{c.fillStyle='#e0d2bd';c.fillRect(0,0,s,s);for(let yy=0;yy<s;yy+=3){for(let xx=0;xx<s;xx+=3){let wave=Math.sin((xx/s*Math.PI*6)+(yy/s*Math.PI*3.2)),band=Math.sin((xx/s*Math.PI*13)+Math.sin(yy/s*7)*1.2);const tint=wave+band*.21;const v=rng()*15;c.fillStyle=tint>.42?`rgb(${109+v},${75+v*.52},${66+v*.35})`:tint<-.33?`rgb(${42+v*.6},${62+v*.6},${67+v*.5})`:`rgb(${213+v*.6},${197+v*.6},${166+v*.6})`;c.fillRect(xx,yy,2.5,2.5)}}},1.1,7.5);
+const promMat=new THREE.MeshStandardMaterial({map:promenadeTex,roughness:.9});
+// World reference: sea is +X. Main walk runs north/south along Z.
+box(0,-.22,0,1200,.25,900,sand,false);box(-6,.025,0,33,.12,330,promMat,false);
+for(const edge of [-22.7,11.7])box(edge,.08,0,1,.14,330,plaster,false);
+box(30,.03,0,28,.13,330,asphalt,false);box(12.8,.10,0,2,.16,330,stone,false);box(46,.07,0,4,.2,330,stone,false);
+// Road markings and drains
+for(let z=-158;z<=158;z+=11){box(30,.122,z,5,.012,.15,m('#e9e4d7'),false);box(18,.123,z,4,.012,.08,m('#f6efda'),false)}
+for(let z=-166;z<=166;z+=7){box(46,.17,z,.23,.07,1.5,steel,false)}
+const waterMat=new THREE.MeshPhysicalMaterial({color:'#15809a',metalness:.22,roughness:.26,transparent:true,opacity:.93,clearcoat:1});box(225,-.08,0,355,.09,960,waterMat,false);
+for(let i=0;i<150;i++){const z=(rng()-.5)*510,x=50+rng()*235;box(x,.004,z,0.8+rng()*7,.009,.035,m(rng()>.5?'#7bc1c9':'#b4e9e5'),false)}
+// Land coast / hills silhouette, approximate artistic backdrop
+// No cone-shaped mountains: a continuous terrain mesh prevents triangular spike silhouettes.
+function coastalTerrain(){
+ const g=new THREE.PlaneGeometry(430,430,95,95),p=g.attributes.position,colors=[];
+ const cLow=new THREE.Color('#a78a6c'),cHigh=new THREE.Color('#cabca1');
+ const gaussian=(x,z,cx,cz,sx,sz)=>Math.exp(-((x-cx)*(x-cx)/(sx*sx)+(z-cz)*(z-cz)/(sz*sz)));
+ for(let i=0;i<p.count;i++){
+   const x=p.getX(i),z=-p.getY(i),ax=x+515,az=z-20;
+   const r=gaussian(ax,az,405,-110,130,100)*58+gaussian(ax,az,535,10,180,125)*42;
+   const rocky=(Math.sin(x*.11+Math.sin(z*.02))*Math.cos(z*.10))*1.75;
+   const height=-3+Math.max(0,r+rocky);
+   p.setZ(i,height);
+   const col=cLow.clone().lerp(cHigh,Math.min(.85,height/100));
+   colors.push(col.r,col.g,col.b);
+ }
+ g.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));g.computeVertexNormals();g.rotateX(-Math.PI/2);
+ const hill=new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,metalness:0,side:THREE.DoubleSide}));
+ hill.position.set(515,0,-20);hill.castShadow=false;hill.receiveShadow=true;scene.add(hill);
+}coastalTerrain();
+// The castle is an artistic silhouette, not a georeferenced model
+function castle(){const mat=m('#bea47d');const root=new THREE.Group();root.position.set(-265,52,-220);scene.add(root);for(let i=0;i<9;i++){const q=new THREE.Mesh(unitBox,mat);q.position.set((i-4)*8,5+rng()*3,0);q.scale.set(8,9+rng()*7,7);root.add(q)}const t=new THREE.Mesh(unitBox,mat);t.position.set(0,14,2);t.scale.set(12,26,9);root.add(t);const base=new THREE.Mesh(new THREE.ConeGeometry(85,95,8),m('#867b67'));base.position.y=-37;root.add(base)}castle();
+// Buildings: facades with real geometry around window reveals / balconies / pilasters
+const cream=[0xece4d7,0xd9c1a2,0xd7d4cb,0xf0dfc1,0xd4be9d,0xc5aa89];
+function facadeTexture(col,rows,cols){const canv=document.createElement('canvas');canv.width=512;canv.height=512;const c=canv.getContext('2d');c.fillStyle='#'+col.toString(16).padStart(6,'0');c.fillRect(0,0,512,512);const r=seeded(col+rows);for(let i=0;i<11000;i++){const x=r()*512,y=r()*512,gray=r()*.058;c.fillStyle=`rgba(${r()>.55?'50,45,38':'255,255,255'},${gray})`;c.fillRect(x,y,r()*4,r()*3)}for(let y=0;y<512;y+=64){c.fillStyle='rgba(255,255,255,.09)';c.fillRect(0,y,512,2)}const tex=new THREE.CanvasTexture(canv);tex.colorSpace=THREE.SRGBColorSpace;return tex}
+const windowMat=new THREE.MeshPhysicalMaterial({color:0x264651,metalness:.16,roughness:.26,clearcoat:1});
+function facadeBuilding(x,z,w,d,floors,colorIndex,kind='residential'){
+  const h=floors*3.65+4.0,baseY=h*.5;
+  const mat=new THREE.MeshStandardMaterial({map:facadeTexture(cream[colorIndex%cream.length],floors,Math.round(d/4)),roughness:.94});
+  box(x,baseY,z,w,h,d,mat);box(x+w*.51,.3,z,1.0,.6,d+.4,stone);box(x+w*.51,h-1.1,z,1.2,.55,d+.7,stone);box(x,h+.24,z,w+.9,.55,d+.7,plaster);
+  const nx=Math.max(2,Math.floor(d/4.5));const dx=d/nx;
+  for(let floor=0;floor<floors;floor++)for(let j=0;j<nx;j++){
+    const zz=z-d/2+(j+.5)*dx,yy=3.3+floor*3.65;
+    const edge=x+w/2+.035;
+    facBox(windowMat,edge+.06,yy,zz,.15,2.35,1.7);
+    // Recess, lintels and individually modelled balcony details are GPU-instanced.
+    facBox(plaster,edge+.16,yy+1.28,zz,.38,.24,2.03);
+    facBox(stone,edge+.16,yy-1.22,zz,.45,.16,2.07);
+    for(const side of [-1,1])facBox(stone,edge+.15,yy,zz+side*.95,.33,2.37,.17);
+    facBox(steel,edge+.18,yy,zz,.12,2.2,.075);
+    facBox(steel,edge+.18,yy,zz,.12,.07,1.64);
+    if(floor>0){facBox(stone,edge+.55,yy-1.29,zz,.97,.15,2.15);for(let k=0;k<8;k++)facBox(black,edge+.97,yy-.83,zz-.91+k*.26,.055,.86,.055);facBox(black,edge+.97,yy-.39,zz,.06,.07,2.25)}
+    if(floor===0&&j%3===1){facBox(plaster,edge+.35,1,zz,.25,1.4,3);facBox(stone,edge+.65,2.52,zz,.85,.13,3.3)}
+  }
+  // cornice and rooftop parapet
+  box(x+w/2+.4,h+.65,z,.5,1.1,d+.8,stone);return {x,z,w,d,h};
+}
+let collision=[];
+function bld(x,z,w,d,f,col,kind){collision.push({minx:x-w/2-1,maxx:x+w/2+1,minz:z-d/2-1,maxz:z+d/2+1});return facadeBuilding(x,z,w,d,f,col,kind)}
+// Old town / harbor-facing facade line
+bld(-40,-111,25,38,5,2);bld(-41,-73,25,37,6,1);bld(-42,-37,23,34,7,0);bld(-42,4,26,42,6,5);bld(-42,49,23,45,6,0);bld(-44,104,28,56,7,3);
+// Far skyline, including tall Hotel Gran Sol-inspired massing
+bld(-80,-75,21,32,15,4);bld(-87,-13,22,46,9,1);bld(-87,72,23,50,8,2);
+for(let k=0;k<9;k++){let z=-152+k*38;const w=21+rng()*10;const f=4+Math.floor(rng()*4);bld(-123,z,w,32+rng()*6,f,k%6)}
+// Casa Carbonell-inspired corner dome, artist interpretation
+const domeBase=add(new THREE.CylinderGeometry(6.1,6.5,1.5,24),plaster,-29,27,49);const dome=add(new THREE.SphereGeometry(5.65,28,12,0,Math.PI*2,0,Math.PI/2),m('#73796f'),-29,27.7,49);cyl(-29,31.0,49,.22,.28,2.9,steel);
+// Building roofs and balconies / cafe terraces
+function chair(x,z,rot=0){const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=rot;for(const [yy,w,d] of [[.48,.48,.42],[.98,.45,.09]]){const o=new THREE.Mesh(unitBox,m('#4d5850'));o.scale.set(w,.08,d);o.position.set(0,yy,yy>.7?-.18:0);g.add(o)}for(const sx of [-.18,.18])for(const sz of [-.14,.14]){const l=new THREE.Mesh(unitBox,steel);l.scale.set(.04,.45,.04);l.position.set(sx,.23,sz);g.add(l)}scene.add(g)}
+for(let z=-113;z<132;z+=19){box(-22.1,2.65,z,4.3,.09,8.2,m('#f6e6ce'));cyl(-22.1,1.32,z,.055,.055,2.58,steel);for(let k=0;k<2;k++){const tz=z+(k*2-1)*2.0;box(-19.6,.75,tz,.9,.08,.9,m('#afa89b'));cyl(-19.6,.36,tz,.04,.04,.68,steel);chair(-18.3,tz,1.57);chair(-21,tz,-1.57)}}
+// Palm tree mesh with non-flat, individually curved leaves
+const trunkMat=m('#866f53'),leafMats=['#527d5c','#658d57','#436e50','#75945e'].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:.85,side:THREE.DoubleSide}));
+function palm(x,z,height=11,phase=0){const g=new THREE.Group();g.position.set(x,0,z);scene.add(g);const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.24,.51,height,10,13),trunkMat);trunk.position.y=height/2;trunk.castShadow=true;g.add(trunk);
+for(let k=0;k<8;k++){const ring=new THREE.Mesh(new THREE.TorusGeometry(.35-k*.012,.025,4,16),m('#6a5542'));ring.rotation.x=Math.PI/2;ring.position.y=k*height/9+.4;g.add(ring)}
+for(let k=0;k<13;k++){const a=k*Math.PI*2/13+phase,len=4.7+rng()*2.5;const arr=[];const steps=17;for(let i=0;i<=steps;i++){const t=i/steps;const rr=t*len;let y=height+.5+Math.sin(t*Math.PI)*1.6-t*t*3.3;let w=Math.pow(Math.sin(t*Math.PI),.75)*(.48+.08*rng());const cx=Math.cos(a)*rr,cz=Math.sin(a)*rr;arr.push(cx-Math.sin(a)*w,y,cz+Math.cos(a)*w,cx+Math.sin(a)*w,y-.08,cz-Math.cos(a)*w)}const verts=[],idx=[];for(let i=0;i<arr.length;i+=6)verts.push(...arr.slice(i,i+6));for(let i=0;i<steps;i++){const q=i*2;idx.push(q,q+1,q+2,q+1,q+3,q+2)}const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));geo.setIndex(idx);geo.computeVertexNormals();const leaf=new THREE.Mesh(geo,leafMats[k%leafMats.length]);leaf.castShadow=true;g.add(leaf)}
+}
+for(let z=-146;z<=146;z+=17.4){palm(-17.2,z,10.5+rng()*2.3,rng());palm(8.1,z+7.8,11+rng()*2,rng())}
+// Streetlamps and details
+for(let z=-150;z<155;z+=24){cyl(14.0,3.1,z,.09,.14,6.2,steel);sphere(14,6.35,z,.34,.27,.34,new THREE.MeshStandardMaterial({color:0xffe8bd,emissive:0xffd18a,emissiveIntensity:.25}));box(15,.23,z,.8,.33,.8,stone)}
+for(let z=-145;z<145;z+=28){box(45.8,.6,z,2,.55,.55,stone);cyl(45.8,1.08,z,.18,.2,.5,steel)}
+// Cars: aerodynamic profile made from more than rectangular blocks, moving along the road
+function car(x,z,col,dir=1){const g=new THREE.Group();g.position.set(x,.65,z);g.rotation.y=dir<0?Math.PI:0;scene.add(g);let mat=m(col,.25,.35),dark=m('#1c2428');let body=new THREE.Mesh(new THREE.CapsuleGeometry(1,.3,4,8),mat);body.rotation.z=Math.PI/2;body.scale.set(1.1,.9,2.8);body.position.y=.18;g.add(body);
+const top=new THREE.Mesh(new THREE.BoxGeometry(1.65,.72,2.6),mat);top.position.y=.7;g.add(top);const screen=new THREE.Mesh(new THREE.BoxGeometry(1.45,.49,2.52),glass);screen.position.y=.83;g.add(screen);
+for(let dx of [-.93,.93])for(let dz of [-1.45,1.45]){const wh=new THREE.Mesh(new THREE.CylinderGeometry(.35,.35,.21,16),dark);wh.rotation.z=Math.PI/2;wh.position.set(dx,-.20,dz);g.add(wh);const cap=new THREE.Mesh(new THREE.CylinderGeometry(.18,.18,.23,16),steel);cap.rotation.z=Math.PI/2;cap.position.copy(wh.position);g.add(cap)}
+for(let dz of [-2.1,2.1])for(let dx of [-.6,.6]){const lamp=new THREE.Mesh(unitBox,dz>0?m('#fff0db'):m('#e64b41'));lamp.position.set(dx,.2,dz);lamp.scale.set(.28,.16,.08);g.add(lamp)}return {g,dir,speed:5+rng()*5}}
+const cars=[car(24,-123,'#aab8b6',1),car(37,-40,'#6c777f',-1),car(24,26,'#deddd4',1),car(37,112,'#344c5d',-1)];
+// Boats with multi-level construction, floating in a marina
+function yacht(x,z,s=1){const g=new THREE.Group();g.position.set(x,-.03,z);g.scale.setScalar(s);scene.add(g);const hull=new THREE.Mesh(new THREE.CylinderGeometry(1.45,.65,8,12,1,false),m('#f2efe7',.3));hull.rotation.x=Math.PI/2;g.add(hull);const rail=new THREE.Mesh(new THREE.BoxGeometry(2.6,.2,5.3),m('#faf5ef'));rail.position.y=.83;g.add(rail);
+const house=new THREE.Mesh(new THREE.BoxGeometry(2.1,1.1,2.6),m('#f4f2ed'));house.position.set(0,1.5,-.4);g.add(house);const windows=new THREE.Mesh(new THREE.BoxGeometry(2.11,.48,1.8),glass);windows.position.set(0,1.7,-.5);g.add(windows);for(let side of [-1,1]){const guard=new THREE.Mesh(new THREE.BoxGeometry(.025,.37,5.4),steel);guard.position.set(side*1.29,1.16,.1);g.add(guard)}return g}
+for(let i=0;i<16;i++)yacht(95+(i%4)*27,-137+Math.floor(i/4)*63,.76+rng()*.33);
+for(let z=-141;z<=140;z+=70){box(73,-.02,z,62,.3,3.2,m('#c9bdad'),false);for(let x=61;x<105;x+=12){box(x,-.48,z,1,1,1,m('#4c6c79'),false)}}
+// A few high-poly planter details / benches
+for(let z=-147;z<147;z+=23){box(-9.0,.45,z,2,.17,.7,m('#b39a79'));for(let dx of [-.77,.77])box(-9+dx,.23,z,.10,.44,.5,steel);box(-6,.3,z,1.1,.55,1.1,m('#b0a494'));sphere(-6,.77,z,.7,.65,.7,m('#447853'))}
+// Checkpoints, not fabricated NPL statistical observations
+const missions=[
+ {name:'Mosaico de la Explanada',x:0,z:61,desc:'El paseo emblemático de Alicante es un lugar para observar movilidad peatonal, accesibilidad y uso compartido del espacio. El pavimento mostrado aquí es una interpretación artística, no un levantamiento del original.'},
+ {name:'Fachadas del casco urbano',x:-19,z:-30,desc:'Contrasta arquitectura, conservación, rehabilitación y disponibilidad de vivienda. La escena utiliza fachadas modeladas de forma artística: todavía no incorpora un inventario catastral validado.'},
+ {name:'Puerto deportivo y litoral',x:46,z:74,desc:'Examinar interacción entre turismo, economía local, espacio público y adaptación climática exige fuentes oficiales y series históricas. Aquí no se muestran estadísticas inventadas.'},
+ {name:'Movilidad y accesibilidad',x:15,z:-100,desc:'Punto de partida para conectar indicadores de transporte público, accesibilidad universal y seguridad vial con la capa analítica NPL.'},
+ {name:'Mirada neuropsicosocial',x:-2,z:-112,desc:'El siguiente nivel podrá contrastar datos verificables sobre bienestar, desigualdad, seguridad y oportunidades con referencias geográficas y trazabilidad de fuentes.'}
+];let visited=new Set(),selected=0;
+const markerGroup=new THREE.Group();scene.add(markerGroup);const markerGeo=new THREE.OctahedronGeometry(.88,0);const markerMat=new THREE.MeshStandardMaterial({color:0xf9d18d,emissive:0xf5aa40,emissiveIntensity:.65,metalness:.26,roughness:.19});const markers=missions.map((q,i)=>{const s=new THREE.Mesh(markerGeo,markerMat.clone());s.position.set(q.x,2.9,q.z);markerGroup.add(s);const col=add(new THREE.CylinderGeometry(.035,.035,1.2,7),m('#e1c99c'),q.x,.8,q.z,false);return s});
+const player=new THREE.Group();player.position.set(0,.14,16);scene.add(player);
+let character=null,mixer=null,actions={},playing='',modelReady=false,avatarSource='';
+// The supplied fallback character has a Samba clip but no walk/run/idle.
+// A clip that is not suitable for locomotion must NEVER leave the avatar in a static T pose.
+let proceduralRig=[],proceduralEnabled=false,poseTime=0,animationMode='sin comprobar';
+const modelURLs=['https://threejs.org/examples/models/gltf/Michelle.glb'];
+const nname=b=>b.name.toLowerCase().replace(/[^a-z0-9]/g,'').replace(/^mixamorig/,'');
+function boneBy(rx,bones){return bones.find(b=>rx.test(nname(b)))}
+function rigHumanoid(obj){
+  proceduralRig=[];obj.updateMatrixWorld(true);
+  const bones=[];obj.traverse(n=>{if(n.isBone)bones.push(n)});
+  const defs=[
+    [/^(leftarm|leftupperarm|upperarml|lupperarm)$/,'arm',-1],
+    [/^(rightarm|rightupperarm|upperarmr|rupperarm)$/,'arm',1],
+    [/^(leftupleg|leftthigh|upperlegl|thighl)$/,'leg',-1],
+    [/^(rightupleg|rightthigh|upperlegr|thighr)$/,'leg',1],
+    [/^(leftforearm|leftlowerarm|lowerarml)$/,'forearm',-1],
+    [/^(rightforearm|rightlowerarm|lowerarmr)$/,'forearm',1],
+  ];
+  const UP=new THREE.Vector3(0,1,0);
+  for(const [rx,kind,side] of defs){
+    const bone=boneBy(rx,bones);if(!bone)continue;
+    const base=bone.quaternion.clone();let correction=new THREE.Quaternion();
+    if(kind==='arm'){
+      const child=bone.children.find(n=>n.isBone);
+      if(child){
+        const a=bone.getWorldPosition(new THREE.Vector3());
+        const b=child.getWorldPosition(new THREE.Vector3());
+        const source=b.sub(a).normalize();
+        const desired=new THREE.Vector3(side*.20,-.98,0).normalize();
+        // Rotate in *parent-local* frame, not in unrelated mesh axes.
+        const worldRotation=new THREE.Quaternion().setFromUnitVectors(source,desired);
+        const parentRotation=bone.parent.getWorldQuaternion(new THREE.Quaternion());
+        correction=parentRotation.clone().invert().multiply(worldRotation).multiply(parentRotation);
+      }
+    }
+    proceduralRig.push({bone,base,correction,kind,side});
+  }
+  // Procedural gait requires two thigh bones. This prevents fake success messages.
+  const arms=proceduralRig.filter(b=>b.kind==='arm').length;
+  const legs=proceduralRig.filter(b=>b.kind==='leg').length;
+  return {bones:bones.length,arms,legs,valid:arms>=2&&legs>=2};
+}
+function applyProceduralPose(dt,mode){
+  if(!proceduralEnabled||!character)return;
+  poseTime+=dt*(mode==='run'?10.8:mode==='walk'?7.1:1.25);
+  const intensity=mode==='run'?.63:mode==='walk'?.37:.025;
+  const rotAxis=new THREE.Vector3(1,0,0);
+  for(const entry of proceduralRig){
+    const {bone,base,kind,side,correction}=entry;
+    bone.quaternion.copy(base);
+    if(kind==='arm')bone.quaternion.premultiply(correction);
+    let shift=0;
+    if(kind==='arm')shift=-side*Math.sin(poseTime)*intensity*.66;
+    if(kind==='leg')shift=side*Math.sin(poseTime)*intensity;
+    if(kind==='forearm')shift=.10+Math.max(0,side*Math.sin(poseTime))*intensity*.35;
+    if(shift)bone.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(rotAxis,shift));
+  }
+}
+function installModel(glb,url){
+  if(character){player.remove(character);character.traverse(o=>{if(o.isSkinnedMesh||o.isMesh){o.geometry?.dispose?.()}})}
+  const obj=glb.scene;
+  obj.updateMatrixWorld(true);
+  const bounds=new THREE.Box3().setFromObject(obj),height=bounds.max.y-bounds.min.y||1,scaler=1.70/height;
+  obj.scale.multiplyScalar(scaler);obj.position.y=-bounds.min.y*scaler;
+  obj.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;o.frustumCulled=false}});
+  character=obj;player.add(character);character.updateMatrixWorld(true);
+  mixer=new THREE.AnimationMixer(character);actions={};
+  for(const clip of glb.animations||[]){const key=clip.name.toLowerCase();actions[key]=mixer.clipAction(clip)}
+  const keyList=Object.keys(actions);
+  const hasIdle=keyList.some(x=>/idle|standing/.test(x)),hasWalk=keyList.some(x=>/walk|brisk/.test(x)),hasRun=keyList.some(x=>/run|jog/.test(x));
+  playing='';const result=rigHumanoid(character);
+  proceduralEnabled=!(hasIdle&&hasWalk&&hasRun)&&result.valid;
+  if(proceduralEnabled){
+    animationMode='locomoción ósea procedimental';applyProceduralPose(0,'idle');
+  }else if(hasIdle&&hasWalk&&hasRun){
+    animationMode='clips Idle/Walk/Run';
+    const idle=keyList.find(x=>/idle|standing/.test(x));actions[idle].reset().play();playing=idle;
+  }else{
+    // Missing proper gait / skeleton; avoid describing a broken rig as animated.
+    animationMode='SIN locomoción válida · importa un GLB con Idle/Walk/Run';
+  }
+  modelReady=true;avatarSource=url;
+  $('playerName').textContent='PERSONAJE DE PRUEBA';
+  $('playerSubtitle').textContent=animationMode;
+  $('credit').textContent='Ciudad artística NO fotogramétrica. Modelo femenino de demostración: NO representa a Lucía. Animación: '+animationMode+'.';
+  toast('Modelo 3D cargado · '+animationMode+' · NO es la reconstrucción de Lucía');
+  $('loadText').textContent='Modelo volumétrico disponible: '+animationMode+'. No reproduce la identidad de Lucía.';
+}
+function loadAsset(url,index=0){return new Promise((resolve,reject)=>{new GLTFLoader().load(url,glb=>{try{installModel(glb,url);resolve(true)}catch(e){reject(e)}},p=>{if(p.lengthComputable&&index===0){$('loadfill').style.width=Math.min(90,35+p.loaded/p.total*55)+'%'}},reject)})}
+async function loadAvatar(){for(let i=0;i<modelURLs.length;i++){try{await loadAsset(modelURLs[i],i);return}catch(e){console.warn('Falló modelo remoto:',modelURLs[i],e)}}toast('El modelo remoto no cargó. Utiliza un GLB propio.');$('loadText').textContent='Escena disponible, sin avatar remoto cargado.'}
+function setAnim(target){
+  if(!modelReady)return;
+  if(proceduralEnabled)return;
+  const list=Object.keys(actions);let desired=(target==='run'?list.find(k=>/run|jog/.test(k)):target==='walk'?list.find(k=>/walk|brisk/.test(k)):list.find(k=>/idle|stand/.test(k)));
+  if(!desired||desired===playing)return;
+  const prev=actions[playing];if(prev)prev.fadeOut(.20);
+  const next=actions[desired];if(next){next.reset().fadeIn(.20).play();playing=desired}
+}
+// User controls and 3rd-person follow camera
+const keys=new Set();let camYaw=1.14,camPitch=.13,camDistance=4.25,firstPerson=false,drag=false,downX=0,downY=0,night=false,lowQuality=false,photo=false;
+function interact(){if($('dialog').style.display==='block'){$('dialog').style.display='none';return}let nearest=-1,dist=Infinity;missions.forEach((q,i)=>{const d=Math.hypot(q.x-player.position.x,q.z-player.position.z);if(d<dist){dist=d;nearest=i}});if(dist>12){toast(`Punto más próximo: ${missions[nearest].name}, a ${Math.ceil(dist)} m. Sigue el marcador dorado.`);return}visited.add(nearest);selected=missions.findIndex((_,i)=>!visited.has(i));if(selected<0)selected=nearest;$('dialogTitle').textContent=missions[nearest].name;$('dialogText').textContent=missions[nearest].desc;$('dialog').style.display='block';$('score').textContent=`${visited.size}/5`;$('missionMeter').firstElementChild.style.width=(visited.size*20)+'%';$('missionTitle').textContent=visited.size>=5?'Exploración completada':'Explora, observa, contrasta';$('missionText').textContent=visited.size>=5?'Has visitado los cinco puntos de observación. Próximo paso: conectar indicadores oficiales verificados de NPL.':'Objetivo: investiga los marcadores dorados. Las descripciones distinguen datos reales de reconstrucciones artísticas.';toast(`✓ Investigación ${visited.size}/5 registrada`)}
+function cameraToggle(){firstPerson=!firstPerson;$('viewBtn').textContent=firstPerson?'◉ &nbsp; TERCERA PERSONA':'◉ &nbsp; PRIMERA PERSONA';$('camBtn').classList.toggle('active',firstPerson)}
+function setNight(){night=!night;scene.background=new THREE.Color(night?'#112536':'#a1becd');scene.fog.color.set(night?'#193344':'#a9c1cb');hemi.intensity=night?.49:2.1;sun.intensity=night?.36:3;fill.intensity=night?1.1:.65;renderer.toneMappingExposure=night?.92:1.28;$('lightBtn').classList.toggle('active',night);toast(night?'Luz: anochecer mediterráneo':'Luz: tarde mediterránea')}
+function qualityToggle(){lowQuality=!lowQuality;renderer.setPixelRatio(Math.min(devicePixelRatio,lowQuality?1:1.7));renderer.shadowMap.enabled=!lowQuality;renderer.setSize(innerWidth,innerHeight);$('qualityBtn').classList.toggle('active',!lowQuality);toast(lowQuality?'Calidad rendimiento':'Calidad alta: sombras + antialiasing')}
+function photoToggle(){photo=!photo;document.body.classList.toggle('photo',photo);if(photo)toast('Pulsa P para recuperar la interfaz')}
+window.addEventListener('keydown',e=>{if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowLeft','ArrowDown','ArrowRight','Space','ShiftLeft'].includes(e.code))e.preventDefault();keys.add(e.code);if(e.repeat)return;if(e.code==='KeyE')interact();if(e.code==='KeyV')cameraToggle();if(e.code==='KeyP')photoToggle();if(e.code==='Escape'){$('dialog').style.display='none';if(photo)photoToggle()}if(e.code==='KeyR')reset()});window.addEventListener('keyup',e=>keys.delete(e.code));window.addEventListener('blur',()=>keys.clear());
+const mouse=renderer.domElement;mouse.addEventListener('pointerdown',e=>{if(e.button!==0)return;drag=true;downX=e.clientX;downY=e.clientY;mouse.setPointerCapture?.(e.pointerId)});mouse.addEventListener('pointermove',e=>{if(!drag)return;camYaw-=(e.clientX-downX)*.0052;camPitch=THREE.MathUtils.clamp(camPitch+(e.clientY-downY)*.004,-.14,1.12);downX=e.clientX;downY=e.clientY});mouse.addEventListener('pointerup',()=>drag=false);mouse.addEventListener('wheel',e=>{e.preventDefault();camDistance=THREE.MathUtils.clamp(camDistance+e.deltaY*.008,2.9,22)},{passive:false});
+for(const b of document.querySelectorAll('#mobilePad button')){b.addEventListener('pointerdown',e=>{e.preventDefault();keys.add(b.dataset.key);b.setPointerCapture?.(e.pointerId)});b.addEventListener('pointerup',()=>keys.delete(b.dataset.key));b.addEventListener('pointercancel',()=>keys.delete(b.dataset.key))}
+$('realBtn').onclick=()=>location.href='alicante_fotogrametria.html';$('camBtn').onclick=cameraToggle;$('viewBtn').onclick=cameraToggle;$('qualityBtn').onclick=qualityToggle;$('lightBtn').onclick=setNight;$('interactBtn').onclick=interact;$('photoBtn').onclick=photoToggle;$('resetBtn').onclick=reset;$('dialogClose').onclick=()=>{$('dialog').style.display='none'};$('modelBtn').onclick=()=>$('fileInput').click();$('helpBtn').onclick=()=>{$('dialogTitle').textContent='Controles y alcance';$('dialogText').textContent='WASD: desplazarte. Ratón arrastrado: orbitar. Rueda: acercar o alejar. MAYÚS: correr. E: investigar. V: cámara. P: modo foto. R: volver al inicio. Puedes importar un archivo GLB con un personaje 3D completo. El escenario es una interpretación artística de Alicante; no es fotogrametría ni un mapa exacto.';$('dialog').style.display='block'};
+$('fileInput').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;const url=URL.createObjectURL(file);try{await loadAsset(url);toast('✓ Modelo personalizado cargado. Si incluye Idle/Walk/Run, sus animaciones funcionan automáticamente.')}catch(err){console.error(err);toast('No se pudo leer el GLB. Elige un archivo GLB válido, con geometría 3D.') }finally{setTimeout(()=>URL.revokeObjectURL(url),5000);e.target.value=''}});
+$('targetBtn').onclick=()=>{const q=missions[selected];toast('Destino: '+q.name+' · '+Math.round(Math.hypot(q.x-player.position.x,q.z-player.position.z))+' m');camYaw=Math.atan2(q.x-player.position.x,q.z-player.position.z)};
+function reset(){player.position.set(0,.14,16);camYaw=1.14;camPitch=.13;camDistance=4.25;toast('Has vuelto a la Explanada')}
+function collisionAt(x,z){if(x< -19.8||x>43.5)return false;return collision.some(c=>x>c.minx&&x<c.maxx&&z>c.minz&&z<c.maxz)}
+const clock=new THREE.Clock(),camtgt=new THREE.Vector3(),cpos=new THREE.Vector3(),forward=new THREE.Vector3(),strafe=new THREE.Vector3();let theta=0,lastFPS=0,nframes=0,fpsSum=0;
+function frame(){requestAnimationFrame(frame);const dt=Math.min(clock.getDelta(),.048),elapsed=clock.elapsedTime;theta+=dt;
+const f=((keys.has('KeyW')||keys.has('ArrowUp'))?1:0)-((keys.has('KeyS')||keys.has('ArrowDown'))?1:0);const side=((keys.has('KeyD')||keys.has('ArrowRight'))?1:0)-((keys.has('KeyA')||keys.has('ArrowLeft'))?1:0);const moving=Math.hypot(f,side)>.1,running=keys.has('ShiftLeft')||keys.has('ShiftRight');
+if(moving){forward.set(Math.sin(camYaw),0,Math.cos(camYaw));strafe.set(Math.cos(camYaw),0,-Math.sin(camYaw));const dir=forward.multiplyScalar(f).addScaledVector(strafe,side).normalize();const speed=running?8.5:4.1;const nx=THREE.MathUtils.clamp(player.position.x+dir.x*speed*dt,-20.0,50),nz=THREE.MathUtils.clamp(player.position.z+dir.z*speed*dt,-160,160);if(!collisionAt(nx,player.position.z))player.position.x=nx;if(!collisionAt(player.position.x,nz))player.position.z=nz;const ry=Math.atan2(dir.x,dir.z);player.rotation.y=THREE.MathUtils.lerp(player.rotation.y,player.rotation.y+Math.atan2(Math.sin(ry-player.rotation.y),Math.cos(ry-player.rotation.y)),Math.min(1,dt*12));setAnim(running?'run':'walk')}else setAnim('idle');
+if(mixer&&!proceduralEnabled)mixer.update(dt);if(proceduralEnabled)applyProceduralPose(dt,moving?(running?'run':'walk'):'idle');
+const targetY=firstPerson?1.63:1.07;camtgt.set(player.position.x,player.position.y+targetY,player.position.z);if(firstPerson){cpos.set(camtgt.x+Math.sin(camYaw)*.08,camtgt.y+.05,camtgt.z+Math.cos(camYaw)*.08);camera.position.lerp(cpos,.48);camera.lookAt(camtgt.x+Math.sin(camYaw)*20,camtgt.y-Math.sin(camPitch)*20,camtgt.z+Math.cos(camYaw)*20);if(character)character.visible=false}else{if(character)character.visible=true;const hd=camDistance*Math.cos(camPitch);cpos.set(camtgt.x-Math.sin(camYaw)*hd,camtgt.y+camDistance*Math.sin(camPitch)+.48,camtgt.z-Math.cos(camYaw)*hd);camera.position.lerp(cpos,Math.min(1,dt*7));camera.lookAt(camtgt)}
+for(let i=0;i<cars.length;i++){const c=cars[i];c.g.position.z+=c.dir*c.speed*dt;if(Math.abs(c.g.position.z)>160)c.g.position.z=-Math.sign(c.g.position.z)*160}
+for(let i=0;i<markers.length;i++){markers[i].rotation.y+=dt*.9;markers[i].position.y=2.9+Math.sin(elapsed*2+i)*.17;markers[i].material.emissiveIntensity=visited.has(i)?.1:.7;markers[i].scale.setScalar(visited.has(i)?.65:1)}
+$('radarUser').style.left=(50+(player.position.x/4))+'%';$('radarUser').style.top=(50+(player.position.z/5))+'%';const destination=missions[selected];$('radarDot').style.left=(50+destination.x/4)+'%';$('radarDot').style.top=(50+destination.z/5)+'%';
+renderer.render(scene,camera);nframes++;fpsSum+=dt;if(fpsSum>1.2){lastFPS=Math.round(nframes/fpsSum);nframes=0;fpsSum=0;const notice=$('toast').textContent;if(notice.includes('FPS:'))toast('NPL WORLD · FPS: '+lastFPS)}}
+window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+// The world renders even before character assets arrive.
+$('loadfill').style.width='35%';requestAnimationFrame(frame);
+(async()=>{await Promise.race([loadAvatar(),new Promise(r=>setTimeout(r,9000))]);$('loadfill').style.width='100%';$('start').style.display='block';$('start').onclick=()=>{$('loading').style.opacity=0;setTimeout(()=>$('loading').remove(),600);toast(modelReady?'Escena técnica · '+animationMode+' · No representa a Lucía':'Escena lista · pulsa AVATAR GLB para importar un humano si falta el modelo')};$('loadText').textContent=modelReady?'Escena técnica lista: '+animationMode+'; personaje genérico, no es Lucía.':'Entorno listo. Si la descarga remota está bloqueada, importa un GLB de personaje desde el botón AVATAR.'})().catch(err=>{$('loadText').textContent='El entorno está listo; fallo al descargar el avatar externo.';$('start').style.display='block';console.error(err)});
+</script>
+</body></html>
