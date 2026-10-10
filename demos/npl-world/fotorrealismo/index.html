@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>NPL WORLD · ALICANTE REAL 3D</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.133.1/Build/Cesium/Widgets/widgets.css">
+<style>
+:root{font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;color:#edf5f7;color-scheme:dark;--bg:#081a25;--stroke:#355364;--gold:#e7c17e}*{box-sizing:border-box}body{margin:0;background:#060e16;overflow:hidden}#world{position:fixed;inset:0}#world canvas{outline:none}#overlay{pointer-events:none;position:fixed;inset:0;display:flex;flex-direction:column;justify-content:space-between}header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 20px;background:linear-gradient(#041017b8,transparent)}.brand{display:flex;align-items:center;gap:12px}.seal{background:#76d0d4;color:#08222e;border-radius:15px;width:54px;height:54px;display:grid;place-items:center;font-weight:900;font-size:26px}.brand strong{font-size:22px;letter-spacing:2px}.brand small{display:block;font-size:10px;letter-spacing:2.4px;color:#cad9de}#state{padding:9px 13px;border:1px solid #ffffff2d;border-radius:12px;background:#082330cc;color:#d0e0e8;font-size:12px}#controls{pointer-events:auto;align-self:flex-end;margin:15px;display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end}.btn{cursor:pointer;border-radius:11px;border:1px solid #365061;background:#0b2535ef;padding:12px 17px;color:#eaf2f7;font:600 12px system-ui}.btn:hover{border-color:#84dbdf}.btn:focus-visible{outline:3px solid #e4bb69}.gold{border-color:#d1ac69;color:#e6c57a}#setup{position:fixed;inset:0;display:grid;place-items:center;background:radial-gradient(circle at 60% 10%,#16374b,#061018 75%);z-index:20;overflow:auto;padding:20px}#setup.hidden{display:none}#card{max-width:670px;width:100%;border:1px solid #345365;border-radius:18px;background:#091f2af2;padding:30px;box-shadow:0 20px 100px #0008}h1{font-size:26px;margin:3px 0 7px}p{color:#b9cbd2;line-height:1.5;font-size:14px}label{font-size:12px;color:#d5e3e7;display:block;margin:14px 0 6px}input[type=password],input[type=text]{width:100%;background:#05131d;border:1px solid #385263;border-radius:8px;padding:13px;color:#fff;font-size:14px}#launch{width:100%;padding:15px;background:#dfbd7c;color:#102331;border:0;border-radius:10px;font-weight:800;cursor:pointer;margin-top:16px}#notice{padding:9px 12px;border-left:3px solid #d9b777;background:#142732;color:#c8d8de;font-size:12px;line-height:1.6;margin-top:14px}#error{min-height:1em;color:#ffbdad;font-size:13px;margin-top:10px}#modelActions{pointer-events:auto;position:fixed;left:12px;bottom:17px;max-width:340px;padding:17px;border:1px solid #385565;background:#061a25e8;border-radius:14px}#modelActions label{margin:6px 0}#avatarFile{font-size:12px;width:100%;color:#fff}#modelActions button{margin-top:9px}#statusLine{font-size:11px;color:#b6d1df;margin-top:8px;max-width:290px}#attrib{font-size:10px;text-align:center;color:white;min-height:18px}.pill{padding:3px 6px;color:#eabf6d;font-size:10px;letter-spacing:1px}#hint{padding:10px 14px;border-radius:12px;border:1px solid #2c4c5f;background:#041e2cce;font-size:11px}#worldStats{display:flex;gap:8px}#worldStats strong{color:#e3bf7e}#topRight{pointer-events:auto;display:flex;gap:6px;flex-wrap:wrap}@media(max-width:740px){header{padding:10px}.brand strong{font-size:16px}.seal{width:36px;height:36px;font-size:18px}.brand small{font-size:8px}#state{font-size:10px;padding:6px}#card{padding:20px}#modelActions{max-width:calc(100vw - 25px)}.btn{padding:10px;font-size:10px}}
+</style></head>
+<body><div id="world"></div>
+<div id="overlay"><header><div class="brand"><span class="seal">N✦</span><div><strong>NPL WORLD</strong><small>ALICANTE · FOTOGRAMETRÍA 3D</small></div></div><div id="topRight"><div id="state" aria-live="polite">Esperando conexión</div><button class="btn" id="helpBtn">Configuración</button></div></header><div id="controls"><div id="hint">Ratón: orbitar · Rueda: acercar · Doble clic: colocar cámara · Clic en el suelo: emplazar avatar</div><button class="btn" id="viewCity">Puerto</button><button class="btn" id="viewCastle">Castillo</button><button class="btn gold" id="home">Explanada</button></div></div>
+<section id="modelActions" hidden><div class="pill">PERSONAJE 3D · ARCHIVO GLB REAL</div><label for="avatarFile">Cargar cuerpo humano texturizado (en tu ordenador)</label><input id="avatarFile" type="file" accept=".glb,model/gltf-binary"><button class="btn gold" id="defaultAvatar">Intentar modelo humano femenino CC0</button><div id="statusLine">Sin avatar: no se mostrará un muñeco geométrico en su lugar.</div><div style="font-size:10px;color:#b7ccd6;margin-top:7px">Haz clic sobre el terreno para situar el personaje a escala real. Un GLB propio permanece en tu dispositivo.</div></section>
+<div id="setup"><div id="card"><div class="pill">NPL WORLD / ALICANTE · PRIORIDAD VISUAL</div><h1>Alicante real, no edificios inventados</h1><p>Este visor utiliza <b>mallas fotogramétricas 3D con textura real</b>, no cubos, fachadas aleatorias ni una fotografía pegada sobre un plano. La cámara comienza en la Explanada.</p><label for="key">Clave de Google Maps Platform · Map Tiles API</label><input id="key" type="password" autocomplete="off" spellcheck="false" placeholder="Introduce tu clave restringida de Map Tiles API"><button id="launch">CARGAR ALICANTE FOTORREALISTA</button><div id="error" role="alert"></div><div id="notice">La clave es necesaria para descargar la geometría. Debes activar Map Tiles API y facturación en Google Cloud. No se guarda en el navegador ni se añade al repositorio. El proveedor puede cobrar según uso; configura cuotas y restricciones de seguridad. Las licencias de Google exigen mostrar atribuciones. No hay modo low-poly que oculte fallos de carga.</div><p style="font-size:12px">La precisión visual dependerá de la cobertura de Google en estas coordenadas. El modelo humano predeterminado es genérico y no representa el rostro de Lucía; para reproducirlo necesitamos un GLB personalizado.</p></div></div>
+<script>window.CESIUM_BASE_URL='https://cdn.jsdelivr.net/npm/cesium@1.133.1/Build/Cesium/';</script>
+<script src="https://cdn.jsdelivr.net/npm/cesium@1.133.1/Build/Cesium/Cesium.js" crossorigin="anonymous" onerror="document.getElementById('error').textContent='No ha cargado CesiumJS (red/CDN). Usa un servidor con conexión o revisa el bloqueador de scripts.'"></script>
+<script>
+'use strict';
+(()=>{
+const $=id=>document.getElementById(id), LAT=38.34402,LON=-0.48322;
+let viewer=null,tileset=null,avatar=null,currentBlob=null;
+const setState=(s)=>{$('state').textContent=s};const msg=(s)=>{$('statusLine').textContent=s};
+const fail=(s)=>{$('error').textContent=s;setState('Error: ver detalles');};
+function flight(lon,lat,height,heading,pitch){viewer.camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(lon,lat,height),orientation:{heading:Cesium.Math.toRadians(heading),pitch:Cesium.Math.toRadians(pitch),roll:0},duration:2.8});}
+function aimExplanada(){flight(LON,LAT,120,45,-35)}
+function aimPort(){flight(-.4795,38.3417,190,12,-42)}
+function aimCastle(){flight(-.4805,38.347,235,330,-36)}
+async function launch(){
+ let key=$('key').value.trim(); if(!key){fail('Introduce una clave de Map Tiles API habilitada. No existe una descarga fotorrealista pública y sin credenciales.');return}
+ if(!window.Cesium){fail('CesiumJS no ha podido cargarse. Comprueba tu conexión, scripts o bloqueadores.');return}
+ $('launch').disabled=true;$('error').textContent='';setState('Iniciando fotorrealismo…');
+ try{
+   viewer=new Cesium.Viewer('world',{globe:false,baseLayer:false,baseLayerPicker:false,terrainProvider:new Cesium.EllipsoidTerrainProvider(),animation:false,timeline:false,fullscreenButton:false,homeButton:false,geocoder:false,sceneModePicker:false,navigationHelpButton:false,selectionIndicator:false,infoBox:false,requestRenderMode:false,shouldAnimate:true});
+   viewer.scene.skyBox.show=true;
+   viewer.scene.fog.enabled=true;
+   viewer.scene.fog.density=.00022;
+   viewer.scene.globe&& (viewer.scene.globe.show=false);
+   viewer.scene.screenSpaceCameraController.minimumZoomDistance=1.5;
+   viewer.scene.screenSpaceCameraController.maximumZoomDistance=15000;
+   viewer.scene.postProcessStages.fxaa.enabled=true;
+   tileset=await Cesium.Cesium3DTileset.fromUrl('https://tile.googleapis.com/v1/3dtiles/root.json?key='+encodeURIComponent(key),{showCreditsOnScreen:true,maximumScreenSpaceError:2.5,skipLevelOfDetail:false,dynamicScreenSpaceError:true});
+   viewer.scene.primitives.add(tileset);
+   $('setup').classList.add('hidden');$('modelActions').hidden=false;setState('Alicante · cargando mosaicos 3D');aimExplanada();
+   tileset.tileLoad.addEventListener(()=>{setState('Alicante · malla fotorrealista activa');});
+   viewer.scene.camera.changed.addEventListener(()=>{if(tileset)setState('Alicante · fotogrametría 3D')});
+   const handler=new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+   handler.setInputAction(async ev=>{
+      const p=viewer.scene.pickPosition(ev.position);
+      if(!Cesium.defined(p)){msg('No se ha podido identificar superficie 3D aquí. Prueba con otra zona cargada.');return}
+      window._nplGround=p;
+      msg('Posición real seleccionada. Carga un GLB para situarlo aquí.');
+      if(avatar){avatar.modelMatrix=Cesium.Transforms.eastNorthUpToFixedFrame(p);viewer.scene.requestRender()}
+   },Cesium.ScreenSpaceEventType.LEFT_CLICK);
+ }catch(e){try{viewer?.destroy()}catch(_){ }viewer=null;tileset=null;$('launch').disabled=false;$('setup').classList.remove('hidden');fail('No ha cargado Google Photorealistic 3D Tiles: '+(e?.message||String(e))+'. Revisa clave, Map Tiles API, facturación y restricciones de referrer.');}
+}
+async function model(url){if(!viewer){msg('Carga Alicante antes que el modelo.');return}
+ msg('Importando malla 3D texturizada…');try{
+ if(avatar){viewer.scene.primitives.remove(avatar);avatar=null}
+ const position=window._nplGround||Cesium.Cartesian3.fromDegrees(LON,LAT,4);
+ avatar=await Cesium.Model.fromGltfAsync({url,modelMatrix:Cesium.Transforms.eastNorthUpToFixedFrame(position),scale:1,allowPicking:true,incrementallyLoadTextures:true});
+ viewer.scene.primitives.add(avatar);await avatar.readyEvent;msg('Modelo humano GLB listo. Haz clic en el suelo para recolocarlo.');
+ viewer.scene.requestRender();
+ }catch(e){msg('No pudo importarse el GLB: '+(e.message||String(e))+'. Comprueba texturas internas o CORS si es remoto.');}
+}
+$('launch').addEventListener('click',launch);$('key').addEventListener('keydown',e=>{if(e.key==='Enter')launch()});
+$('viewCity').addEventListener('click',()=>viewer&&aimPort());$('viewCastle').addEventListener('click',()=>viewer&&aimCastle());$('home').addEventListener('click',()=>viewer&&aimExplanada());
+$('helpBtn').addEventListener('click',()=>{$('setup').classList.remove('hidden')});
+$('avatarFile').addEventListener('change',async ev=>{const f=ev.target.files?.[0];if(!f)return;if(!/\.glb$/i.test(f.name)){msg('Debes seleccionar un modelo .glb completo');return}if(currentBlob)URL.revokeObjectURL(currentBlob);currentBlob=URL.createObjectURL(f);await model(currentBlob)});
+$('defaultAvatar').addEventListener('click',()=>model('https://www.innerscene.com/api/library/riley-3d-person-woman-standing-8d40398f/download'));
+})();
+</script></body></html>
