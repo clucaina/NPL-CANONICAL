@@ -1,4 +1,17 @@
-# NPL WORLD — demo autónoma sin red (10-10-2026)
+# NPL WORLD — Estado del proyecto (10 octubre 2026)
+
+## Nueva escena 3D editable — prioridad visual
+
+[**Abrir NPL WORLD Alicante en el visor 3D**](https://higgsfield.ai/3d-jutsu/5673fb30-1e3c-4166-9904-b8744139eb1b)
+
+Se ha creado una **escena volumétrica en Blender**, exportada a GLB (12,8 MB) y BLEND (16,1 MB). [Ver auditoría de los activos y límites](ESCENA_3D_HQ.md).
+
+**Importante:** la escena es una reinterpretación artística, no es una réplica GTA/fotogramétrica validada. El avatar aún no reproduce los rasgos de Lucía ni está riggeado. La visualización requiere conexión a Higgsfield.
+
+---
+
+## Demostración jugable antigua (legado)
+
 
 ## Iniciar el juego
 **[Abrir HTML principal](https://raw.githack.com/clucaina/NPL-CANONICAL/main/demos/npl-world/index.html)**
