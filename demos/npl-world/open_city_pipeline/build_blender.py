@@ -70,6 +70,54 @@ def add(name,verts,faces,mat):
     o=bpy.data.objects.new(name,mesh);s.collection.objects.link(o);mesh.materials.append(mat)
 add("OSM_Real_Building_Walls_UNTEXTURED",wallvs,wallfs,wall)
 add("OSM_Real_Building_Roofs",roofvs,rooff,roof)
+# Additional OSM way geometry: road/pedestrian corridor centerlines come from the real map.
+# Width is a design estimate unless OSM has explicit width; no claim of surveyed kerbs.
+roadverts={k:[] for k in ("vehicular","pedestrian","service")}
+roadfaces={k:[] for k in roadverts}
+roadcounts={k:0 for k in roadverts}
+def surface_width(tags, kind):
+    try:
+        w=float(re.sub(r"[^0-9.]","",tags.get("width","")))
+        if .8<=w<=35:return w
+    except (ValueError,TypeError):pass
+    return 8.5 if kind=="vehicular" else (5.0 if kind=="pedestrian" else 4.2)
+for way in doc.findall("way"):
+    tags={t.attrib["k"]:t.attrib["v"] for t in way.findall("tag")}
+    highway=tags.get("highway")
+    if not highway or tags.get("area")=="yes":continue
+    if highway in ("motorway","trunk","primary","secondary","tertiary","unclassified","residential","living_street"):
+        group="vehicular"
+    elif highway in ("footway","pedestrian","path","steps","cycleway"):
+        group="pedestrian"
+    elif highway in ("service",):group="service"
+    else:continue
+    refs=[q.attrib["ref"] for q in way.findall("nd")]
+    pts=[nodes[r] for r in refs if r in nodes]
+    if len(pts)<2:continue
+    width=surface_width(tags,group)
+    ybase=.015 if group=="vehicular" else (.03 if group=="pedestrian" else .018)
+    for j in range(len(pts)-1):
+        a,b=pts[j],pts[j+1]
+        dx,dy=b[0]-a[0],b[1]-a[1]
+        L=math.hypot(dx,dy)
+        if L<.5:continue
+        nx,ny=-dy/L*width*.5,dx/L*width*.5
+        v=roadverts[group];faces=roadfaces[group];base=len(v)
+        v.extend([(a[0]+nx,a[1]+ny,ybase),(a[0]-nx,a[1]-ny,ybase),
+                  (b[0]-nx,b[1]-ny,ybase),(b[0]+nx,b[1]+ny,ybase)])
+        faces.append((base,base+1,base+2,base+3))
+        roadcounts[group]+=1
+roadmat={
+ "vehicular":material("OSM_Real_Road_Centerlines_width_estimated",(.24,.245,.25)),
+ "pedestrian":material("OSM_Real_Pedestrian_Centerlines_width_estimated",(.74,.70,.61)),
+ "service":material("OSM_Service_Road",(.39,.37,.35))
+}
+for k in roadverts:
+    if not roadfaces[k]:continue
+    # Blender Z vertical. export to GLB uses Y up, same as building meshes.
+    add("OSM_REAL_"+k+"_ways_not_surveyed_width",roadverts[k],roadfaces[k],roadmat[k])
+print("Road OSM segments",roadcounts,flush=True)
+
 if total==0:raise RuntimeError("NO REAL OSM BUILDING FOOTPRINTS RECEIVED; abort")
 bpy.ops.object.light_add(type="SUN",location=(-45,20,180))
 sun=bpy.context.object;sun.data.energy=2.1;sun.rotation_euler=(.55,-.25,-.25)
@@ -80,7 +128,7 @@ camera.data.lens=30;s.camera=camera
 bpy.ops.wm.save_as_mainfile(filepath=str((O/"Alicante_REAL_OSM_PNOA.blend").resolve()))
 bpy.ops.export_scene.gltf(filepath=str((O/"Alicante_REAL_OSM_PNOA.glb").resolve()),export_format="GLB")
 # Visual QA render is a separate optional workflow step, never blocks successful GLB export.
-result={"real_osm_buildings":total,"heights_directly_measured":measured,"omitted":skipped,
+result={"real_osm_buildings":total,"heights_directly_measured":measured,"omitted":skipped,"road_segments_from_OSM":roadcounts,
 "pnoa_ground":info["real_orthophoto"],"facades_photogrammetric":False,
 "private_avatar_included":False,"blender_version":list(bpy.app.version)}
 (O/"QA_source_report.json").write_text(json.dumps(result,indent=2))
