@@ -24,6 +24,7 @@ jobs:
         run: |
           python3 download_city.py
           python3 download_ortho_tiles.py
+          python3 download_icv_ortho.py
       - name: Build 3D model and editable Blender source
         working-directory: demos/npl-world/open_city_pipeline
         env:
