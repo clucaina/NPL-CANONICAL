@@ -29,6 +29,12 @@ jobs:
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
         run: blender -b --factory-startup -t 2 --python-exit-code 1 -P build_blender.py
+      - name: Optional QA preview with CPU Workbench
+        working-directory: demos/npl-world/open_city_pipeline
+        continue-on-error: true
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: blender -b output/Alicante_REAL_OSM_PNOA.blend -t 2 --python-exit-code 1 -P qa_render_optional.py
       - name: Assert genuine outputs exist
         working-directory: demos/npl-world/open_city_pipeline
         run: |
