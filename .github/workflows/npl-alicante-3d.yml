@@ -17,16 +17,18 @@ jobs:
       - name: Install free Blender with CPU rendering
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq blender
+          sudo apt-get install -y -qq blender python3-numpy python3-pil
           blender -b --factory-startup --python-expr "import bpy; print('Blender:',bpy.app.version_string)"
       - name: Fetch public Alicante sources
         working-directory: demos/npl-world/open_city_pipeline
-        run: python3 download_city.py
+        run: |
+          python3 download_city.py
+          python3 download_ortho_tiles.py
       - name: Build 3D model and editable Blender source
         working-directory: demos/npl-world/open_city_pipeline
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
-        run: blender -b --factory-startup -t 2 -P build_blender.py
+        run: blender -b --factory-startup -t 2 --python-exit-code 1 -P build_blender.py
       - name: Assert genuine outputs exist
         working-directory: demos/npl-world/open_city_pipeline
         run: |
