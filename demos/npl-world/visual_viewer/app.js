@@ -31,39 +31,144 @@ sun.shadow.bias=-.000035;
 scene.add(sun,sun.target);
 const origin=new THREE.Vector3(0,0,0);
 sun.target.position.copy(origin);
-const floor=new THREE.Mesh(new THREE.PlaneGeometry(2000,2000),new THREE.MeshStandardMaterial({color:0xb5ada1,roughness:.98}));
-floor.rotation.x=-Math.PI/2;floor.position.y=-.135;floor.receiveShadow=true;scene.add(floor);
 
-// Approximate decorative material ONLY, not a surveyed/photographed pavement.
-// This is kept separate from the true OpenStreetMap building geometry.
-const cv=document.createElement('canvas');cv.width=512;cv.height=512;
-const ctx=cv.getContext('2d');
-ctx.fillStyle='#d0c6a7';ctx.fillRect(0,0,512,512);
-for(let y=0;y<512;y+=4){for(let x=0;x<512;x+=4){
- const v=Math.sin(x*.079+Math.sin(y*.026)*1.65);
- ctx.fillStyle=v<-.31?'#52696c':v>.48?'#eadfca':'#bb7362';
- ctx.fillRect(x,y,3.3,3.3);
-}}
-const waveTex=new THREE.CanvasTexture(cv);
-waveTex.colorSpace=THREE.SRGBColorSpace;waveTex.wrapS=waveTex.wrapT=THREE.RepeatWrapping;
-waveTex.repeat.set(1.0,22);
-waveTex.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),8);
-const promenade=new THREE.Mesh(new THREE.PlaneGeometry(14,480),new THREE.MeshStandardMaterial({map:waveTex,roughness:.92}));
-promenade.rotation.x=-Math.PI/2;
-promenade.position.set(0,-.109,0);
-promenade.receiveShadow=true;
-// Reference corridor only, NOT a surveyed pavement boundary.
-scene.add(promenade);
-// Sea is also an illustrative placeholder, distinguish from georeferenced OSM geometry.
-const sea=new THREE.Mesh(new THREE.PlaneGeometry(980,1500),new THREE.MeshPhysicalMaterial({
- color:0x08758d,roughness:.26,metalness:.05,transparent:true,opacity:.96
+// The public-city source is a real georeferenced building GLB, not a fabricated map.
+// These street props remain a documented ARTISTIC ground-level presentation layer.
+const promenadeColor=new THREE.CanvasTexture((()=>{
+ const c=document.createElement('canvas');c.width=768;c.height=768;
+ const q=c.getContext('2d');q.fillStyle='#e8dfc7';q.fillRect(0,0,768,768);
+ for(let y=0;y<768;y+=4){for(let x=0;x<768;x+=4){
+  const w=Math.sin(x*.055+2.1*Math.sin(y*.022));
+  const type=w<-.22?'#264b53':w>.36?'#efe0c9':'#ba7262';
+  q.fillStyle=type;q.fillRect(x,y,3.75,3.75);
+ }}
+ return c;
+})());
+promenadeColor.colorSpace=THREE.SRGBColorSpace;
+promenadeColor.wrapS=THREE.RepeatWrapping;promenadeColor.wrapT=THREE.RepeatWrapping;
+promenadeColor.repeat.set(1.0,12);
+promenadeColor.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+const matStone=new THREE.MeshStandardMaterial({color:0xcbbda0,roughness:.94});
+const matAsphalt=new THREE.MeshStandardMaterial({color:0x383c42,roughness:.91});
+const matMosaic=new THREE.MeshStandardMaterial({map:promenadeColor,roughness:.81});
+function horizontalPlane(w,h,x,z,y,material){
+ const o=new THREE.Mesh(new THREE.PlaneGeometry(w,h),material);
+ o.rotation.x=-Math.PI/2;o.position.set(x,y,z);o.receiveShadow=true;
+ scene.add(o);return o;
+}
+horizontalPlane(18,285,-9,-25,-.073,matMosaic); // accurately styled Alicante tile motif; corridor outline approximate
+horizontalPlane(13,285,17.5,-25,-.085,matAsphalt);
+horizontalPlane(3,285,29.0,-25,-.073,matStone);
+horizontalPlane(4,285,-20.5,-25,-.069,matStone);
+for(let z=-160;z<125;z+=10){
+ const dash=new THREE.Mesh(new THREE.BoxGeometry(.13,.013,3.2),new THREE.MeshStandardMaterial({color:0xe6dcd0}));
+ dash.position.set(18,-.047,z);scene.add(dash);
+}
+// Clean horizon above the marina, not a false aerial replacement.
+const sea=new THREE.Mesh(new THREE.PlaneGeometry(750,1050),new THREE.MeshPhysicalMaterial({
+ color:0x06738a,metalness:.02,roughness:.23,clearcoat:1,clearcoatRoughness:.16
 }));
-sea.rotation.x=-Math.PI/2;sea.position.set(655,-.16,0);sea.receiveShadow=true;scene.add(sea);
+sea.rotation.x=-Math.PI/2;sea.position.set(395,-.17,-15);scene.add(sea);
+const matIron=new THREE.MeshStandardMaterial({color:0x1b2528,metalness:.72,roughness:.32});
+const matLamp=new THREE.MeshStandardMaterial({color:0xfff1ca,roughness:.38,emissive:0xffc673,emissiveIntensity:.13});
+function cityLamp(x,z){
+ const grp=new THREE.Group();grp.position.set(x,0,z);
+ const pole=new THREE.Mesh(new THREE.CylinderGeometry(.068,.092,4.4,12),matIron);
+ pole.position.y=2.2;grp.add(pole);
+ const arm=new THREE.Mesh(new THREE.BoxGeometry(1.65,.07,.08),matIron);arm.position.set(0,4.32,0);grp.add(arm);
+ for(const t of [-.63,.63]){
+  const globe=new THREE.Mesh(new THREE.SphereGeometry(.23,16,12),matLamp);globe.position.set(t,4.24,0);grp.add(globe);
+ }
+ grp.traverse(n=>{if(n.isMesh)n.castShadow=true});scene.add(grp);
+}
+for(let z=-143;z<114;z+=19)cityLamp(3.9,z);
+let palmCount=0,windowCount=0;
+async function addRealPalmObjects(){
+ try{
+  const data=await model('./assets/palm.glb');
+  const cells=[];
+  for(let z=-140;z<=112;z+=16.5){cells.push([-18.8,z],[5.8,z+4.2]);}
+  const transform=new THREE.Object3D();
+  data.scene.updateMatrixWorld(true);
+  data.scene.traverse(part=>{
+   if(!part.isMesh)return;
+   const mesh=new THREE.InstancedMesh(part.geometry,part.material,cells.length);
+   mesh.castShadow=true;mesh.receiveShadow=true;
+   for(let i=0;i<cells.length;i++){
+    transform.position.set(cells[i][0],-.05,cells[i][1]);
+    transform.rotation.set(0,i*.81,0);transform.scale.setScalar(.88+(i%5)*.035);
+    transform.updateMatrix();
+    mesh.setMatrixAt(i,new THREE.Matrix4().multiplyMatrices(transform.matrix,part.matrixWorld));
+   }
+   mesh.instanceMatrix.needsUpdate=true;
+   scene.add(mesh);
+  });
+  palmCount=cells.length;
+ }catch(err){display('Ciudad cargada; palmeras 3D opcionales no disponibles: '+err.message,true)}
+}
+// Construct facade detail only on ACTUAL OSM walls: no fabricated building footprints.
+function addFacadeDetail(group){
+ let buildingWall=null;
+ group.traverse(o=>{if(o.isMesh&&o.name.includes('Building_Walls'))buildingWall=o;});
+ if(!buildingWall)return;
+ buildingWall.updateWorldMatrix(true,false);
+ const geo=buildingWall.geometry, pos=geo.getAttribute('position'),idx=geo.index;
+ if(!pos)return;
+ const edges=new Map();
+ const count=idx?idx.count:pos.count;
+ const p=[new THREE.Vector3(),new THREE.Vector3(),new THREE.Vector3()];
+ for(let k=0;k<count;k+=3){
+  for(let q=0;q<3;q++){
+   const ix=idx?idx.getX(k+q):k+q;
+   p[q].fromBufferAttribute(pos,ix).applyMatrix4(buildingWall.matrixWorld);
+  }
+  for(let q=0;q<3;q++){
+   const a=p[q],b=p[(q+1)%3];
+   if(Math.abs(a.y-b.y)>.03 || a.y<4.3)continue;
+   const length=Math.hypot(a.x-b.x,a.z-b.z);
+   if(length<2.7||length>37)continue;
+   const mx=(a.x+b.x)/2,mz=(a.z+b.z)/2;
+   if(Math.abs(mx+35)>116||Math.abs(mz+35)>150)continue;
+   const key=[Math.round(a.x*10),Math.round(a.z*10),Math.round(b.x*10),Math.round(b.z*10)].sort((x,y)=>x-y).join(':')+':'+a.y.toFixed(0);
+   if(!edges.has(key))edges.set(key,{ax:a.x,az:a.z,bx:b.x,bz:b.z,h:a.y,len:length});
+  }
+ }
+ const windows=[],frames=[],balconies=[];
+ for(const edge of edges.values()){
+  const floors=Math.min(7,Math.floor(edge.h/3.05));
+  const along=Math.floor(edge.len/2.85);
+  if(along<1)continue;
+  const dx=(edge.bx-edge.ax)/edge.len,dz=(edge.bz-edge.az)/edge.len;
+  const az=-Math.atan2(dz,dx);
+  for(let level=1;level<floors;level++){
+   for(let u=0;u<along;u++){
+    const v=(u+.5)/along;
+    const x=edge.ax+(edge.bx-edge.ax)*v,z=edge.az+(edge.bz-edge.az)*v;
+    const y=level*3.05+1.40;
+    windows.push([x,y,z,az]);
+    frames.push([x,y+1.03,z,az]);
+    if(level>1&&u%2===0)balconies.push([x,y-1.03,z,az]);
+   }
+  }
+ }
+ const make=(points,geometry,material)=> {
+  if(points.length===0)return;
+  const mesh=new THREE.InstancedMesh(geometry,material,points.length);
+  const obj=new THREE.Object3D();
+  points.forEach(([x,y,z,rot],i)=>{obj.position.set(x,y,z);obj.rotation.y=rot;obj.updateMatrix();mesh.setMatrixAt(i,obj.matrix)});
+  mesh.instanceMatrix.needsUpdate=true;mesh.castShadow=true;scene.add(mesh);
+ };
+ make(windows,new THREE.BoxGeometry(1.35,1.86,.11),new THREE.MeshPhysicalMaterial({color:0x163240,metalness:.32,roughness:.16,clearcoat:.53}));
+ make(frames,new THREE.BoxGeometry(1.61,.15,.18),new THREE.MeshStandardMaterial({color:0xe5d6bd,roughness:.67}));
+ make(balconies,new THREE.BoxGeometry(1.55,.11,.82),matStone);
+ windowCount=windows.length;
+}
 
 const player=new THREE.Group();scene.add(player);
+player.position.set(-10,0,-33);
 let avatar=null, city=null,mixer=null,animations={},current=null;
 const keys=new Set();
-let yaw=0.0,pitch=.24,zoom=5.8,mode='back',actorHeading=0,moving=false;
+let yaw=.15,pitch=.16,zoom=4.1,mode='back',actorHeading=0,moving=false;
 const loader=new GLTFLoader();
 const model=(url)=>new Promise((resolve,reject)=>loader.load(url,resolve,undefined,reject));
 const showLoad=(text)=>{progress.textContent=text;};
@@ -72,11 +177,13 @@ async function loadWorld(){
  try{
   const data=await model('./assets/alicante.glb');
   city=data.scene;scene.add(city);
+  addFacadeDetail(city);
+  await addRealPalmObjects();
   city.traverse(n=>{if(n.isMesh){n.receiveShadow=true;n.castShadow=true;if(n.material?.name?.includes('NO_photo')) n.material.roughness=.9;}});
-  showLoad('614 edificios: datos OSM cargados. Cargando avatar GLB privado…');
+  showLoad('Alicante 3D cargada: edificios reales y calle a nivel humano. Cargando cuerpo humano animado…');
  }catch(err){display('No se ha podido cargar la ciudad GLB: '+(err?.message||err),true);showLoad('ERROR: falta assets/alicante.glb');return;}
  try{
-  const data=await model('./assets/lucia.glb');
+  const data=await model('./assets/maya.glb');
   avatar=data.scene;
   const box=new THREE.Box3().setFromObject(avatar),dim=new THREE.Vector3();
   box.getSize(dim);
@@ -87,12 +194,17 @@ async function loadWorld(){
   avatar.traverse(n=>{if(n.isMesh||n.isSkinnedMesh){n.frustumCulled=false;n.castShadow=true;n.receiveShadow=true;
     if(n.material){n.material.side=THREE.DoubleSide;n.material.needsUpdate=true;}}});
   mixer=new THREE.AnimationMixer(avatar);
-  for(const a of data.animations||[])animations[a.name.toLowerCase()]=mixer.clipAction(a);
-  current=animations.idle||data.animations?.length&&mixer.clipAction(data.animations[0]);
+  for(const a of data.animations||[]){
+   const nm=a.name.toLowerCase();
+   const state=nm.includes('run')?'run':nm.includes('walk')?'walk':nm.includes('idle')?'idle':nm;
+   if(!animations[state])animations[state]=mixer.clipAction(a);
+  }
+  current=animations.idle||(data.animations?.length?mixer.clipAction(data.animations[0]):null);
   if(current)current.play();
   loading.remove();
-  display('Ciudad real (614 edificios OSM) + personaje GLB propio. Fachadas sin fotogrametría. Cámara: C.');
- }catch(err){display('No se ha podido cargar el avatar GLB: '+(err?.message||err),true);showLoad('Avatar ausente. Debe existir assets/lucia.glb');return;}
+  window.NPL_READY={cityMeshes:city.children.length,windows:windowCount,palms:palmCount,skins:avatar.children.length,clips:data.animations.map(a=>a.name)};
+  display('Explanada: OSM + escena detallada, palmeras CC0 y cuerpo humano articulado. ROSTRO GENÉRICO: todavía no es Lucía.');
+ }catch(err){display('No se ha podido cargar el avatar GLB: '+(err?.message||err),true);showLoad('Modelo femenino 3D ausente. Debe existir assets/maya.glb');return;}
 }
 function animateState(key){
  const next=animations[key]||animations.walk||animations.idle;
@@ -160,7 +272,7 @@ view.addEventListener('pointermove',e=>{if(!dragging)return;
 view.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(1.85,Math.min(28,zoom+Math.sign(e.deltaY)*.65));},{passive:false});
 const cycleCamera=()=>{mode=mode==='back'?'face':mode==='face'?'first':'back';$('cameraMode').textContent=mode==='back'?'Tercera persona':mode==='face'?'Inspección facial':'Primera persona';};
 $('cam').onclick=cycleCamera;
-$('reset').onclick=()=>{player.position.set(0,0,0);yaw=0;mode='back';};
+$('reset').onclick=()=>{player.position.set(-10,0,-33);yaw=.15;mode='back';};
 $('fidelity').onclick=()=>{let hi=renderer.getPixelRatio()<1.7;renderer.setPixelRatio(hi?Math.min(devicePixelRatio,2):1);sun.shadow.mapSize.set(hi?2048:1024,hi?2048:1024);sun.shadow.map?.dispose();sun.shadow.map=null;};
 frame();
 loadWorld();
