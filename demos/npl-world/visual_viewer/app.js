@@ -168,7 +168,7 @@ const player=new THREE.Group();scene.add(player);
 player.position.set(-10,0,-33);
 let avatar=null, city=null,mixer=null,animations={},current=null;
 const keys=new Set();
-let yaw=.15,pitch=.16,zoom=4.1,mode='back',actorHeading=0,moving=false;
+let yaw=-.37,pitch=.15,zoom=3.75,mode='back',actorHeading=0,moving=false;
 const loader=new GLTFLoader();
 const model=(url)=>new Promise((resolve,reject)=>loader.load(url,resolve,undefined,reject));
 const showLoad=(text)=>{progress.textContent=text;};
@@ -191,6 +191,36 @@ async function loadWorld(){
   avatar.scale.setScalar(scale);
   avatar.position.y=-box.min.y*scale;
   player.add(avatar);
+  // Add a lightweight strand-based long hairstyle to the actual animated head bone.
+  // Unlike a floating photographic hair card, these 3D tubes FOLLOW head animation.
+  let headJoint;
+  avatar.traverse(n=>{if(n.isBone && /(^head$|head_)/i.test(n.name))headJoint=n;});
+  if(headJoint){
+   const hairMaterial=new THREE.MeshStandardMaterial({color:0x543b2b,roughness:.73,metalness:.04,side:THREE.DoubleSide});
+   for(let i=0;i<110;i++){
+    const a=(i/110)*Math.PI*2,side=Math.cos(a),rear=Math.sin(a);
+    if(rear>.45 && Math.abs(side)<.72)continue; // front opens around the face
+    const ax=side*.094,az=rear*.079-.023;
+    const len=.38+((i*37)%51)/210;
+    const pts=[
+     new THREE.Vector3(ax,.105,az),
+     new THREE.Vector3(ax*1.18,.02,az-.02),
+     new THREE.Vector3(ax*1.32,-len*.48,az-.028),
+     new THREE.Vector3(ax*1.10+.022*Math.sin(i*1.73),-len,az-.048)
+    ];
+    const curve=new THREE.CatmullRomCurve3(pts);
+    const strand=new THREE.Mesh(new THREE.TubeGeometry(curve,13,.0023+(i%4)*.0004,4,false),hairMaterial);
+    strand.castShadow=true;
+    headJoint.add(strand);
+   }
+  }
+  // Tailored dark clothing rather than the generic bright casual prototype.
+  avatar.traverse(n=>{
+   if(!n.isMesh||!n.material)return;
+   const mat=n.material;
+   if(/plum satin/i.test(mat.name)){n.material=mat.clone();n.material.color.setRGB(.23,.22,.24);}
+   if(/ponytail/i.test(mat.name)){n.material=mat.clone();n.material.color.multiplyScalar(.79);}
+  });
   avatar.traverse(n=>{if(n.isMesh||n.isSkinnedMesh){n.frustumCulled=false;n.castShadow=true;n.receiveShadow=true;
     if(n.material){n.material.side=THREE.DoubleSide;n.material.needsUpdate=true;}}});
   mixer=new THREE.AnimationMixer(avatar);
@@ -272,7 +302,7 @@ view.addEventListener('pointermove',e=>{if(!dragging)return;
 view.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(1.85,Math.min(28,zoom+Math.sign(e.deltaY)*.65));},{passive:false});
 const cycleCamera=()=>{mode=mode==='back'?'face':mode==='face'?'first':'back';$('cameraMode').textContent=mode==='back'?'Tercera persona':mode==='face'?'Inspección facial':'Primera persona';};
 $('cam').onclick=cycleCamera;
-$('reset').onclick=()=>{player.position.set(-10,0,-33);yaw=.15;mode='back';};
+$('reset').onclick=()=>{player.position.set(-10,0,-33);yaw=-.37;mode='back';};
 $('fidelity').onclick=()=>{let hi=renderer.getPixelRatio()<1.7;renderer.setPixelRatio(hi?Math.min(devicePixelRatio,2):1);sun.shadow.mapSize.set(hi?2048:1024,hi?2048:1024);sun.shadow.map?.dispose();sun.shadow.map=null;};
 frame();
 loadWorld();
