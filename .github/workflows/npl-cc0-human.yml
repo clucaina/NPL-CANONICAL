@@ -1,0 +1,44 @@
+name: NPL high-detail human body asset CC0 (no user photos)
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/npl-cc0-human.yml"
+permissions:
+  contents: read
+jobs:
+  fetch-human:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Download CC0 MakeHuman-based Riley model (public asset only)
+        run: |
+          set -euo pipefail
+          mkdir -p output
+          curl -fLS --retry 4 --retry-delay 2 --connect-timeout 15 --max-time 180 \
+            'https://www.innerscene.com/api/library/riley-3d-person-woman-standing-8d40398f/download' \
+            -o output/riley_makehuman_cc0.glb
+          python3 - <<'PY'
+          import json,struct,pathlib
+          p=pathlib.Path('output/riley_makehuman_cc0.glb');d=p.read_bytes()
+          assert len(d)>3000000,(len(d),'unrealistic model bytes')
+          magic,v,total=struct.unpack_from('<III',d)
+          assert magic==0x46546c67 and v==2 and total==len(d)
+          jl=struct.unpack_from('<I',d,12)[0];g=json.loads(d[20:20+jl])
+          summary={'glb_bytes':len(d),'meshes':len(g.get('meshes',[])),
+           'skins':len(g.get('skins',[])),'animations':len(g.get('animations',[])),
+           'image_count':len(g.get('images',[])),
+           'material_count':len(g.get('materials',[]))}
+          pathlib.Path('output/ASSET_REPORT.json').write_text(json.dumps(summary,indent=2))
+          print(summary)
+          assert summary['meshes']>0
+          PY
+      - name: Include CC0 source info
+        run: |
+          printf '%s\n' 'Riley 3D Person Woman Standing — Innerscene CC0 original, adapted from MakeHuman/MPFB CC0 assets.' 'https://www.innerscene.com/tools/library/3d-parts/riley-3d-person-woman-standing-8d40398f' 'No private portrait nor biometric data uploaded to this workflow.' > output/LICENSE_SOURCE.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NPL_CC0_MakeHuman_body_no_personal_data
+          path: output/
+          retention-days: 3
+          if-no-files-found: error
