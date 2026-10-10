@@ -1,0 +1,39 @@
+name: NPL urban CC0 3D props for Alicante
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/npl-city-props.yml"
+permissions:
+  contents: read
+jobs:
+  fetch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Fetch realistic CC0 urban assets
+        run: |
+          set -euo pipefail
+          mkdir -p assets
+          curl -fLsS --retry 3 --max-time 120 'https://www.innerscene.com/api/library/white-four-door-sedan-1f271353/download' -o assets/sedan_white.glb
+          curl -fLsS --retry 3 --max-time 120 'https://www.innerscene.com/api/library/graphite-four-door-sedan-eed96d12/download' -o assets/sedan_graphite.glb
+          curl -fLsS --retry 3 --max-time 120 'https://www.innerscene.com/api/library/folding-bistro-table-and-chairs-ccdab1a4/download' -o assets/cafe_set.glb
+          python3 - <<'PY'
+          import struct,json,pathlib
+          for file in sorted(pathlib.Path('assets').glob('*.glb')):
+              d=file.read_bytes()
+              assert d[:4]==b'glTF' and struct.unpack_from('<I',d,8)[0]==len(d)
+              size=struct.unpack_from('<I',d,12)[0]
+              j=json.loads(d[20:20+size])
+              assert len(d)>100000 and j.get('meshes'),file
+              print(file.name,len(d),'bytes',len(j['meshes']),'meshes',len(j.get('materials',[])),'materials')
+          PY
+      - name: Record public domain attribution and original sources
+        run: |
+          printf '%s\n' 'Public-domain CC0 original GLB 3D assets by Innerscene (sedans) and Poly Haven (outdoor cafe furniture).' 'https://www.innerscene.com/tools/library/3d-parts/white-four-door-sedan-1f271353' 'https://www.innerscene.com/tools/library/3d-parts/graphite-four-door-sedan-eed96d12' 'https://www.innerscene.com/tools/library/3d-parts/folding-bistro-table-and-chairs-ccdab1a4' > assets/LICENSE_SOURCES.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NPL_Alicante_Car_Cafe_CC0_props
+          path: assets/
+          retention-days: 3
+          if-no-files-found: error
