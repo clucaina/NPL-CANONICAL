@@ -1,0 +1,15 @@
+{
+  "name": "npl-world-viewer",
+  "version": "0.7.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild app.js --bundle --format=iife --minify --outfile=dist/game.js"
+  },
+  "dependencies": {
+    "three": "0.169.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.24.2"
+  }
+}
