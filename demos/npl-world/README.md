@@ -1,4 +1,15 @@
-# NPL WORLD — Estado del proyecto (10 octubre 2026)
+# NPL WORLD — objetivo visual premium
+
+**[Nueva ruta: Alicante fotorrealista 3D y avatar GLB real](fotorrealismo/index.html)**
+
+El archivo en `fotorrealismo/index.html` carga fotogrametría real de Google Maps mediante Cesium; requiere clave de Map Tiles API con facturación habilitada. **Sin credenciales no inventa edificios, no muestra un falso GTA y explica qué acceso falta.** Permite importar un humano real .glb local sin transmitir el archivo y ofrece un modelo CC0 de muestra (no representa a Lucía). [Requisitos y verificación](fotorrealismo/README.md).
+
+La reconstrucción facial personalizada de Lucía y la prueba real de la cobertura de Google en Alicante están pendientes. Este es un **integrador visual técnico**, NO una demo GTA terminada.
+
+---
+
+## Historial de prototipos previos
+
 
 ## Nueva escena 3D editable — prioridad visual
 
