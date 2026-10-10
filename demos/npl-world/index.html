@@ -30,7 +30,7 @@ const missions=[
  {name:'Paseo marítimo',c:[-0.48197,38.34099],desc:'El paseo litoral conecta movilidad, uso público y resiliencia climática. La ruta geográfica es orientativa, no navegación peatonal homologada.'},
  {name:'Centro histórico',c:[-0.48024,38.34679],desc:'Zona para analizar turismo, conservación del patrimonio y accesibilidad urbana mediante indicadores públicos verificables.'}
 ];
-let satelliteActive=false,throttleAt=0;let map,player=[...START],yaw=115,pitch=78,zoom=19.1,follow=true,view='walk',started=false,loadedMap=false,avatarReady=false,loadingAvatar=false,animationReady=false,activeAction=null,currentName='',mixer=null,clock=new THREE.Clock(),last=performance.now(),goals=new Set(),destination=0;
+let satelliteActive=false,throttleAt=0,faceYaw=115;let map,player=[...START],yaw=115,pitch=78,zoom=19.1,follow=true,view='walk',started=false,loadedMap=false,avatarReady=false,loadingAvatar=false,animationReady=false,activeAction=null,currentName='',mixer=null,clock=new THREE.Clock(),last=performance.now(),goals=new Set(),destination=0;
 let avatarRoot=null,avatarParent=null,canvasLayer=null,animationClips={};const pressed=new Set(),metersPerLat=111320;const RAD=Math.PI/180;
 const note=(s,ms=4000)=>{const n=$('notice');n.textContent=s;n.style.display='block';clearTimeout(note.timer);note.timer=setTimeout(()=>n.style.display='none',ms)};
 function dmeters(a,b){const dx=(a[0]-b[0])*metersPerLat*Math.cos(a[1]*RAD),dy=(a[1]-b[1])*metersPerLat;return Math.hypot(dx,dy)}
@@ -77,7 +77,7 @@ function makeThreeLayer(){return{id:'npl-human',type:'custom',renderingMode:'3d'
   // Shared OpenGL canvas: MapLibre view-projection followed by geographic-meter-to-Mercator transform.
   const matrix=new THREE.Matrix4().fromArray(args.defaultProjectionData?.mainMatrix || args);
   const geographic=new THREE.Matrix4().makeTranslation(coord.x,coord.y,coord.z).scale(new THREE.Vector3(scale,-scale,scale));
-  const correctAxes=new THREE.Matrix4().makeRotationX(Math.PI/2);const orient=new THREE.Matrix4().makeRotationY(-yaw*RAD);
+  const correctAxes=new THREE.Matrix4().makeRotationX(Math.PI/2);const orient=new THREE.Matrix4().makeRotationY(-faceYaw*RAD);
   this.camera.projectionMatrix.copy(matrix).multiply(geographic).multiply(correctAxes).multiply(orient);
   this.renderer.resetState();this.renderer.render(this.scene,this.camera);this.map.triggerRepaint();
  }};}
@@ -88,7 +88,7 @@ function frame(){requestAnimationFrame(frame);const dt=Math.min(.065,clock.getDe
  const f=Number(pressed.has('KeyW')||pressed.has('ArrowUp'))-Number(pressed.has('KeyS')||pressed.has('ArrowDown'));
  const s=Number(pressed.has('KeyD'))-Number(pressed.has('KeyA'));const mv=Math.hypot(f,s)>0;
  if(pressed.has('ArrowLeft'))yaw-=dt*95;if(pressed.has('ArrowRight'))yaw+=dt*95;
- if(mv){const magnitude=Math.hypot(f,s),meters=dt*speed(),angle=yaw*RAD;
+ if(mv){faceYaw=yaw+Math.atan2(s,f)/RAD;const magnitude=Math.hypot(f,s),meters=dt*speed(),angle=yaw*RAD;
   const east=(Math.sin(angle)*f+Math.cos(angle)*s)/magnitude*meters,north=(Math.cos(angle)*f-Math.sin(angle)*s)/magnitude*meters;
   player[0]+=east/(metersPerLat*Math.cos(player[1]*RAD));player[1]+=north/metersPerLat;
   // Rough terrain-free route: never pretend there are collision meshes for real-world buildings.
@@ -100,7 +100,7 @@ function frame(){requestAnimationFrame(frame);const dt=Math.min(.065,clock.getDe
 const begin=()=>{$('startup').style.display='none';started=true;follow=true;clock.getDelta();updateHUD();note('Mapa georreferenciado. Usa WASD; gira con ← →. Edificios reales de OSM, sin texturas fotográficas.',6500)};
 $('satellite').onclick=()=>{if(!map||!loadedMap)return;satelliteActive=!satelliteActive;map.setLayoutProperty('npl-satellite-layer','visibility',satelliteActive?'visible':'none');$('satellite').textContent=satelliteActive?'◉ MAPA VECTORIAL':'◉ SATÉLITE';note(satelliteActive?'Suelo fotografiado desde satélite · edificios aún extruidos (NO fotogrametría)':'Mapa cartográfico con edificios 3D de OSM')};
 $('enter').onclick=begin;$('target').onclick=()=>{const m=missions[destination];map.flyTo({center:m.c,zoom:18.8,bearing:yaw,pitch:67,duration:1800});follow=false;note('Mostrando '+m.name+'. Pulsa CENTRAR para recuperar la cámara.')};$('next').onclick=()=>{destination=(destination+1)%missions.length;updateHUD();note('Siguiente destino: '+missions[destination].name)};
-$('investigate').onclick=interact;$('close').onclick=()=>$('dialog').style.display='none';$('camera').onclick=()=>setView(view==='walk'?'fly':'walk');$('mode').onclick=()=>setView('walk');$('fly').onclick=()=>{setView('fly');map.flyTo({center:player,zoom:16.3,pitch:55,duration:1000})};$('follow').onclick=()=>{follow=true;setView('walk')};$('teleport').onclick=()=>{player=[...START];yaw=115;follow=true;setView('walk');updateHUD()};$('photoCity').onclick=()=>location.href='alicante_fotogrametria.html';$('avatar').onclick=()=>$('file').click();
+$('investigate').onclick=interact;$('close').onclick=()=>$('dialog').style.display='none';$('camera').onclick=()=>setView(view==='walk'?'fly':'walk');$('mode').onclick=()=>setView('walk');$('fly').onclick=()=>{setView('fly');map.flyTo({center:player,zoom:16.3,pitch:55,duration:1000})};$('follow').onclick=()=>{follow=true;setView('walk')};$('teleport').onclick=()=>{player=[...START];yaw=115;faceYaw=115;follow=true;setView('walk');updateHUD()};$('photoCity').onclick=()=>location.href='alicante_fotogrametria.html';$('avatar').onclick=()=>$('file').click();
 $('file').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;const u=URL.createObjectURL(file);try{await loadModel(u,'personal');note('Modelo importado con esqueleto y tres clips de locomoción.');}catch(err){note('GLB no válido para locomoción: '+err.message,6000)}finally{setTimeout(()=>URL.revokeObjectURL(u),8000);e.target.value=''}});
 window.addEventListener('keydown',e=>{if(['KeyW','KeyA','KeyS','KeyD','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','ShiftLeft','ShiftRight'].includes(e.code)&&started){e.preventDefault();}if(e.target instanceof HTMLInputElement)return;pressed.add(e.code);if(e.repeat)return;if(e.code==='KeyE')interact();if(e.code==='KeyV')setView(view==='walk'?'fly':'walk');if(e.code==='KeyM'){follow=false;map.flyTo({zoom:15.2,pitch:38,duration:850})}if(e.code==='Escape')$('dialog').style.display='none';});window.addEventListener('keyup',e=>pressed.delete(e.code));window.addEventListener('blur',()=>pressed.clear());
 try{setupMap();requestAnimationFrame(frame)}catch(err){$('loadingStatus').textContent='No se ha iniciado MapLibre: '+err.message;console.error(err)}
