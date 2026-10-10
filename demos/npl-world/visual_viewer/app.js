@@ -17,7 +17,7 @@ renderer.toneMappingExposure=1.07;
 const scene=new THREE.Scene();
 scene.background=new THREE.Color('#9fbed3');
 scene.fog=new THREE.FogExp2(0xa4bfd0,0.0020);
-const camera=new THREE.PerspectiveCamera(61,1,.08,2200);
+const camera=new THREE.PerspectiveCamera(54,1,.07,1800);
 const ambient=new THREE.HemisphereLight(0xdff3ff,0x90765b,1.75);
 scene.add(ambient);
 const sun=new THREE.DirectionalLight(0xffe5b8,2.1);
@@ -183,7 +183,7 @@ const player=new THREE.Group();scene.add(player);
 player.position.set(-10.664,0,113.546);
 let avatar=null, city=null,mixer=null,animations={},current=null;
 const keys=new Set();
-let yaw=-.65,pitch=.14,zoom=3.6,mode='back',actorHeading=0,moving=false;
+let yaw=-.65,pitch=.14,zoom=2.95,mode='back',actorHeading=0,moving=false;
 const loader=new GLTFLoader();
 const model=(url)=>new Promise((resolve,reject)=>loader.load(url,resolve,undefined,reject));
 const showLoad=(text)=>{progress.textContent=text;};
@@ -258,11 +258,11 @@ function frame(){
  const fast=keys.has('ShiftLeft')||keys.has('ShiftRight');
  if(moving){
   const speed=(fast?6.6:2.6)*dt/total;
-  const dx=Math.sin(yaw)*forward+Math.cos(yaw)*strafe;
-  const dz=Math.cos(yaw)*forward-Math.sin(yaw)*strafe;
+  const dx=Math.sin(yaw)*forward-Math.cos(yaw)*strafe;
+  const dz=Math.cos(yaw)*forward+Math.sin(yaw)*strafe;
   player.position.x=Math.max(-318,Math.min(402,player.position.x+dx*speed));
   player.position.z=Math.max(-411,Math.min(304,player.position.z+dz*speed));
-  actorHeading=Math.atan2(dx,dz);
+  actorHeading=Math.atan2(Math.sin(yaw)*Math.sign(forward),Math.cos(yaw)*Math.sign(forward));
   if(Math.abs(forward)>.05){const headingDelta=Math.atan2(Math.sin(actorHeading-avatar.rotation.y),Math.cos(actorHeading-avatar.rotation.y));
     avatar.rotation.y+=headingDelta*Math.min(1,dt*7);}
   // Lateral input remains strafe rather than forcing a 90-degree turn.
