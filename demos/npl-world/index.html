@@ -11,10 +11,10 @@ body.photo header,body.photo #mission,body.photo #hudRight,body.photo #help,body
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
 </head><body>
 <div id="view"></div><div id="err"></div>
-<header><div class="brand"><div id="logo">N✦</div><div><strong>NPL WORLD</strong><small>ALICANTE · WORLD PROTOTYPE 01</small></div></div><div class="actions"><button class="btn gold" id="realBtn">◈ ALICANTE REAL</button><button class="btn" id="camBtn">◉ CÁMARA</button><button class="btn" id="qualityBtn">◈ CALIDAD</button><button class="btn" id="lightBtn">☀ LUZ</button><button class="btn" id="modelBtn">♟ AVATAR GLB</button><button class="btn" id="helpBtn">? AYUDA</button></div></header>
+<header><div class="brand"><div id="logo">N✦</div><div><strong>NPL WORLD</strong><small>ALICANTE · PRUEBA TÉCNICA · NO MVP FINAL</small></div></div><div class="actions"><button class="btn gold" id="realBtn">◈ ALICANTE REAL</button><button class="btn" id="camBtn">◉ CÁMARA</button><button class="btn" id="qualityBtn">◈ CALIDAD</button><button class="btn" id="lightBtn">☀ LUZ</button><button class="btn" id="modelBtn">♟ AVATAR GLB</button><button class="btn" id="helpBtn">? AYUDA</button></div></header>
 <section id="mission" class="glass"><div id="eyebrow">MISIÓN 01 · ALICANTE BAJO LA LUPA</div><h2 id="missionTitle">La ciudad como laboratorio</h2><p id="missionText">Explora una reinterpretación 3D de la Explanada de España y la Marina. Acércate a los puntos de investigación y pulsa E.</p><div id="missionMeter"><b></b></div><div id="missionSub"><span id="objective">HITOS DOCUMENTALES</span><span id="score">0/5</span></div><button class="btn gold" id="targetBtn">✦ MOSTRAR DESTINO</button><div id="radar"><i id="radarUser"></i><i id="radarDot"></i></div></section>
-<div class="foot glass"><div id="avatarIcon">L</div><div><div id="playerName">EXPLORADORA</div><div id="playerSubtitle">Tercera persona · 3D real</div></div></div><div id="hudRight"><button class="btn" id="interactBtn">✧ &nbsp; E · INVESTIGAR</button><button class="btn" id="photoBtn">▧ &nbsp; MODO FOTO</button><button class="btn" id="viewBtn">◉ &nbsp; PRIMERA PERSONA</button><button class="btn" id="resetBtn">↺ &nbsp; VOLVER AL INICIO</button></div>
-<div id="help">W A S D · mover &nbsp; | &nbsp; RATÓN · orbitar &nbsp; | &nbsp; SHIFT · correr &nbsp; | &nbsp; E · investigar &nbsp; | &nbsp; V · cámara &nbsp; | &nbsp; P · foto</div><div id="credit">Escena 3D reinterpretada; NO es una reconstrucción geográfica exacta. Avatar humano externo CC0 (Innerscene / MakeHuman).</div><div id="toast">Preparando escena 3D…</div><div id="dialog" class="glass"><h2 id="dialogTitle"></h2><p id="dialogText"></p><button class="btn" id="dialogClose">CERRAR · ESC</button></div><input type="file" id="fileInput" accept=".glb,.gltf,model/gltf-binary,model/gltf+json" />
+<div class="foot glass"><div id="avatarIcon">L</div><div><div id="playerName">EXPLORADORA</div><div id="playerSubtitle">Modelo genérico · no personalizado</div></div></div><div id="hudRight"><button class="btn" id="interactBtn">✧ &nbsp; E · INVESTIGAR</button><button class="btn" id="photoBtn">▧ &nbsp; MODO FOTO</button><button class="btn" id="viewBtn">◉ &nbsp; PRIMERA PERSONA</button><button class="btn" id="resetBtn">↺ &nbsp; VOLVER AL INICIO</button></div>
+<div id="help">W A S D · mover &nbsp; | &nbsp; RATÓN · orbitar &nbsp; | &nbsp; SHIFT · correr &nbsp; | &nbsp; E · investigar &nbsp; | &nbsp; V · cámara &nbsp; | &nbsp; P · foto</div><div id="credit">Escena artística: NO es fotogrametría real. Avatar de prueba externo: NO representa a Lucía.</div><div id="toast">Preparando escena 3D…</div><div id="dialog" class="glass"><h2 id="dialogTitle"></h2><p id="dialogText"></p><button class="btn" id="dialogClose">CERRAR · ESC</button></div><input type="file" id="fileInput" accept=".glb,.gltf,model/gltf-binary,model/gltf+json" />
 <div id="mobilePad"><div style="display:flex;justify-content:center"><button data-key="KeyW">↑</button></div><div class="movrow"><button data-key="KeyA">←</button><button data-key="KeyS">↓</button><button data-key="KeyD">→</button></div></div>
 <div id="loading"><div class="center"><div id="loadingIcon">N✦</div><h1>NPL WORLD</h1><p id="loadText">Creando una escena 3D navegable de la Explanada, fachadas mediterráneas y puerto de Alicante.</p><div id="loadbar"><b id="loadfill"></b></div><button id="start">ENTRAR A ALICANTE →</button></div></div>
 <script type="module">
@@ -57,7 +57,24 @@ for(let z=-166;z<=166;z+=7){box(46,.17,z,.23,.07,1.5,steel,false)}
 const waterMat=new THREE.MeshPhysicalMaterial({color:'#15809a',metalness:.22,roughness:.26,transparent:true,opacity:.93,clearcoat:1});box(225,-.08,0,355,.09,960,waterMat,false);
 for(let i=0;i<150;i++){const z=(rng()-.5)*510,x=50+rng()*235;box(x,.004,z,0.8+rng()*7,.009,.035,m(rng()>.5?'#7bc1c9':'#b4e9e5'),false)}
 // Land coast / hills silhouette, approximate artistic backdrop
-const hillMat=m('#a28c6e');for(let k=0;k<22;k++){const xx=350+k*15,zz=-210+k*18;const h=28+rng()*55;const mesh=add(new THREE.ConeGeometry(35+rng()*28,h,6),hillMat,xx,h*.45,zz,false);mesh.rotation.y=rng()*2;}
+// No cone-shaped mountains: a continuous terrain mesh prevents triangular spike silhouettes.
+function coastalTerrain(){
+ const g=new THREE.PlaneGeometry(430,430,95,95),p=g.attributes.position,colors=[];
+ const cLow=new THREE.Color('#a78a6c'),cHigh=new THREE.Color('#cabca1');
+ const gaussian=(x,z,cx,cz,sx,sz)=>Math.exp(-((x-cx)*(x-cx)/(sx*sx)+(z-cz)*(z-cz)/(sz*sz)));
+ for(let i=0;i<p.count;i++){
+   const x=p.getX(i),z=-p.getY(i),ax=x+515,az=z-20;
+   const r=gaussian(ax,az,405,-110,130,100)*58+gaussian(ax,az,535,10,180,125)*42;
+   const rocky=(Math.sin(x*.11+Math.sin(z*.02))*Math.cos(z*.10))*1.75;
+   const height=-3+Math.max(0,r+rocky);
+   p.setZ(i,height);
+   const col=cLow.clone().lerp(cHigh,Math.min(.85,height/100));
+   colors.push(col.r,col.g,col.b);
+ }
+ g.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));g.computeVertexNormals();g.rotateX(-Math.PI/2);
+ const hill=new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,metalness:0,side:THREE.DoubleSide}));
+ hill.position.set(515,0,-20);hill.castShadow=false;hill.receiveShadow=true;scene.add(hill);
+}coastalTerrain();
 // The castle is an artistic silhouette, not a georeferenced model
 function castle(){const mat=m('#bea47d');const root=new THREE.Group();root.position.set(-265,52,-220);scene.add(root);for(let i=0;i<9;i++){const q=new THREE.Mesh(unitBox,mat);q.position.set((i-4)*8,5+rng()*3,0);q.scale.set(8,9+rng()*7,7);root.add(q)}const t=new THREE.Mesh(unitBox,mat);t.position.set(0,14,2);t.scale.set(12,26,9);root.add(t);const base=new THREE.Mesh(new THREE.ConeGeometry(85,95,8),m('#867b67'));base.position.y=-37;root.add(base)}castle();
 // Buildings: facades with real geometry around window reveals / balconies / pilasters
@@ -131,32 +148,124 @@ const missions=[
 const markerGroup=new THREE.Group();scene.add(markerGroup);const markerGeo=new THREE.OctahedronGeometry(.88,0);const markerMat=new THREE.MeshStandardMaterial({color:0xf9d18d,emissive:0xf5aa40,emissiveIntensity:.65,metalness:.26,roughness:.19});const markers=missions.map((q,i)=>{const s=new THREE.Mesh(markerGeo,markerMat.clone());s.position.set(q.x,2.9,q.z);markerGroup.add(s);const col=add(new THREE.CylinderGeometry(.035,.035,1.2,7),m('#e1c99c'),q.x,.8,q.z,false);return s});
 const player=new THREE.Group();player.position.set(0,.14,16);scene.add(player);
 let character=null,mixer=null,actions={},playing='',modelReady=false,avatarSource='';
-const modelURLs=['https://www.innerscene.com/api/library/locomotion-collection-harper-3d-person-animated-797e1e2a/download','https://threejs.org/examples/models/gltf/Michelle.glb'];
-function installModel(glb,url){if(character){player.remove(character);character.traverse(o=>{if(o.isSkinnedMesh||o.isMesh){o.geometry?.dispose?.()}})}const obj=glb.scene;obj.updateMatrixWorld(true);const bounds=new THREE.Box3().setFromObject(obj);const height=bounds.max.y-bounds.min.y||1;const scaler=1.70/height;obj.scale.multiplyScalar(scaler);obj.position.y=-bounds.min.y*scaler;obj.castShadow=true;obj.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;o.frustumCulled=false}});character=obj;player.add(character);mixer=new THREE.AnimationMixer(character);actions={};for(const clip of glb.animations||[]){actions[clip.name.toLowerCase()]=mixer.clipAction(clip);actions[clip.name.toLowerCase()].enabled=true}playing='';let idle=Object.keys(actions).find(k=>/idle|standing/.test(k))||Object.keys(actions)[0];if(idle&&!/dance|samba/.test(idle)){actions[idle].play();playing=idle}modelReady=true;avatarSource=url;toast('✓ Avatar humano volumétrico importado: '+(url.includes('innerscene')?'Innerscene CC0':'modelo alternativo / personalizado'));$('loadText').textContent='Escena lista. Modelo 3D cargado; ya puedes explorar.'}
+// The supplied fallback character has a Samba clip but no walk/run/idle.
+// A clip that is not suitable for locomotion must NEVER leave the avatar in a static T pose.
+let proceduralRig=[],proceduralEnabled=false,poseTime=0,animationMode='sin comprobar';
+const modelURLs=['https://threejs.org/examples/models/gltf/Michelle.glb'];
+const nname=b=>b.name.toLowerCase().replace(/[^a-z0-9]/g,'').replace(/^mixamorig/,'');
+function boneBy(rx,bones){return bones.find(b=>rx.test(nname(b)))}
+function rigHumanoid(obj){
+  proceduralRig=[];obj.updateMatrixWorld(true);
+  const bones=[];obj.traverse(n=>{if(n.isBone)bones.push(n)});
+  const defs=[
+    [/^(leftarm|leftupperarm|upperarml|lupperarm)$/,'arm',-1],
+    [/^(rightarm|rightupperarm|upperarmr|rupperarm)$/,'arm',1],
+    [/^(leftupleg|leftthigh|upperlegl|thighl)$/,'leg',-1],
+    [/^(rightupleg|rightthigh|upperlegr|thighr)$/,'leg',1],
+    [/^(leftforearm|leftlowerarm|lowerarml)$/,'forearm',-1],
+    [/^(rightforearm|rightlowerarm|lowerarmr)$/,'forearm',1],
+  ];
+  const UP=new THREE.Vector3(0,1,0);
+  for(const [rx,kind,side] of defs){
+    const bone=boneBy(rx,bones);if(!bone)continue;
+    const base=bone.quaternion.clone();let correction=new THREE.Quaternion();
+    if(kind==='arm'){
+      const child=bone.children.find(n=>n.isBone);
+      if(child){
+        const a=bone.getWorldPosition(new THREE.Vector3());
+        const b=child.getWorldPosition(new THREE.Vector3());
+        const source=b.sub(a).normalize();
+        const desired=new THREE.Vector3(side*.20,-.98,0).normalize();
+        // Rotate in *parent-local* frame, not in unrelated mesh axes.
+        const worldRotation=new THREE.Quaternion().setFromUnitVectors(source,desired);
+        const parentRotation=bone.parent.getWorldQuaternion(new THREE.Quaternion());
+        correction=parentRotation.clone().invert().multiply(worldRotation).multiply(parentRotation);
+      }
+    }
+    proceduralRig.push({bone,base,correction,kind,side});
+  }
+  // Procedural gait requires two thigh bones. This prevents fake success messages.
+  const arms=proceduralRig.filter(b=>b.kind==='arm').length;
+  const legs=proceduralRig.filter(b=>b.kind==='leg').length;
+  return {bones:bones.length,arms,legs,valid:arms>=2&&legs>=2};
+}
+function applyProceduralPose(dt,mode){
+  if(!proceduralEnabled||!character)return;
+  poseTime+=dt*(mode==='run'?10.8:mode==='walk'?7.1:1.25);
+  const intensity=mode==='run'?.63:mode==='walk'?.37:.025;
+  const rotAxis=new THREE.Vector3(1,0,0);
+  for(const entry of proceduralRig){
+    const {bone,base,kind,side,correction}=entry;
+    bone.quaternion.copy(base);
+    if(kind==='arm')bone.quaternion.premultiply(correction);
+    let shift=0;
+    if(kind==='arm')shift=-side*Math.sin(poseTime)*intensity*.66;
+    if(kind==='leg')shift=side*Math.sin(poseTime)*intensity;
+    if(kind==='forearm')shift=.10+Math.max(0,side*Math.sin(poseTime))*intensity*.35;
+    if(shift)bone.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(rotAxis,shift));
+  }
+}
+function installModel(glb,url){
+  if(character){player.remove(character);character.traverse(o=>{if(o.isSkinnedMesh||o.isMesh){o.geometry?.dispose?.()}})}
+  const obj=glb.scene;
+  obj.updateMatrixWorld(true);
+  const bounds=new THREE.Box3().setFromObject(obj),height=bounds.max.y-bounds.min.y||1,scaler=1.70/height;
+  obj.scale.multiplyScalar(scaler);obj.position.y=-bounds.min.y*scaler;
+  obj.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;o.frustumCulled=false}});
+  character=obj;player.add(character);character.updateMatrixWorld(true);
+  mixer=new THREE.AnimationMixer(character);actions={};
+  for(const clip of glb.animations||[]){const key=clip.name.toLowerCase();actions[key]=mixer.clipAction(clip)}
+  const keyList=Object.keys(actions);
+  const hasIdle=keyList.some(x=>/idle|standing/.test(x)),hasWalk=keyList.some(x=>/walk|brisk/.test(x)),hasRun=keyList.some(x=>/run|jog/.test(x));
+  playing='';const result=rigHumanoid(character);
+  proceduralEnabled=!(hasIdle&&hasWalk&&hasRun)&&result.valid;
+  if(proceduralEnabled){
+    animationMode='locomoción ósea procedimental';applyProceduralPose(0,'idle');
+  }else if(hasIdle&&hasWalk&&hasRun){
+    animationMode='clips Idle/Walk/Run';
+    const idle=keyList.find(x=>/idle|standing/.test(x));actions[idle].reset().play();playing=idle;
+  }else{
+    // Missing proper gait / skeleton; avoid describing a broken rig as animated.
+    animationMode='SIN locomoción válida · importa un GLB con Idle/Walk/Run';
+  }
+  modelReady=true;avatarSource=url;
+  $('playerName').textContent='PERSONAJE DE PRUEBA';
+  $('playerSubtitle').textContent=animationMode;
+  $('credit').textContent='Ciudad artística NO fotogramétrica. Modelo femenino de demostración: NO representa a Lucía. Animación: '+animationMode+'.';
+  toast('Modelo 3D cargado · '+animationMode+' · NO es la reconstrucción de Lucía');
+  $('loadText').textContent='Modelo volumétrico disponible: '+animationMode+'. No reproduce la identidad de Lucía.';
+}
 function loadAsset(url,index=0){return new Promise((resolve,reject)=>{new GLTFLoader().load(url,glb=>{try{installModel(glb,url);resolve(true)}catch(e){reject(e)}},p=>{if(p.lengthComputable&&index===0){$('loadfill').style.width=Math.min(90,35+p.loaded/p.total*55)+'%'}},reject)})}
-async function loadAvatar(){for(let i=0;i<modelURLs.length;i++){try{await loadAsset(modelURLs[i],i);return}catch(e){console.warn('No se pudo cargar el modelo',modelURLs[i],e)}}toast('El servidor del avatar rechazó la descarga. Abre la fuente CC0 y después importa el GLB con AVATAR GLB.');$('loadText').textContent='La escena está lista. El avatar remoto no se pudo descargar (red o CORS); puedes cargar un archivo .glb propio.'}
-function setAnim(target){if(!mixer||!modelReady)return;const keys=Object.keys(actions);let desired=(target==='run'?keys.find(k=>/run|jog/.test(k)):target==='walk'?keys.find(k=>/walk|brisk/.test(k)):keys.find(k=>/idle|stand/.test(k)))||keys[0];if(desired===playing)return;const prev=actions[playing];if(prev)prev.fadeOut(.19);const next=actions[desired];if(next&&!/dance|samba/.test(desired)){next.reset().fadeIn(.19).play();playing=desired}}
+async function loadAvatar(){for(let i=0;i<modelURLs.length;i++){try{await loadAsset(modelURLs[i],i);return}catch(e){console.warn('Falló modelo remoto:',modelURLs[i],e)}}toast('El modelo remoto no cargó. Utiliza un GLB propio.');$('loadText').textContent='Escena disponible, sin avatar remoto cargado.'}
+function setAnim(target){
+  if(!modelReady)return;
+  if(proceduralEnabled)return;
+  const list=Object.keys(actions);let desired=(target==='run'?list.find(k=>/run|jog/.test(k)):target==='walk'?list.find(k=>/walk|brisk/.test(k)):list.find(k=>/idle|stand/.test(k)));
+  if(!desired||desired===playing)return;
+  const prev=actions[playing];if(prev)prev.fadeOut(.20);
+  const next=actions[desired];if(next){next.reset().fadeIn(.20).play();playing=desired}
+}
 // User controls and 3rd-person follow camera
-const keys=new Set();let camYaw=1.14,camPitch=.32,camDistance=9.5,firstPerson=false,drag=false,downX=0,downY=0,night=false,lowQuality=false,photo=false;
+const keys=new Set();let camYaw=1.14,camPitch=.13,camDistance=4.25,firstPerson=false,drag=false,downX=0,downY=0,night=false,lowQuality=false,photo=false;
 function interact(){if($('dialog').style.display==='block'){$('dialog').style.display='none';return}let nearest=-1,dist=Infinity;missions.forEach((q,i)=>{const d=Math.hypot(q.x-player.position.x,q.z-player.position.z);if(d<dist){dist=d;nearest=i}});if(dist>12){toast(`Punto más próximo: ${missions[nearest].name}, a ${Math.ceil(dist)} m. Sigue el marcador dorado.`);return}visited.add(nearest);selected=missions.findIndex((_,i)=>!visited.has(i));if(selected<0)selected=nearest;$('dialogTitle').textContent=missions[nearest].name;$('dialogText').textContent=missions[nearest].desc;$('dialog').style.display='block';$('score').textContent=`${visited.size}/5`;$('missionMeter').firstElementChild.style.width=(visited.size*20)+'%';$('missionTitle').textContent=visited.size>=5?'Exploración completada':'Explora, observa, contrasta';$('missionText').textContent=visited.size>=5?'Has visitado los cinco puntos de observación. Próximo paso: conectar indicadores oficiales verificados de NPL.':'Objetivo: investiga los marcadores dorados. Las descripciones distinguen datos reales de reconstrucciones artísticas.';toast(`✓ Investigación ${visited.size}/5 registrada`)}
 function cameraToggle(){firstPerson=!firstPerson;$('viewBtn').textContent=firstPerson?'◉ &nbsp; TERCERA PERSONA':'◉ &nbsp; PRIMERA PERSONA';$('camBtn').classList.toggle('active',firstPerson)}
 function setNight(){night=!night;scene.background=new THREE.Color(night?'#112536':'#a1becd');scene.fog.color.set(night?'#193344':'#a9c1cb');hemi.intensity=night?.49:2.1;sun.intensity=night?.36:3;fill.intensity=night?1.1:.65;renderer.toneMappingExposure=night?.92:1.28;$('lightBtn').classList.toggle('active',night);toast(night?'Luz: anochecer mediterráneo':'Luz: tarde mediterránea')}
 function qualityToggle(){lowQuality=!lowQuality;renderer.setPixelRatio(Math.min(devicePixelRatio,lowQuality?1:1.7));renderer.shadowMap.enabled=!lowQuality;renderer.setSize(innerWidth,innerHeight);$('qualityBtn').classList.toggle('active',!lowQuality);toast(lowQuality?'Calidad rendimiento':'Calidad alta: sombras + antialiasing')}
 function photoToggle(){photo=!photo;document.body.classList.toggle('photo',photo);if(photo)toast('Pulsa P para recuperar la interfaz')}
 window.addEventListener('keydown',e=>{if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowLeft','ArrowDown','ArrowRight','Space','ShiftLeft'].includes(e.code))e.preventDefault();keys.add(e.code);if(e.repeat)return;if(e.code==='KeyE')interact();if(e.code==='KeyV')cameraToggle();if(e.code==='KeyP')photoToggle();if(e.code==='Escape'){$('dialog').style.display='none';if(photo)photoToggle()}if(e.code==='KeyR')reset()});window.addEventListener('keyup',e=>keys.delete(e.code));window.addEventListener('blur',()=>keys.clear());
-const mouse=renderer.domElement;mouse.addEventListener('pointerdown',e=>{if(e.button!==0)return;drag=true;downX=e.clientX;downY=e.clientY;mouse.setPointerCapture?.(e.pointerId)});mouse.addEventListener('pointermove',e=>{if(!drag)return;camYaw-=(e.clientX-downX)*.0052;camPitch=THREE.MathUtils.clamp(camPitch+(e.clientY-downY)*.004,-.14,1.12);downX=e.clientX;downY=e.clientY});mouse.addEventListener('pointerup',()=>drag=false);mouse.addEventListener('wheel',e=>{e.preventDefault();camDistance=THREE.MathUtils.clamp(camDistance+e.deltaY*.012,4.2,27)},{passive:false});
+const mouse=renderer.domElement;mouse.addEventListener('pointerdown',e=>{if(e.button!==0)return;drag=true;downX=e.clientX;downY=e.clientY;mouse.setPointerCapture?.(e.pointerId)});mouse.addEventListener('pointermove',e=>{if(!drag)return;camYaw-=(e.clientX-downX)*.0052;camPitch=THREE.MathUtils.clamp(camPitch+(e.clientY-downY)*.004,-.14,1.12);downX=e.clientX;downY=e.clientY});mouse.addEventListener('pointerup',()=>drag=false);mouse.addEventListener('wheel',e=>{e.preventDefault();camDistance=THREE.MathUtils.clamp(camDistance+e.deltaY*.008,2.9,22)},{passive:false});
 for(const b of document.querySelectorAll('#mobilePad button')){b.addEventListener('pointerdown',e=>{e.preventDefault();keys.add(b.dataset.key);b.setPointerCapture?.(e.pointerId)});b.addEventListener('pointerup',()=>keys.delete(b.dataset.key));b.addEventListener('pointercancel',()=>keys.delete(b.dataset.key))}
 $('realBtn').onclick=()=>location.href='alicante_fotogrametria.html';$('camBtn').onclick=cameraToggle;$('viewBtn').onclick=cameraToggle;$('qualityBtn').onclick=qualityToggle;$('lightBtn').onclick=setNight;$('interactBtn').onclick=interact;$('photoBtn').onclick=photoToggle;$('resetBtn').onclick=reset;$('dialogClose').onclick=()=>{$('dialog').style.display='none'};$('modelBtn').onclick=()=>$('fileInput').click();$('helpBtn').onclick=()=>{$('dialogTitle').textContent='Controles y alcance';$('dialogText').textContent='WASD: desplazarte. Ratón arrastrado: orbitar. Rueda: acercar o alejar. MAYÚS: correr. E: investigar. V: cámara. P: modo foto. R: volver al inicio. Puedes importar un archivo GLB con un personaje 3D completo. El escenario es una interpretación artística de Alicante; no es fotogrametría ni un mapa exacto.';$('dialog').style.display='block'};
 $('fileInput').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;const url=URL.createObjectURL(file);try{await loadAsset(url);toast('✓ Modelo personalizado cargado. Si incluye Idle/Walk/Run, sus animaciones funcionan automáticamente.')}catch(err){console.error(err);toast('No se pudo leer el GLB. Elige un archivo GLB válido, con geometría 3D.') }finally{setTimeout(()=>URL.revokeObjectURL(url),5000);e.target.value=''}});
 $('targetBtn').onclick=()=>{const q=missions[selected];toast('Destino: '+q.name+' · '+Math.round(Math.hypot(q.x-player.position.x,q.z-player.position.z))+' m');camYaw=Math.atan2(q.x-player.position.x,q.z-player.position.z)};
-function reset(){player.position.set(0,.14,16);camYaw=1.14;camPitch=.32;camDistance=9.5;toast('Has vuelto a la Explanada')}
+function reset(){player.position.set(0,.14,16);camYaw=1.14;camPitch=.13;camDistance=4.25;toast('Has vuelto a la Explanada')}
 function collisionAt(x,z){if(x< -19.8||x>43.5)return false;return collision.some(c=>x>c.minx&&x<c.maxx&&z>c.minz&&z<c.maxz)}
 const clock=new THREE.Clock(),camtgt=new THREE.Vector3(),cpos=new THREE.Vector3(),forward=new THREE.Vector3(),strafe=new THREE.Vector3();let theta=0,lastFPS=0,nframes=0,fpsSum=0;
 function frame(){requestAnimationFrame(frame);const dt=Math.min(clock.getDelta(),.048),elapsed=clock.elapsedTime;theta+=dt;
 const f=((keys.has('KeyW')||keys.has('ArrowUp'))?1:0)-((keys.has('KeyS')||keys.has('ArrowDown'))?1:0);const side=((keys.has('KeyD')||keys.has('ArrowRight'))?1:0)-((keys.has('KeyA')||keys.has('ArrowLeft'))?1:0);const moving=Math.hypot(f,side)>.1,running=keys.has('ShiftLeft')||keys.has('ShiftRight');
 if(moving){forward.set(Math.sin(camYaw),0,Math.cos(camYaw));strafe.set(Math.cos(camYaw),0,-Math.sin(camYaw));const dir=forward.multiplyScalar(f).addScaledVector(strafe,side).normalize();const speed=running?8.5:4.1;const nx=THREE.MathUtils.clamp(player.position.x+dir.x*speed*dt,-20.0,50),nz=THREE.MathUtils.clamp(player.position.z+dir.z*speed*dt,-160,160);if(!collisionAt(nx,player.position.z))player.position.x=nx;if(!collisionAt(player.position.x,nz))player.position.z=nz;const ry=Math.atan2(dir.x,dir.z);player.rotation.y=THREE.MathUtils.lerp(player.rotation.y,player.rotation.y+Math.atan2(Math.sin(ry-player.rotation.y),Math.cos(ry-player.rotation.y)),Math.min(1,dt*12));setAnim(running?'run':'walk')}else setAnim('idle');
-if(mixer)mixer.update(dt);
-const targetY=firstPerson?1.63:1.48;camtgt.set(player.position.x,player.position.y+targetY,player.position.z);if(firstPerson){cpos.set(camtgt.x+Math.sin(camYaw)*.08,camtgt.y+.05,camtgt.z+Math.cos(camYaw)*.08);camera.position.lerp(cpos,.48);camera.lookAt(camtgt.x+Math.sin(camYaw)*20,camtgt.y-Math.sin(camPitch)*20,camtgt.z+Math.cos(camYaw)*20);if(character)character.visible=false}else{if(character)character.visible=true;const hd=camDistance*Math.cos(camPitch);cpos.set(camtgt.x-Math.sin(camYaw)*hd,camtgt.y+camDistance*Math.sin(camPitch)+1,camtgt.z-Math.cos(camYaw)*hd);camera.position.lerp(cpos,Math.min(1,dt*7));camera.lookAt(camtgt)}
+if(mixer&&!proceduralEnabled)mixer.update(dt);if(proceduralEnabled)applyProceduralPose(dt,moving?(running?'run':'walk'):'idle');
+const targetY=firstPerson?1.63:1.07;camtgt.set(player.position.x,player.position.y+targetY,player.position.z);if(firstPerson){cpos.set(camtgt.x+Math.sin(camYaw)*.08,camtgt.y+.05,camtgt.z+Math.cos(camYaw)*.08);camera.position.lerp(cpos,.48);camera.lookAt(camtgt.x+Math.sin(camYaw)*20,camtgt.y-Math.sin(camPitch)*20,camtgt.z+Math.cos(camYaw)*20);if(character)character.visible=false}else{if(character)character.visible=true;const hd=camDistance*Math.cos(camPitch);cpos.set(camtgt.x-Math.sin(camYaw)*hd,camtgt.y+camDistance*Math.sin(camPitch)+.48,camtgt.z-Math.cos(camYaw)*hd);camera.position.lerp(cpos,Math.min(1,dt*7));camera.lookAt(camtgt)}
 for(let i=0;i<cars.length;i++){const c=cars[i];c.g.position.z+=c.dir*c.speed*dt;if(Math.abs(c.g.position.z)>160)c.g.position.z=-Math.sign(c.g.position.z)*160}
 for(let i=0;i<markers.length;i++){markers[i].rotation.y+=dt*.9;markers[i].position.y=2.9+Math.sin(elapsed*2+i)*.17;markers[i].material.emissiveIntensity=visited.has(i)?.1:.7;markers[i].scale.setScalar(visited.has(i)?.65:1)}
 $('radarUser').style.left=(50+(player.position.x/4))+'%';$('radarUser').style.top=(50+(player.position.z/5))+'%';const destination=missions[selected];$('radarDot').style.left=(50+destination.x/4)+'%';$('radarDot').style.top=(50+destination.z/5)+'%';
@@ -164,6 +273,6 @@ renderer.render(scene,camera);nframes++;fpsSum+=dt;if(fpsSum>1.2){lastFPS=Math.r
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 // The world renders even before character assets arrive.
 $('loadfill').style.width='35%';requestAnimationFrame(frame);
-(async()=>{await Promise.race([loadAvatar(),new Promise(r=>setTimeout(r,9000))]);$('loadfill').style.width='100%';$('start').style.display='block';$('start').onclick=()=>{$('loading').style.opacity=0;setTimeout(()=>$('loading').remove(),600);toast(modelReady?'Escena jugable lista · personaje humano 3D cargado':'Escena lista · pulsa AVATAR GLB para importar un humano si falta el modelo')};$('loadText').textContent=modelReady?'Escena jugable lista. Se ha importado un personaje humano 3D con animaciones.':'Entorno listo. Si la descarga remota está bloqueada, importa un GLB de personaje desde el botón AVATAR.'})().catch(err=>{$('loadText').textContent='El entorno está listo; fallo al descargar el avatar externo.';$('start').style.display='block';console.error(err)});
+(async()=>{await Promise.race([loadAvatar(),new Promise(r=>setTimeout(r,9000))]);$('loadfill').style.width='100%';$('start').style.display='block';$('start').onclick=()=>{$('loading').style.opacity=0;setTimeout(()=>$('loading').remove(),600);toast(modelReady?'Escena técnica · '+animationMode+' · No representa a Lucía':'Escena lista · pulsa AVATAR GLB para importar un humano si falta el modelo')};$('loadText').textContent=modelReady?'Escena técnica lista: '+animationMode+'; personaje genérico, no es Lucía.':'Entorno listo. Si la descarga remota está bloqueada, importa un GLB de personaje desde el botón AVATAR.'})().catch(err=>{$('loadText').textContent='El entorno está listo; fallo al descargar el avatar externo.';$('start').style.display='block';console.error(err)});
 </script>
 </body></html>
