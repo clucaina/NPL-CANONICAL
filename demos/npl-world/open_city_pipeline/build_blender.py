@@ -79,10 +79,7 @@ camera.rotation_euler=(Vector((0,0,0))-camera.location).to_track_quat("-Z","Y").
 camera.data.lens=30;s.camera=camera
 bpy.ops.wm.save_as_mainfile(filepath=str((O/"Alicante_REAL_OSM_PNOA.blend").resolve()))
 bpy.ops.export_scene.gltf(filepath=str((O/"Alicante_REAL_OSM_PNOA.glb").resolve()),export_format="GLB")
-try:
-    s.render.filepath=str((O/"QA_Aerial.png").resolve())
-    bpy.ops.render.render(write_still=True)
-except Exception as ex:print("CPU QA render optional error:",ex,flush=True)
+# Visual QA render is a separate optional workflow step, never blocks successful GLB export.
 result={"real_osm_buildings":total,"heights_directly_measured":measured,"omitted":skipped,
 "pnoa_ground":info["real_orthophoto"],"facades_photogrammetric":False,
 "private_avatar_included":False,"blender_version":list(bpy.app.version)}
