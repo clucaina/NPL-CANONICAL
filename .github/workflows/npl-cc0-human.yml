@@ -63,6 +63,22 @@ jobs:
           assert struct.unpack_from("<I",d,8)[0]==len(d)
           print("Palm GLB validated:",len(d),"bytes")
           PY
+      - name: Download high-detail skinned female Maya CC0 with seven movements
+        run: |
+          curl -fLS --retry 3 --retry-delay 2 --connect-timeout 15 --max-time 180 \
+            'https://www.innerscene.com/api/library/locomotion-collection-maya-3d-person-animated-1499b2fd/download' \
+            -o output/maya_female_SKINNED_ANIMATED_CC0.glb
+          python3 - <<'PY'
+          import json,struct,pathlib
+          p=pathlib.Path('output/maya_female_SKINNED_ANIMATED_CC0.glb');d=p.read_bytes()
+          assert len(d)>3000000 and d[:4]==b'glTF'
+          jl=struct.unpack_from('<I',d,12)[0]
+          g=json.loads(d[20:20+jl])
+          r={'bytes':len(d),'skins':len(g.get('skins',[])),'clips':[c['name'] for c in g.get('animations',[])],'textures':len(g.get('images',[]))}
+          print(r)
+          assert r['skins'] and len(r['clips'])>=3
+          pathlib.Path('output/MAYA_QA.json').write_text(json.dumps(r,indent=2))
+          PY
       - name: Include CC0 source info
         run: |
           printf '%s\n' 'Riley 3D Person Woman Standing — Innerscene CC0 original, adapted from MakeHuman/MPFB CC0 assets.' 'https://www.innerscene.com/tools/library/3d-parts/riley-3d-person-woman-standing-8d40398f' 'No private portrait nor biometric data uploaded to this workflow.' > output/LICENSE_SOURCE.txt
