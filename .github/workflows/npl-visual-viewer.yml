@@ -1,0 +1,37 @@
+name: NPL offline 3D runtime bundle (free standard runner)
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "demos/npl-world/visual_viewer/**"
+      - ".github/workflows/npl-visual-viewer.yml"
+permissions:
+  contents: read
+jobs:
+  bundle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install pinned open-source graphics runtime
+        working-directory: demos/npl-world/visual_viewer
+        run: npm install --no-audit --no-fund
+      - name: Build single bundled WebGL script
+        working-directory: demos/npl-world/visual_viewer
+        run: npm run build
+      - name: Package runtime source (NO private avatar)
+        working-directory: demos/npl-world/visual_viewer
+        run: |
+          mkdir -p dist/assets
+          cp index.html dist/index.html
+          test -s dist/game.js
+          test -s dist/index.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NPL_offline_WebGL_runtime_NO_PRIVATE_MODELS
+          path: demos/npl-world/visual_viewer/dist
+          retention-days: 3
+          if-no-files-found: error
