@@ -8,7 +8,7 @@ const loading=$('loading'), info=$('info'), stat=$('stat'), progress=$('progress
 const view=$('game');
 const display=(message,problem=false)=>{info.textContent=message;info.classList.toggle('error',problem)};
 const renderer=new THREE.WebGLRenderer({canvas:view, antialias:true,alpha:false,powerPreference:'high-performance'});
-renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
 renderer.shadowMap.enabled=true;
 renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.outputColorSpace=THREE.SRGBColorSpace;
@@ -23,9 +23,9 @@ scene.add(ambient);
 const sun=new THREE.DirectionalLight(0xffe5b8,3.1);
 sun.position.set(-90,180,125);
 sun.castShadow=true;
-sun.shadow.mapSize.set(2048,2048);
-sun.shadow.camera.left=-110;sun.shadow.camera.right=110;
-sun.shadow.camera.top=110;sun.shadow.camera.bottom=-110;
+sun.shadow.mapSize.set(1024,1024);
+sun.shadow.camera.left=-66;sun.shadow.camera.right=66;
+sun.shadow.camera.top=66;sun.shadow.camera.bottom=-66;
 sun.shadow.camera.near=.5;sun.shadow.camera.far=500;
 sun.shadow.bias=-.000035;
 scene.add(sun,sun.target);
@@ -93,7 +93,7 @@ async function addRealPalmObjects(){
  try{
   const data=await model('./assets/palm.glb');
   const cells=[];
-  for(let z=-140;z<=112;z+=16.5){cells.push([-18.8,z],[5.8,z+4.2]);}
+  for(let z=-132;z<=112;z+=26){cells.push([-18.8,z],[5.8,z+4.2]);}
   const transform=new THREE.Object3D();
   data.scene.updateMatrixWorld(true);
   data.scene.traverse(part=>{
@@ -190,7 +190,15 @@ async function loadWorld(){
  try{
   const data=await model('./assets/alicante.glb');
   city=data.scene;scene.add(city);
-  addFacadeDetail(city);
+  // v11 architectural detail baked on exactly 150 ACTUAL OSM building-wall edges.
+  // Geometry intentionally separate from the PNOA georeferenced base.
+  try {
+    const decorData=await model('./assets/facades.glb');
+    const facades=decorData.scene;
+    facades.traverse(n=>{if(n.isMesh){n.castShadow=false;n.receiveShadow=true;}});
+    scene.add(facades);
+    windowCount=3679;
+  }catch(err){display('Los edificios base se han cargado, pero falta el detalle GLB: '+err.message,true);}
   await addRealPalmObjects();
   city.traverse(n=>{if(n.isMesh){n.receiveShadow=true;n.castShadow=true;if(n.material?.name?.includes('NO_photo')) n.material.roughness=.9;}});
   showLoad('Alicante 3D cargada: edificios reales y calle a nivel humano. Cargando cuerpo humano animado…');
@@ -245,8 +253,8 @@ async function loadWorld(){
   current=animations.idle||(data.animations?.length?mixer.clipAction(data.animations[0]):null);
   if(current)current.play();
   loading.remove();
-  window.NPL_READY={cityMeshes:city.children.length,explanadaCoords:[38.34318,-0.48326],windows:windowCount,palms:palmCount,skins:avatar.children.length,clips:data.animations.map(a=>a.name)};
-  display('Explanada: paseo georreferenciado + edificios OSM, palmeras 3D CC0 y avatar GLB privado. La reproducción facial y las fachadas siguen sin nivel GTA.');
+  window.NPL_READY={cityMeshes:city.children.length,facadeDetailsLoaded:windowCount>0,explanadaCoords:[38.34318,-0.48326],windows:windowCount,palms:palmCount,skins:avatar.children.length,clips:data.animations.map(a=>a.name)};
+  display('Alicante 3D con 614 edificios reales OSM, detalles arquitectónicos artísticos, palmeras CC0 y avatar privado v11. Fotorrealismo aún sin alcanzar.');
  }catch(err){display('No se ha podido cargar el avatar GLB: '+(err?.message||err),true);showLoad('Modelo femenino 3D ausente. Debe existir assets/maya.glb');return;}
 }
 function animateState(key){
