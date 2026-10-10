@@ -23,7 +23,7 @@ try:
  names=[x.text for x in root.iter() if x.tag.split('}')[-1]=='Name' and x.text]
  print('Official ICV layers',names[:20],flush=True)
  layers=[n for n in names if '0202' in n or 'ort' in n.lower()]
- layer=layers[0] if layers else (names[1] if len(names)>1 else '0202_2024CVAL0025')
+ layer='2024CVAL0025_RGB' if '2024CVAL0025_RGB' in names else (layers[0] if layers else '0202_2024CVAL0025')
 except Exception as ex:
  print('ICV GetCapabilities failed',str(ex),'will attempt documented layer name',flush=True)
  layer='0202_2024CVAL0025'
