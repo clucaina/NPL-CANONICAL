@@ -34,6 +34,12 @@ sun.target.position.copy(origin);
 
 // The public-city source is a real georeferenced building GLB, not a fabricated map.
 // These street props remain a documented ARTISTIC ground-level presentation layer.
+// Explicit 2026 corrected georeference: Explanada de España OSM way #20490190
+// https://mapcarta.com/W20490190 : 38.34318 N, -0.48326 W
+// Local OSM projection scene origin was 38.34402 N, -0.48322 W.
+const decorStart=scene.children.length;
+const ESPLANADA_CENTER=new THREE.Vector3(-3.5,0,119.0);
+const EXPLANADA_BEARING=-0.65; // World direction from city centre towards Canalejas.
 const promenadeColor=new THREE.CanvasTexture((()=>{
  const c=document.createElement('canvas');c.width=768;c.height=768;
  const q=c.getContext('2d');q.fillStyle='#e8dfc7';q.fillRect(0,0,768,768);
@@ -101,7 +107,7 @@ async function addRealPalmObjects(){
     mesh.setMatrixAt(i,new THREE.Matrix4().multiplyMatrices(transform.matrix,part.matrixWorld));
    }
    mesh.instanceMatrix.needsUpdate=true;
-   scene.add(mesh);
+   decorGroup.add(mesh);
   });
   palmCount=cells.length;
  }catch(err){display('Ciudad cargada; palmeras 3D opcionales no disponibles: '+err.message,true)}
@@ -128,7 +134,7 @@ function addFacadeDetail(group){
    const length=Math.hypot(a.x-b.x,a.z-b.z);
    if(length<2.7||length>37)continue;
    const mx=(a.x+b.x)/2,mz=(a.z+b.z)/2;
-   if(Math.abs(mx+35)>116||Math.abs(mz+35)>150)continue;
+   if(Math.abs(mx+10)>235||Math.abs(mz-119)>280)continue;
    const key=[Math.round(a.x*10),Math.round(a.z*10),Math.round(b.x*10),Math.round(b.z*10)].sort((x,y)=>x-y).join(':')+':'+a.y.toFixed(0);
    if(!edges.has(key))edges.set(key,{ax:a.x,az:a.z,bx:b.x,bz:b.z,h:a.y,len:length});
   }
@@ -164,11 +170,18 @@ function addFacadeDetail(group){
  windowCount=windows.length;
 }
 
+// Rotate ALL local illustrative objects to the REAL Explanada alignment, rather than
+// painting an invented road through georeferenced building footprints.
+const decorGroup=new THREE.Group();
+for(const ob of scene.children.slice(decorStart)){scene.remove(ob);decorGroup.add(ob);}
+decorGroup.rotation.y=EXPLANADA_BEARING;
+decorGroup.position.copy(ESPLANADA_CENTER);
+scene.add(decorGroup);
 const player=new THREE.Group();scene.add(player);
-player.position.set(-10,0,-33);
+player.position.set(-3.5,0,119.0);
 let avatar=null, city=null,mixer=null,animations={},current=null;
 const keys=new Set();
-let yaw=-.37,pitch=.15,zoom=3.75,mode='back',actorHeading=0,moving=false;
+let yaw=2.49,pitch=.19,zoom=4.6,mode='back',actorHeading=0,moving=false;
 const loader=new GLTFLoader();
 const model=(url)=>new Promise((resolve,reject)=>loader.load(url,resolve,undefined,reject));
 const showLoad=(text)=>{progress.textContent=text;};
@@ -190,10 +203,10 @@ async function loadWorld(){
   const scale=1.69/Math.max(0.001,dim.y);
   avatar.scale.setScalar(scale);
   avatar.position.y=-box.min.y*scale;
+  avatar.rotation.y=2.49;
   player.add(avatar);
-  // Add a lightweight strand-based long hairstyle to the actual animated head bone.
-  // Unlike a floating photographic hair card, these 3D tubes FOLLOW head animation.
-  let headJoint;
+  // Hair and clothing are REAL meshes already included in the personal GLB and bound to skeleton bones.
+  // Never append duplicate procedural hair on top of the true mesh.
   avatar.traverse(n=>{if(n.isBone && /(^head$|head_)/i.test(n.name))headJoint=n;});
   if(headJoint){
    const hairMaterial=new THREE.MeshStandardMaterial({color:0x543b2b,roughness:.73,metalness:.04,side:THREE.DoubleSide});
@@ -232,8 +245,8 @@ async function loadWorld(){
   current=animations.idle||(data.animations?.length?mixer.clipAction(data.animations[0]):null);
   if(current)current.play();
   loading.remove();
-  window.NPL_READY={cityMeshes:city.children.length,windows:windowCount,palms:palmCount,skins:avatar.children.length,clips:data.animations.map(a=>a.name)};
-  display('Explanada: OSM + escena detallada, palmeras CC0 y cuerpo humano articulado. ROSTRO GENÉRICO: todavía no es Lucía.');
+  window.NPL_READY={cityMeshes:city.children.length,explanadaCoords:[38.34318,-0.48326],windows:windowCount,palms:palmCount,skins:avatar.children.length,clips:data.animations.map(a=>a.name)};
+  display('Explanada: paseo georreferenciado + edificios OSM, palmeras 3D CC0 y avatar GLB privado. La reproducción facial y las fachadas siguen sin nivel GTA.');
  }catch(err){display('No se ha podido cargar el avatar GLB: '+(err?.message||err),true);showLoad('Modelo femenino 3D ausente. Debe existir assets/maya.glb');return;}
 }
 function animateState(key){
@@ -302,7 +315,7 @@ view.addEventListener('pointermove',e=>{if(!dragging)return;
 view.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(1.85,Math.min(28,zoom+Math.sign(e.deltaY)*.65));},{passive:false});
 const cycleCamera=()=>{mode=mode==='back'?'face':mode==='face'?'first':'back';$('cameraMode').textContent=mode==='back'?'Tercera persona':mode==='face'?'Inspección facial':'Primera persona';};
 $('cam').onclick=cycleCamera;
-$('reset').onclick=()=>{player.position.set(-10,0,-33);yaw=-.37;mode='back';};
+$('reset').onclick=()=>{player.position.set(-10,0,-33);yaw=2.49;mode='back';};
 $('fidelity').onclick=()=>{let hi=renderer.getPixelRatio()<1.7;renderer.setPixelRatio(hi?Math.min(devicePixelRatio,2):1);sun.shadow.mapSize.set(hi?2048:1024,hi?2048:1024);sun.shadow.map?.dispose();sun.shadow.map=null;};
 frame();
 loadWorld();
