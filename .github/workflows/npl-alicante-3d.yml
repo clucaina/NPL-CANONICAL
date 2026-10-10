@@ -1,0 +1,45 @@
+name: NPL Alicante 3D - open city on free CPU
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/npl-alicante-3d.yml"
+      - "demos/npl-world/open_city_pipeline/**"
+permissions:
+  contents: read
+jobs:
+  build_city:
+    name: OSM + PNOA to real georeferenced GLB (not GTA)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install free Blender with CPU rendering
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq blender
+          blender -b --factory-startup --python-expr "import bpy; print('Blender:',bpy.app.version_string)"
+      - name: Fetch public Alicante sources
+        working-directory: demos/npl-world/open_city_pipeline
+        run: python3 download_city.py
+      - name: Build 3D model and editable Blender source
+        working-directory: demos/npl-world/open_city_pipeline
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: blender -b --factory-startup -t 2 -P build_blender.py
+      - name: Assert genuine outputs exist
+        working-directory: demos/npl-world/open_city_pipeline
+        run: |
+          test -s output/Alicante_REAL_OSM_PNOA.blend
+          test -s output/Alicante_REAL_OSM_PNOA.glb
+          test -s output/QA_source_report.json
+          python3 -m json.tool output/QA_source_report.json
+          ls -lh output
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NPL_Alicante_real_OSM_PNOA_only_NO_FACE
+          path: |
+            demos/npl-world/open_city_pipeline/output/
+            demos/npl-world/open_city_pipeline/input/source_manifest.json
+          retention-days: 3
+          if-no-files-found: error
