@@ -1,0 +1,22 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NPL WORLD · Alicante real OSM + Lucía avatar GLB</title>
+<style>*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#11232d;color:#edf4f7;font:14px system-ui,Segoe UI,sans-serif}
+#game{width:100%;height:100%;display:block;cursor:grab}#game:active{cursor:grabbing}
+.panel{position:absolute;background:#0b1b28dc;border:1px solid #b5dbea41;border-radius:14px;backdrop-filter:blur(12px);padding:13px 15px;box-shadow:0 8px 20px #0003}
+header{top:15px;left:15px;max-width:410px}header strong{font-size:22px;letter-spacing:2px}header p{color:#bcd2dd;line-height:1.45;margin:6px 0 0}header small{color:#ffdb9e}
+#loading{position:absolute;left:50%;top:49%;transform:translate(-50%,-50%);min-width:310px;max-width:90vw;text-align:center;background:#06151af3;border-radius:14px;padding:24px 30px;box-shadow:0 20px 50px #0008}
+#loading h2{margin:4px 0;font-size:18px}#loading p{font-size:13px;color:#a6ccdb}
+#panelControls{right:12px;top:14px;display:flex;gap:8px;align-items:center}
+button{border:1px solid #688a97;background:#173747;color:#f4f5f4;border-radius:10px;padding:9px 12px;cursor:pointer}
+button:hover{background:#2e6474}
+#info{bottom:15px;left:50%;transform:translateX(-50%);max-width:85vw;text-align:center;font-size:12px}
+#info.error{border-color:#df7f77;color:#ffd0c5}
+#stat{left:15px;bottom:15px}#cameraMode{color:#ffd790}
+@media(max-width:680px){header{width:calc(100% - 30px);top:66px}#panelControls{left:12px;right:auto;top:9px}#info{bottom:70px;min-width:80%}}
+</style></head><body>
+<canvas id="game"></canvas>
+<header class="panel"><strong>N✦ NPL WORLD</strong><p>Alicante — Explanada y puerto, geometría real OpenStreetMap + avatar propio GLB.<br><small>Prototipo gráfico, NO ciudad fotogramétrica ni copia facial validada.</small></p></header>
+<div id="panelControls" class="panel"><button id="cam">◉ Cámara (C)</button><button id="fidelity">◈ Calidad</button><button id="reset">↻ Centrar</button></div>
+<div id="loading"><h2>Cargando recursos locales 3D</h2><p id="progress">Preparando motor gráfico…</p><p>No se descargan personas ni edificios al abrir. Los modelos ya están en el paquete.</p></div>
+<div id="stat" class="panel">0,0 m</div><div id="info" class="panel">WASD moverse · Mayús correr · ratón cámara · rueda zoom · <span id="cameraMode">Tercera persona</span></div>
+<script src="./game.js"></script></body></html>
