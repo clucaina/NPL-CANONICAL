@@ -23,8 +23,8 @@
           "seconds": 10,
           "title": "La paradoja",
           "visual": "Pantalla negra, 95 % monumental y siluetas traslúcidas que emergen, cámara lenta de izquierda a derecha",
-          "narration": "Un sistema detecta correctamente el noventa y cinco por ciento de los casos. ¿Significa eso que casi cualquier positivo es verdadero? No.",
-          "caption": "Sensibilidad no es valor predictivo."
+          "narration": "Un sistema descarta correctamente al noventa y cinco por ciento de las personas que no tienen una condición. ¿Significa eso que casi cualquier resultado positivo es verdadero? No.",
+          "caption": "Especificidad del 95 % no equivale a valor predictivo del 95 %."
         },
         {
           "seconds": 11,
