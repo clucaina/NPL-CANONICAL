@@ -33,6 +33,9 @@ try{
  await witness.locator("#origin").selectOption("unknown");
  await witness.locator("#apply").click();
  assert.equal((await witness.locator("#unknown").innerText()).trim(),"4"); // Bruno y Diego quedan sin origen, además de Elena y Fabián.
+ await witness.locator('button[data-person="b"]').click();
+ await witness.locator("#origin").selectOption("a");
+ await witness.locator("#apply").click();
  await witness.locator('button[data-person="a"]').click();
  await witness.locator("#origin").selectOption("d");
  await witness.locator("#apply").click();
