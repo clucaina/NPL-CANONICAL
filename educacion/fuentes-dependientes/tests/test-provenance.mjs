@@ -6,7 +6,7 @@ import vm from "node:vm";
 const html=readFileSync(new URL("../index.html",import.meta.url),"utf8");
 const script=html.match(/<script>([\s\S]*?)<\/script>/)?.[1]??"";
 test("Interfaz y script válidos",()=>{
- assert.doesNotThrow(()=>new vm.Script(script));
+ assert.doesNotThrow(()=>{try{new vm.Script(script,{filename:'fuentes-embedded.js'});}catch(e){console.error(e.stack);throw e;}});
  for(const token of ["id=\"graph\"","id=\"origin\"","id=\"routeList\"","id=\"memo\"","fuentes-dependientes.json","38298368"])assert.ok(html.includes(token),token);
 });
 const begin=script.indexOf("function routes(){"),end=script.indexOf("\nfunction render()",begin);
