@@ -47,7 +47,7 @@ function summary(){let r=routes(),roots=[...new Set(Object.values(r))];return {s
 $("make").addEventListener("click",()=>{let x=summary();memo=x.declarations.map(p=>p.name+": "+(p.root.startsWith("indeterminado:")?"origen no verificado":p.root==="ciclo"?"cadena incoherente":people.find(q=>q.id===p.root)?.name||"?")).join("\n")+"\n\nMi siguiente diligencia\n"+(x.reflection||"Aún sin definir.")+"\n\nLímite\n"+x.warning;$("memo").textContent=memo;});
 function download(name,mime,data){let a=document.createElement("a"),url=URL.createObjectURL(new Blob([data],{type:mime}));a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 $("export").addEventListener("click",()=>download("fuentes-dependientes.json","application/json",JSON.stringify(summary(),null,2)));
-$("csv").addEventListener("click",()=>{let r=routes(),q=v=>'"'+String(v).replace(/^[=+\-@\t\r]/,"'q=v=>'"'+String(v).replace(/"/g,'""')+'"'").replace(/"/g,'""')+'"';download("rutas-declaradas.csv","text/csv;charset=utf-8","\ufeff"+["nombre","hora","origen_declarado","raiz_simulada","comprobacion_pendiente"].map(q).join(";")+"\r\n"+people.map(p=>[p.name,p.day,p.origin,r[p.id],p.note].map(q).join(";")).join("\r\n"));});
+$("csv").addEventListener("click",()=>{let r=routes(),q=v=>'"'+String(v).replace(/^[=+\-@\t\r]/,"'$&").replace(/"/g,'""')+'"';download("rutas-declaradas.csv","text/csv;charset=utf-8","\ufeff"+["nombre","hora","origen_declarado","raiz_simulada","comprobacion_pendiente"].map(q).join(";")+"\r\n"+people.map(p=>[p.name,p.day,p.origin,r[p.id],p.note].map(q).join(";")).join("\r\n"));});
 render();window.__NPL_PROVENANCE_TEST__=routes;
 })();
 </script></body></html>
