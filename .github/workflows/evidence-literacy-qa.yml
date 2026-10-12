@@ -15,4 +15,4 @@ jobs:
       - name: Check Node version
         run: node --version
       - name: Run isolated tests (no secrets or downloads)
-        run: node --test educacion/inferencia-tasa-base/tests/test-base-rate.mjs
+        run: node --test educacion/inferencia-tasa-base/tests/test-base-rate.mjs educacion/fuentes-dependientes/tests/test-provenance.mjs
