@@ -1,0 +1,123 @@
+{
+  "schema": "npl-educacion-storyboard/1",
+  "status": "guion_original_no_renderizado",
+  "date": "2026-10-12",
+  "authoring": "NPL / Neuropsicolucía",
+  "origin": "Formaciones educativas sin datos personales, basadas en los módulos interactivos",
+  "render_provenance": {
+    "renderer": "pendiente",
+    "note": "No acredita generación IA de vídeo, identidad facial, sincronización labial ni exportación VideoForge nativa. Metadatos adaptables mediante un conversor."
+  },
+  "videos": [
+    {
+      "id": "tasa-base",
+      "title": "Cuando el 95 % engaña",
+      "project": "Neuropsicolucia.com",
+      "target_seconds": 70,
+      "visual_style": "Editorial científica oscura con pictogramas humanos, cinta de datos y diagrama de flujo",
+      "sources": [
+        "https://www.bmj.com/content/345/bmj.e3999"
+      ],
+      "scenes": [
+        {
+          "seconds": 10,
+          "title": "La paradoja",
+          "visual": "Pantalla negra, 95 % monumental y siluetas traslúcidas que emergen, cámara lenta de izquierda a derecha",
+          "narration": "Un sistema detecta correctamente el noventa y cinco por ciento de los casos. ¿Significa eso que casi cualquier positivo es verdadero? No.",
+          "caption": "Sensibilidad no es valor predictivo."
+        },
+        {
+          "seconds": 11,
+          "title": "La población importa",
+          "visual": "Se revela cohorte ilustrada de mil personas, con diez casos destacados en verde, transición por capas",
+          "narration": "Imagina una condición presente en una de cada cien personas. En mil, solo diez la tienen realmente.",
+          "caption": "Diez de mil, prevalencia hipotética del uno por ciento."
+        },
+        {
+          "seconds": 13,
+          "title": "Falsas alarmas",
+          "visual": "Animación de clasificación; nueve verdaderos positivos en verde, cincuenta falsos positivos en ámbar",
+          "narration": "Si el sistema detecta nueve de esos diez casos, pero clasifica por error como positivos a cincuenta personas sin la condición, obtenemos cincuenta y nueve positivos.",
+          "caption": "9 verdaderos positivos + 50 falsos positivos."
+        },
+        {
+          "seconds": 12,
+          "title": "La cuenta que cambia todo",
+          "visual": "Las 59 fichas se agrupan en una pila y nueve se iluminan; aparece nueve dividido entre cincuenta y nueve",
+          "narration": "De esos cincuenta y nueve positivos, solo nueve corresponden a la condición. Aproximadamente un quince por ciento, no un noventa y cinco.",
+          "caption": "9 ÷ 59 ≈ 15,3 %."
+        },
+        {
+          "seconds": 12,
+          "title": "El contexto cambia",
+          "visual": "Dos grupos con frecuencias previas diferentes y el mismo algoritmo conectados por una línea de color",
+          "narration": "Sin cambiar la sensibilidad ni la especificidad, el valor predictivo cambia si cambia la prevalencia.",
+          "caption": "Prevalencia y contexto son parte del resultado."
+        },
+        {
+          "seconds": 12,
+          "title": "Conclusión útil",
+          "visual": "La herramienta interactiva se abre y un control de prevalencia se mueve, revelando la matriz de falsos positivos",
+          "narration": "Antes de interpretar un resultado, pregunta de dónde vienen sus cifras. Y recuerda que estos ejemplos son simulados, no diagnósticos.",
+          "caption": "Pregunta por la tasa base, la sensibilidad y la especificidad."
+        }
+      ]
+    },
+    {
+      "id": "fuentes-dependientes",
+      "title": "Seis voces, ¿cuántas fuentes?",
+      "project": "Neuropsicolucia.com y formación SICNAR",
+      "target_seconds": 70,
+      "visual_style": "Sala de expediente ilustrada, seis personajes ficticios retratados, mapa de procedencia en hilos",
+      "sources": [
+        "https://pubmed.ncbi.nlm.nih.gov/38298368/",
+        "https://pubmed.ncbi.nlm.nih.gov/24897885/"
+      ],
+      "scenes": [
+        {
+          "seconds": 9,
+          "title": "El incidente",
+          "visual": "Plaza nocturna ilustrada, un golpe fuera de campo, seis pequeñas fichas de declaraciones aparecen",
+          "narration": "Seis personas cuentan algo acerca de una noche en la plaza. ¿Tenemos seis observaciones independientes?",
+          "caption": "Seis declaraciones no son seis observaciones verificadas."
+        },
+        {
+          "seconds": 11,
+          "title": "Un testigo originario",
+          "visual": "Primer retrato animado y aparición de una línea hacia el segundo",
+          "narration": "Ada dice haber visto una figura. Bruno no estaba allí, pero repite lo que Ada le contó.",
+          "caption": "Ada → Bruno"
+        },
+        {
+          "seconds": 12,
+          "title": "La cadena",
+          "visual": "Una línea conecta Bruno con Diego y otra ficha señala un grupo vecinal",
+          "narration": "Diego repite lo que escuchó de Bruno. Elena recuerda un mensaje del grupo, pero desconoce quién lo escribió.",
+          "caption": "Una cadena puede producir varios relatos."
+        },
+        {
+          "seconds": 12,
+          "title": "Otra perspectiva",
+          "visual": "Retrato de Carmen en otra esquina; el mapa divide el trayecto directo de los indirectos",
+          "narration": "Carmen afirma que oyó un golpe desde otra esquina. Su relato tiene una procedencia declarada diferente, pero todavía necesita contraste.",
+          "caption": "Declarar observación propia no demuestra independencia."
+        },
+        {
+          "seconds": 13,
+          "title": "Contaminación entre testigos",
+          "visual": "Conexiones animadas y detalle de dos testimonios intercambiando información; llamada visual a revisión científica",
+          "narration": "La investigación experimental muestra que hablar con otros testigos puede influir en los recuerdos de algunos detalles. No sucede necesariamente en todos los casos.",
+          "caption": "Posible conformidad de memoria. No equivale a detectar mentiras."
+        },
+        {
+          "seconds": 13,
+          "title": "Próxima diligencia",
+          "visual": "Se enfoca el cuaderno con origen, fecha, ruta de comunicación y comprobación pendiente",
+          "narration": "La pregunta útil no es cuántas personas repiten lo mismo, sino cómo lo supieron, cuándo y qué otras fuentes permiten contrastarlo.",
+          "caption": "Origen. Cronología. Independencia. Límites."
+        }
+      ]
+    }
+  ],
+  "reuse_policy": "Guiones originales. Usar ilustraciones, voces y personas ficticias propias; verificar licencias y fuentes. No procesar rostros ni testimonios reales."
+}
