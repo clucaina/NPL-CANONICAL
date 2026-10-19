@@ -30,3 +30,14 @@ test('reject duplicates, bad percentage and oversized files',()=>{
 test('province values do not imply street precision',()=>{
  const d=fixture();d.records[0].resolution='province';assert.equal(isAlicanteMunicipalAggregate(parse(d).records[0]),false);
 });
+
+test('reject unsafe numeric counts and malformed provenance URLs',()=>{
+ for(const value of [-1,1.5,Number.MAX_SAFE_INTEGER+1]){
+  const d=fixture();d.records[0].unit='count';d.records[0].value=value;
+  assert.throws(()=>parse(d),/rango/);
+ }
+ for(const url of ['https://example.org/a b','https://example.org/\\n','https://example.org/'+ 'a'.repeat(2050)]){
+  const d=fixture();d.records[0].source_url=url;
+  assert.throws(()=>parse(d),/Fuente pública/);
+ }
+});
