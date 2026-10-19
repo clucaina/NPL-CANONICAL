@@ -1,0 +1,44 @@
+name: NeuroCity · fotografias callejeras abiertas / Alicante (NO DEPLOY)
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/neurocity-open-imagery-audit.yml'
+      - 'tools/neurocity/open_imagery_inventory.py'
+      - 'tools/neurocity/test_open_imagery_inventory.py'
+permissions:
+  contents: read
+jobs:
+  open_street_photos:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test safe open imagery metadata handling, no people or photos
+        run: python3 -m unittest discover -s tools/neurocity -p 'test_open_imagery_inventory.py' -v
+      - name: Request public metadata around Alicante from official Panoramax STAC API
+        run: python3 tools/neurocity/open_imagery_inventory.py --live --output _photo_source_qa/PANORAMAX_ALICANTE_METADATA.json
+      - name: Ensure no pictures or private records are exported
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path('_photo_source_qa/PANORAMAX_ALICANTE_METADATA.json')
+          d=json.loads(p.read_text())
+          assert d['schema']=='neurocity.street-imagery-inventory.v1'
+          assert d['pictures_downloaded']==0 and d['geometry_created']==0
+          assert not d['photos_reconstruction_approved']
+          assert all('image_id' in x and 'latitude' in x and 'longitude' in x and 'person' not in x for x in d['results'])
+          print('STAC_OPEN_STREET_IMAGE_COUNT:',d['image_count'])
+          print('STAC_SEQUENCE_COUNT:',d['sequence_count'])
+          print('PHOTOGRAMMETRY_NOT_YET_RECONSTRUCTED')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NEUROCITY_ALICANTE_OPEN_IMAGERY_METADATA_ONLY
+          path: _photo_source_qa/
+          retention-days: 7
+          if-no-files-found: error
