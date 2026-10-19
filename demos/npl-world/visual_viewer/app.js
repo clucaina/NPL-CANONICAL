@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { nextCameraMode, canNavigate } from './navigation_policy.mjs';
+import {normalizedStick,combineMovement} from './mobile_navigation.mjs';
 
 // NPL WORLD - real GLB integration. No placeholder people, no pay-per-map API.
 // Local public cartographic geometry + separate PRIVATE human GLB. Offline runtime.
@@ -184,6 +185,7 @@ const player=new THREE.Group();scene.add(player);
 player.position.set(-10.664,0,113.546);
 let avatar=null, city=null,mixer=null,animations={},current=null;
 const keys=new Set();
+const touchStick={forward:0,strafe:0};
 let yaw=-.65,pitch=.14,zoom=2.95,mode='back',actorHeading=0,moving=false;
 const loader=new GLTFLoader();
 const model=(url)=>new Promise((resolve,reject)=>loader.load(url,resolve,undefined,reject));
@@ -273,13 +275,16 @@ const clock=new THREE.Clock();
 function frame(){
  requestAnimationFrame(frame);
  const dt=Math.min(clock.getDelta(),.045);
- const forward=Number(keys.has('KeyW')||keys.has('ArrowUp'))-Number(keys.has('KeyS')||keys.has('ArrowDown'));
- const strafe=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft'));
- const total=Math.hypot(forward,strafe);
+ const input=combineMovement(
+  Number(keys.has('KeyW')||keys.has('ArrowUp'))-Number(keys.has('KeyS')||keys.has('ArrowDown')),
+  Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft')),
+  touchStick.forward,touchStick.strafe
+ );
+ const {forward,strafe}=input, total=input.magnitude;
  moving=total>0.01 && canNavigate(city);
  const fast=keys.has('ShiftLeft')||keys.has('ShiftRight');
  if(moving){
-  const speed=(fast?6.6:2.6)*dt/total;
+  const speed=(fast?6.6:2.6)*dt;
   const dx=Math.sin(yaw)*forward-Math.cos(yaw)*strafe;
   const dz=Math.cos(yaw)*forward+Math.sin(yaw)*strafe;
   player.position.x=Math.max(-318,Math.min(402,player.position.x+dx*speed));
@@ -321,12 +326,50 @@ window.addEventListener('resize',resize);resize();
 window.addEventListener('keydown',e=>{if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight'].includes(e.code))e.preventDefault();keys.add(e.code);if(e.code==='KeyC')cycleCamera();});
 window.addEventListener('keyup',e=>keys.delete(e.code));
 window.addEventListener('blur',()=>keys.clear());
-let dragging=false,lastX=0,lastY=0;
-view.addEventListener('pointerdown',e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;view.setPointerCapture(e.pointerId);});
-view.addEventListener('pointerup',()=>dragging=false);
-view.addEventListener('pointermove',e=>{if(!dragging)return;
+// One pointer steers the camera, another independently drives the virtual joystick.
+let lookPointer=null,lastX=0,lastY=0;
+view.addEventListener('pointerdown',e=>{
+ if(lookPointer!==null)return;
+ lookPointer=e.pointerId;lastX=e.clientX;lastY=e.clientY;
+ view.setPointerCapture(e.pointerId);
+});
+function endLook(e){if(e.pointerId===lookPointer)lookPointer=null;}
+view.addEventListener('pointerup',endLook);
+view.addEventListener('pointercancel',endLook);
+view.addEventListener('lostpointercapture',endLook);
+view.addEventListener('pointermove',e=>{
+ if(lookPointer!==e.pointerId)return;
  const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;
- yaw+=dx*.006;pitch=Math.max(-.08,Math.min(.92,pitch+dy*.004));});
+ yaw+=dx*.006;pitch=Math.max(-.08,Math.min(.92,pitch+dy*.004));
+});
+const pad=$('walkPad'),knob=$('walkKnob');
+let walkPointer=null;
+function setStickPosition(e){
+ const bounds=pad.getBoundingClientRect();
+ const radius=Math.min(bounds.width,bounds.height)*.34;
+ const v=normalizedStick(e.clientX-(bounds.left+bounds.width/2),
+                          e.clientY-(bounds.top+bounds.height/2),radius);
+ touchStick.strafe=v.x;touchStick.forward=-v.y;
+ knob.style.transform='translate('+Math.round(v.x*radius)+'px,'+Math.round(v.y*radius)+'px)';
+ window.NEUROCITY_INPUT={...touchStick};
+}
+function releaseStick(e){
+ if(e && e.pointerId!==walkPointer)return;
+ walkPointer=null;touchStick.forward=0;touchStick.strafe=0;
+ knob.style.transform='translate(0px,0px)';
+ window.NEUROCITY_INPUT={...touchStick};
+}
+pad.addEventListener('pointerdown',e=>{
+ if(walkPointer!==null)return;
+ e.preventDefault();walkPointer=e.pointerId;
+ pad.setPointerCapture(e.pointerId);setStickPosition(e);
+});
+pad.addEventListener('pointermove',e=>{if(walkPointer===e.pointerId)setStickPosition(e);});
+pad.addEventListener('pointerup',releaseStick);
+pad.addEventListener('pointercancel',releaseStick);
+pad.addEventListener('lostpointercapture',releaseStick);
+window.addEventListener('blur',()=>releaseStick());
+window.NEUROCITY_INPUT={...touchStick};
 view.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(1.85,Math.min(28,zoom+Math.sign(e.deltaY)*.65));},{passive:false});
 const cycleCamera=()=>{mode=nextCameraMode(mode,!!avatar);$('cameraMode').textContent=mode==='back'?'Tercera persona':mode==='face'?'Inspección facial':'Primera persona · ciudad pública';};
 $('cam').onclick=cycleCamera;
