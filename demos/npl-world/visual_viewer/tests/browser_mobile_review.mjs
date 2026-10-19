@@ -8,6 +8,9 @@ let report={status:'NOT_RUN'};
 try{
  await page.goto('http://127.0.0.1:8766/',{waitUntil:'domcontentloaded',timeout:40000});
  await page.waitForFunction(()=>window.NPL_READY?.cityOnly===true,null,{timeout:70000});
+ const assets=await page.evaluate(()=>window.NPL_READY);
+ if(assets?.hedges?.count<100||assets?.hedges?.count>=190||assets?.hedges?.tier!=='mobile'||
+    !assets?.roadSurface?.asphaltMaterialApplied)throw Error('Mobile hedges/asphalt LOD unavailable: '+JSON.stringify(assets));
  const urban=await page.evaluate(()=>window.NPL_READY?.urbanKit);
  if(urban?.tier!=='mobile'||urban?.meshGroups!==9||urban?.palmCount<10||urban?.palmCount>=20)throw Error('Mobile instanced LOD is not active: '+JSON.stringify(urban));
  const pad=page.locator('#walkPad');
