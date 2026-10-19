@@ -66,6 +66,49 @@ def classify_response(data,bbox=ALICANTE_BBOX,provider="Panoramax IGN",license_h
                                for k,v in sorted(seq.items())],
         "results":results}
 
+def license_audit(features,bbox=ALICANTE_BBOX):
+    """Assess each image's declared license independently of catalog root.
+    This never licenses a photo just because the source homepage says Open Data.
+    """
+    approved=("creativecommons.org/licenses/by-sa/4.0",
+              "alliance.numerique.gouv.fr/licence-ouverte",
+              "etalab.gouv.fr/licence-ouverte")
+    eligible=[]
+    unverified=0
+    kinds={}
+    for f in features:
+        if not isinstance(f,dict):continue
+        g=f.get("geometry") or {}
+        coordinates=g.get("coordinates") if isinstance(g,dict) else None
+        if (g.get("type")!="Point" or not isinstance(coordinates,list)
+            or len(coordinates)<2):continue
+        try: lon,lat=float(coordinates[0]),float(coordinates[1])
+        except (ValueError,TypeError):continue
+        if not inside(lon,lat,bbox):continue
+        links=f.get("links") or []
+        urls=[x.get("href","") for x in links
+              if isinstance(x,dict) and x.get("rel")=="license" and isinstance(x.get("href"),str)]
+        license_url=next((x for x in urls if any(a in x.lower() for a in approved)),None)
+        if not license_url:
+            unverified+=1
+            continue
+        src=f.get("collection")
+        uid=f.get("id")
+        if not isinstance(src,str) or not isinstance(uid,str):continue
+        if len(src)>100 or len(uid)>100:continue
+        eligible.append({"id":uid,"sequence_id":src,"license_url":license_url,
+                         "longitude":round(lon,6),"latitude":round(lat,6),
+                         "needs_privacy_and_visual_overlap_review":True})
+        kinds[license_url]=kinds.get(license_url,0)+1
+    eligible.sort(key=lambda x:(x["sequence_id"],x["id"]))
+    return {
+        "license_link_approved_count":len(eligible),
+        "license_unknown_or_incompatible_count":unverified,
+        "license_distribution":kinds,
+        "items":eligible[:MAX_ITEMS],
+        "image_bytes_downloaded":0,"sfm_model_created":False
+    }
+
 def load_public_api(url,allow_hostname):
     from urllib.parse import urlsplit
     p=urlsplit(url)
@@ -97,7 +140,9 @@ def query_live():
     if isinstance(federated_payload.get("features"),list):
         federation=classify_response(federated_payload,
             provider="Panoramax Federation",license_hint="PER_IMAGE_LICENSE_REVIEW_REQUIRED")
+        rights=license_audit(federated_payload["features"])
         report["federation_discovery"]={
+            "rights_audit":rights,
             "status":"STAC_METADATA_DISCOVERED",
             "records":federation["image_count"],"sequences":federation["sequence_count"],
             "records_license_approved_for_reconstruction":0,
