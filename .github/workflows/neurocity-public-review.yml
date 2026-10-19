@@ -68,6 +68,10 @@ jobs:
           index=(d/'index.html').read_text(encoding='utf-8')
           needle='<script src="./game.js"></script>'
           assert needle in index
+          index=index.replace('<title>NPL WORLD v0.12 · Alicante 3D + avatar humano</title>', '<title>NeuroCity · Alicante | Revisión georreferenciada pública</title>')
+          index=index.replace('N✦ NPL WORLD', '◈ NEUROCITY')
+          index=index.replace('Explanada de Alicante · Edificios OSM y escena 3D con vestuario y paisaje mediterráneo.', 'Alicante georreferenciada · base NPL y navegación experimental de NeuroCity.')
+          index=index.replace('Ciudad y semejanza facial aún no fotogramétricas.', 'Fachadas y alturas parciales; no es una reconstrucción fotorrealista.')
           (d/'index.html').write_text(index.replace(needle,'<script>window.NPL_PUBLIC_REVIEW=true;</script>'+needle),encoding='utf-8')
           (d/'ATTRIBUTION.txt').write_text(
             'Geographic source: © OpenStreetMap contributors, ODbL 1.0, https://www.openstreetmap.org/copyright\n'
