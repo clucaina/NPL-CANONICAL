@@ -16,10 +16,21 @@ class CityQualityTests(unittest.TestCase):
             scene = p/"scene.json"
             scene.write_text(json.dumps({"real_osm_buildings":1,"heights_directly_measured":1,"facades_photogrammetric":False,"private_avatar_included":False}))
             glb = p/"scene.glb"
-            chunk = json.dumps({"asset":{"version":"2.0"},"meshes":[{"primitives":[]}]}).encode()
+            payload = {"asset":{"version":"2.0"},
+                       "meshes":[{"primitives":[{"attributes":{"POSITION":0}}]}],
+                       "accessors":[{"bufferView":0,"componentType":5126,"count":3,"type":"VEC3"}],
+                       "bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":36}],
+                       "buffers":[{"byteLength":36}]}
+            chunk = json.dumps(payload).encode()
             chunk += b" " * (-len(chunk)%4)
-            glb.write_bytes(b"glTF" + struct.pack("<II",2,20+len(chunk)) + struct.pack("<I4s",len(chunk),b"JSON") + chunk)
-            self.assertEqual(audit(osm,manifest,scene,glb)["gate"],"PASS_PROVENANCE_ONLY")
+            binary = b"\x00" * 36
+            glb.write_bytes(b"glTF" + struct.pack("<II",2,20+len(chunk)+8+len(binary))
+                + struct.pack("<I4s",len(chunk),b"JSON") + chunk
+                + struct.pack("<I4s",len(binary),b"BIN\x00") + binary)
+            result = audit(osm,manifest,scene,glb)
+            self.assertEqual(result["gate"],"PASS_PROVENANCE_ONLY")
+            self.assertEqual(result["evidence"]["glb_drawable_primitives"],1)
+            self.assertEqual(result["evidence"]["osm_buildings_with_no_valid_measured_height"],0)
             scene.write_text(json.dumps({"real_osm_buildings":1,"heights_directly_measured":2}))
             self.assertEqual(audit(osm,manifest,scene,glb)["gate"],"FAIL")
     def test_empty_or_invalid_glb_fails(self):
