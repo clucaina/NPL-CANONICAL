@@ -6,7 +6,7 @@ const top=new Set(['schema','origin','dataset_id','published_at','license','sour
 const recordFields=new Set(['id','indicator','label','value','unit','year','geography_code','geography_label','resolution','source_url','scope']);
 const ident=s=>typeof s==='string' && /^[a-z0-9][a-z0-9._-]{1,79}$/i.test(s);
 const label=(s,n=140)=>typeof s==='string'&&s.trim().length>0&&s.length<=n&&!/[\u0000-\u001f\u007f]/.test(s);
-const source=s=>{try{const u=new URL(s);return u.protocol==='https:'&&!!u.hostname&&!u.username&&!u.password;}catch{return false;}};
+const source=s=>{try{if(typeof s!=='string'||s.length>2048||/[\\u0000-\\u0020\\u007f]/.test(s))return false;const u=new URL(s);return u.protocol==='https:'&&!!u.hostname&&!u.username&&!u.password;}catch{return false;}};
 function only(o,allowed,where){
  if(!o||typeof o!=='object'||Array.isArray(o))throw Error(where+': objeto inválido');
  for(const k of Object.keys(o))if(!allowed.has(k))throw Error(where+': campo no permitido '+k);
@@ -24,9 +24,9 @@ export function parsePublicAggregate(raw){
   only(r,recordFields,'Registro '+i);
   if(!ident(r.id)||seen.has(r.id))throw Error('Identificador de registro inválido o duplicado');
   seen.add(r.id);
-  if(!ident(r.indicator)||!label(r.label)||!Number.isFinite(r.value))throw Error('Indicador o valor inválido');
+  if(!ident(r.indicator)||!label(r.label)||typeof r.value!=='number'||!Number.isFinite(r.value))throw Error('Indicador o valor inválido');
   if(!units.has(r.unit)||!Number.isInteger(r.year)||r.year<1900||r.year>2100)throw Error('Unidad o año inválido');
-  if(r.unit==='percent'&&(r.value<0||r.value>100))throw Error('Porcentaje fuera de rango');
+  if((r.unit==='percent'&&(r.value<0||r.value>100))||(r.unit==='count'&&(!Number.isSafeInteger(r.value)||r.value<0)))throw Error('Porcentaje fuera de rango');
   if(!label(r.geography_code,24)||!label(r.geography_label,90)||!resolutions.has(r.resolution))throw Error('Ámbito inválido');
   if(r.scope!=='public_aggregate'||!source(r.source_url))throw Error('Fuente pública obligatoria');
  });
