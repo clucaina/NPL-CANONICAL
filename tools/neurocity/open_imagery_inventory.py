@@ -12,6 +12,7 @@ from urllib.parse import urlencode
 from urllib.request import Request,urlopen
 
 PANORAMAX="https://panoramax.ign.fr/api"
+FEDERATION="https://api.panoramax.xyz/api"
 ALICANTE_BBOX=(-0.4862,38.3418,-0.4795,38.3470)
 MAX_JSON=3_000_000
 MAX_ITEMS=100
@@ -20,7 +21,7 @@ def inside(lon,lat,bbox=ALICANTE_BBOX):
     return (math.isfinite(lon) and math.isfinite(lat) and
             bbox[0]<=lon<=bbox[2] and bbox[1]<=lat<=bbox[3])
 
-def classify_response(data,bbox=ALICANTE_BBOX):
+def classify_response(data,bbox=ALICANTE_BBOX,provider="Panoramax IGN",license_hint=SOURCE_LICENCE):
     if not isinstance(data,dict) or data.get("type")!="FeatureCollection":
         raise ValueError("Unexpected non-STAC feature collection")
     features=data.get("features")
@@ -52,8 +53,8 @@ def classify_response(data,bbox=ALICANTE_BBOX):
         seq[feature["sequence_id"]]=seq.get(feature["sequence_id"],0)+1
     return {
         "schema":"neurocity.street-imagery-inventory.v1",
-        "bounds_wgs84":list(bbox),"provider":"Panoramax IGN",
-        "api":PANORAMAX,"license_hint":SOURCE_LICENCE,
+        "bounds_wgs84":list(bbox),"provider":provider,
+        "api":PANORAMAX if provider=="Panoramax IGN" else FEDERATION,"license_hint":license_hint,
         "pictures_downloaded":0,"geometry_created":0,
         "photos_reconstruction_approved":False,
         "image_count":len(results),
@@ -86,6 +87,17 @@ def query_live():
     report=classify_response(load_public_api(url,"panoramax.ign.fr"))
     report["declared_license_urls"]=licenses[:3]
     report["endpoint_checked"]=url
+    # The federated catalog also covers non-IGN sequences worldwide.
+    # Its root license is mixed; NEVER treat federated photos as individually cleared.
+    federated_url=FEDERATION+"/search?"+urlencode({"bbox":",".join(str(x) for x in ALICANTE_BBOX),"limit":MAX_ITEMS})
+    federation=classify_response(load_public_api(federated_url,"api.panoramax.xyz"),
+        provider="Panoramax Federation",license_hint="PER_IMAGE_LICENSE_REVIEW_REQUIRED")
+    report["federation_discovery"]={
+        "records":federation["image_count"],"sequences":federation["sequence_count"],
+        "records_license_approved_for_reconstruction":0,
+        "source":federated_url,
+        "candidate_sequences":federation["candidate_sequences"]
+    }
     return report
 
 def main():
