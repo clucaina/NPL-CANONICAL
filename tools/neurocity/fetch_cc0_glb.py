@@ -44,6 +44,22 @@ def collect_glbs(tree):
     return sorted([e for e in result if 1000<e['size']<=MAX_BYTES],
                   key=lambda e:(e['size'],e['url']))
 
+def collect_blends(tree):
+    out=[]
+    def walk(obj):
+        if isinstance(obj,dict):
+            url=obj.get('url')
+            size=obj.get('size')
+            if (permitted(url) and isinstance(size,int) and not isinstance(size,bool)
+                    and urlsplit(url).path.lower().endswith('.blend') and 1000<size<=MAX_BYTES):
+                out.append({'url':url,'size':size,'md5':obj.get('md5')})
+            for child in obj.values():
+                if isinstance(child,(dict,list)):walk(child)
+        elif isinstance(obj,list):
+            for child in obj:walk(child)
+    walk(tree)
+    return sorted(out,key=lambda e:(e['size'],e['url']))
+
 def describe_variants(tree):
     formats={}
     def walk(obj):
@@ -111,7 +127,24 @@ def acquire(output,slugs=SLUGS):
             item['provider_formats']=describe_variants(tree)
             item['glb_variants_under_16mb']=len(variants)
             if not variants:
-                item['status']='NO_DIRECT_LIGHTWEIGHT_GLB_VARIANT'
+                blends=collect_blends(tree)
+                item['blend_variants_under_16mb']=len(blends)
+                if not blends:
+                    item['status']='NO_DIRECT_LIGHTWEIGHT_3D_SOURCE'
+                else:
+                    chosen=blends[0]
+                    raw=request_bytes(chosen['url'],MAX_BYTES)
+                    if len(raw)!=chosen['size'] or not raw.startswith(b'BLENDER'):
+                        raise ValueError('Not a bounded Blender source file')
+                    md5=chosen.get('md5')
+                    if isinstance(md5,str) and re.fullmatch(r'[0-9a-fA-F]{32}',md5):
+                        if hashlib.md5(raw).hexdigest()!=md5.lower():
+                            raise ValueError('Provider MD5 mismatch')
+                    item['sha256']=hashlib.sha256(raw).hexdigest()
+                    item['bytes']=len(raw)
+                    item['file']=slug+'.blend'
+                    (output/item['file']).write_bytes(raw)
+                    item['status']='SOURCE_BLEND_DOWNLOADED_NEEDS_SANDBOX_CONVERSION'
             else:
                 chosen=variants[0]
                 raw=request_bytes(chosen['url'],MAX_BYTES)
@@ -133,6 +166,7 @@ def acquire(output,slugs=SLUGS):
             item['status']='BLOCKED_REVIEW_REQUIRED'
             item['error']=type(e).__name__+': '+str(e)[:180]
         report['models'].append(item)
+    report['blender_sources_downloaded']=sum(v['status']=='SOURCE_BLEND_DOWNLOADED_NEEDS_SANDBOX_CONVERSION' for v in report['models'])
     report['validated_downloads']=sum(v['status']=='DOWNLOADED_VALIDATED_NOT_INTEGRATED' for v in report['models'])
     (output/'MANIFEST.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     return report
