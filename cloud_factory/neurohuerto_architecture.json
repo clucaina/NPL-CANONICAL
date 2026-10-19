@@ -1,0 +1,138 @@
+{
+  "schema": "neurohuerto.v1",
+  "policy": "METADATA_ONLY_NO_CLIENT_FILES",
+  "status": "DESIGN_NOT_RUNNING_ORACLE",
+  "projects": [
+    {
+      "id": "neurocity",
+      "owner": "neurocity",
+      "independent_state": true
+    },
+    {
+      "id": "npl",
+      "owner": "neurocity",
+      "independent_state": true
+    },
+    {
+      "id": "conflictometro",
+      "owner": "neurocity",
+      "independent_state": true
+    },
+    {
+      "id": "apj",
+      "owner": "apj",
+      "independent_state": true
+    },
+    {
+      "id": "sicnar",
+      "owner": "sicnar",
+      "independent_state": true
+    },
+    {
+      "id": "voynich",
+      "owner": "voynich",
+      "independent_state": true
+    },
+    {
+      "id": "neurovida",
+      "owner": "neurovida",
+      "independent_state": true
+    },
+    {
+      "id": "semilla",
+      "owner": "neurovida",
+      "independent_state": true
+    },
+    {
+      "id": "noema",
+      "owner": "neurovida",
+      "independent_state": true
+    },
+    {
+      "id": "neuropuente",
+      "owner": "neurovida",
+      "independent_state": true
+    },
+    {
+      "id": "multife",
+      "owner": "multife",
+      "independent_state": true
+    },
+    {
+      "id": "videoforge",
+      "owner": "videoforge",
+      "independent_state": true
+    },
+    {
+      "id": "psicologia_politica",
+      "owner": "psicologia_politica",
+      "independent_state": true
+    },
+    {
+      "id": "neuropsicolucia",
+      "owner": "neuropsicolucia",
+      "independent_state": true
+    },
+    {
+      "id": "lucia_lab",
+      "owner": "lucia_lab",
+      "independent_state": true
+    }
+  ],
+  "knowledge_channels": [
+    [
+      "sicnar",
+      "apj",
+      "method"
+    ],
+    [
+      "sicnar",
+      "voynich",
+      "falsification"
+    ],
+    [
+      "voynich",
+      "multife",
+      "source_comparison"
+    ],
+    [
+      "neurocity",
+      "videoforge",
+      "synthetic_rendering"
+    ],
+    [
+      "psicologia_politica",
+      "neurocity",
+      "public_aggregate_indicators"
+    ],
+    [
+      "lucia_lab",
+      "neurocity",
+      "qa"
+    ],
+    [
+      "lucia_lab",
+      "apj",
+      "qa"
+    ],
+    [
+      "lucia_lab",
+      "neuropsicolucia",
+      "qa"
+    ]
+  ],
+  "never_transfer": [
+    "client_files",
+    "patient_records",
+    "personal_data",
+    "secrets",
+    "private_avatar",
+    "unverified_claims"
+  ],
+  "release_policy": {
+    "engineering_draft": "separate_branch",
+    "private_or_clinical": "never_public",
+    "scientific": "validation_before_claim",
+    "production": "explicit_review_required"
+  }
+}
