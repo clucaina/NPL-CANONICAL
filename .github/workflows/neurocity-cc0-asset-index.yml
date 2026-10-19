@@ -1,0 +1,40 @@
+name: NeuroCity · catálogo masivo de modelos 3D CC0 públicos (NO DEPLOY)
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'tools/neurocity/curate_cc0_assets.py'
+      - 'tools/neurocity/test_curate_cc0_assets.py'
+      - '.github/workflows/neurocity-cc0-asset-index.yml'
+permissions:
+  contents: read
+jobs:
+  curated_index:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate provider metadata filter with synthetic fixtures (no networking)
+        run: python3 -m unittest discover -s tools/neurocity -p 'test_*.py' -v
+      - name: Discover real Poly Haven CC0 3D model metadata (NO binaries)
+        run: |
+          python3 tools/neurocity/curate_cc0_assets.py --live --limit 120 --output _cc0_output/NEUROCITY_CC0_CANDIDATES.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('_cc0_output/NEUROCITY_CC0_CANDIDATES.json',encoding='utf-8'))
+          assert p['schema']=='neurocity.cc0-candidate-catalog.v1'
+          assert p['models_downloaded']==0 and not p['not_integrated_in_city']==False
+          assert p['count']>0 and p['count']<=120
+          assert all(x['license']=='CC0-1.0' and x['candidate_only'] for x in p['candidates'])
+          print('PUBLIC_METADATA_CATALOG_QA_PASS:', p['count'])
+          PY
+      - name: Upload license-auditable source catalogue only
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEUROCITY_POLYHAVEN_CC0_3D_CATALOG_METADATA_ONLY
+          path: _cc0_output/
+          retention-days: 7
+          if-no-files-found: error

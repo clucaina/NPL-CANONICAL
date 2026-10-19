@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { nextCameraMode, canNavigate } from './navigation_policy.mjs';
 import {normalizedStick,combineMovement} from './mobile_navigation.mjs';
+import {buildUrbanKit} from './urban_kit.mjs';
 
 // NPL WORLD - real GLB integration. No placeholder people, no pay-per-map API.
 // Local public cartographic geometry + separate PRIVATE human GLB. Offline runtime.
@@ -198,16 +199,19 @@ const showLoad=(text)=>{progress.textContent=text;};
 // Public preview deliberately excludes optional props and private avatars.
 // Do not expose personal/biometric models through a GitHub artifact.
 const publicPreview=window.NPL_PUBLIC_REVIEW===true;
+// Public city decor: original CC0 procedural asset library, never a private GLB.
+const urbanKit=publicPreview?buildUrbanKit({tier:window.matchMedia?.('(pointer:coarse)')?.matches?'mobile':'desktop'}):null;
+if(urbanKit){decorGroup.add(urbanKit.group);palmCount=urbanKit.stats.palmCount;}
 function enterPublicCity(){
  $('face').disabled=true;
  $('face').title='Solo disponible cuando exista un avatar privado local';
  mode='first';
  $('cameraMode').textContent='Primera persona · ciudad pública';
  window.NPL_READY={cityMeshes:city?.children?.length||0,cityOnly:true,privateAvatarLoaded:false,
-  explanadaCoords:[38.34318,-0.48326],windows:windowCount,facadeStyle:'artistic_not_surveyed',palms:palmCount,skins:0,clips:[]};
+  explanadaCoords:[38.34318,-0.48326],windows:windowCount,facadeStyle:'artistic_not_surveyed',palms:palmCount,urbanKit:urbanKit?.stats||null,skins:0,clips:[]};
  loading.remove();
  showLoad('Ciudad pública geográfica lista');
- display('Alicante 3D OSM con fachadas artísticas próximas. Las ventanas y alturas no están medidas. Navegación experimental; realismo y FPS sin certificar.');
+ display('Alicante 3D OSM: fachadas y mobiliario mediterráneo 3D ilustrativos (no medidos). Navegación experimental; FPS y fotorrealismo sin certificar.');
 }
 
 async function loadWorld(){

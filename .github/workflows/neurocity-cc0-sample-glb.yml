@@ -1,0 +1,48 @@
+name: NeuroCity · adquisición controlada de modelos 3D CC0 (NO DEPLOY)
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'tools/neurocity/fetch_cc0_glb.py'
+      - 'tools/neurocity/test_fetch_cc0_glb.py'
+      - '.github/workflows/neurocity-cc0-sample-glb.yml'
+permissions:
+  contents: read
+jobs:
+  models_qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned free zstd decoder for original CC0 Blender sources
+        run: python3 -m pip install --disable-pip-version-check zstandard==0.25.0
+      - name: Verify GLB binary parser and download safety on synthetic files
+        run: python3 -m unittest discover -s tools/neurocity -p 'test_*.py' -v
+      - name: Query only 3 fixed CC0 official candidate slugs; bound each to 16 MB
+        run: python3 tools/neurocity/fetch_cc0_glb.py --output _public_glb_review
+      - name: Explain real asset acquisition status without publishing models
+        run: |
+          python3 - <<'PY'
+          import json,pathlib,hashlib
+          p=pathlib.Path('_public_glb_review')
+          report=json.loads((p/'MANIFEST.json').read_text(encoding='utf-8'))
+          assert not report['deployed'] and not report['included_in_georeferenced_city']
+          for m in report['models']:
+              if m['status'] in ('DOWNLOADED_VALIDATED_NOT_INTEGRATED','SOURCE_BLEND_DOWNLOADED_NEEDS_SANDBOX_CONVERSION'):
+                  f=p/m['file']
+                  assert f.is_file() and f.stat().st_size<=64*1024*1024
+                  assert hashlib.sha256(f.read_bytes()).hexdigest()==m['sha256']
+          print('QA_GLBS_ACQUIRED:',report['validated_downloads'])
+          print('QA_BLENDER_SOURCES_ACQUIRED:',report['blender_sources_downloaded'])
+          print('QA_TOTAL_VARIANTS:',sum(m.get('glb_variants_under_16mb',0) for m in report['models']))
+          PY
+      - name: Upload authentic source Blender/GLB files only to 7-day private-free artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEUROCITY_CC0_AUTHENTIC_GLB_SAMPLES_NOT_DEPLOYED
+          path: _public_glb_review/
+          retention-days: 7
+          if-no-files-found: error
