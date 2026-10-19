@@ -60,6 +60,8 @@ jobs:
           mkdir -p "$viewer/dist/assets"
           cp "$city/output/Alicante_REAL_OSM_PNOA.glb" "$viewer/dist/assets/alicante.glb"
           cp "$viewer/index.html" "$viewer/dist/index.html"
+          cp "$viewer/public_context/ine_eaes2024_3_territories.json" "$viewer/dist/assets/conflictometro_public_verified.json"
+          python3 -m json.tool "$viewer/dist/assets/conflictometro_public_verified.json" > /dev/null
           # Ship the reviewed public data panel with the actual city, not just repository source.
           cp "$viewer/observatory.html" "$viewer/observatory.css" "$viewer/observatory.mjs" "$viewer/public_layers.mjs" "$viewer/dist/"
           test -s "$viewer/dist/observatory.html"
