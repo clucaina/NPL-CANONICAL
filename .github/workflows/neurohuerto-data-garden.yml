@@ -1,0 +1,47 @@
+name: NEUROHUERTO · Data Garden public-source QA (NO DEPLOY)
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '29 */4 * * *'
+  push:
+    paths:
+      - '.github/workflows/neurohuerto-data-garden.yml'
+      - 'cloud_factory/data_garden.py'
+      - 'cloud_factory/data_garden_catalog.json'
+      - 'cloud_factory/test_data_garden.py'
+permissions:
+  contents: read
+concurrency:
+  group: neurohuerto-public-data-garden
+  cancel-in-progress: false
+jobs:
+  source_quality:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Offline schema, privacy and duplicate regression tests
+        run: python3 -m unittest discover -s cloud_factory -p 'test_data_garden.py' -v
+      - name: Audit explicitly allowlisted public research batches
+        run: |
+          python3 cloud_factory/data_garden.py \
+            --catalog cloud_factory/data_garden_catalog.json \
+            --out /tmp/neurohuerto-data-garden
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/neurohuerto-data-garden/qa.json'))
+          assert d["schema"]=="neurohuerto.data_garden.v1"
+          assert d["no_automatic_publication"] is True
+          assert d["no_private_sources"] is True
+          assert len(d["candidates"])==2
+          print('Data sources:',[(x["batch_id"],x["status"],x.get("rows")) for x in d["candidates"]])
+          PY
+      - name: Preserve only data quality metadata and research-stage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEUROHUERTO_PUBLIC_DATA_QUALITY_NO_ROWS
+          path: /tmp/neurohuerto-data-garden/
+          retention-days: 7
+          if-no-files-found: error
+      - name: Human-readable results; not publication authorization
+        run: cat /tmp/neurohuerto-data-garden/QA_RESUMEN.md >> "$GITHUB_STEP_SUMMARY"
