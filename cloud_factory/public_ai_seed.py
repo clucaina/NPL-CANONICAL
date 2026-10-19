@@ -44,10 +44,22 @@ def sanitize(text):
     ]
     if any(re.search(p,text) for p in patterns):
         return "[PROPUESTA BLOQUEADA: posible información privada o petición de credenciales.]","blocked"
-    stripped=text.strip()
-    if len(stripped)<120:
+    # Strip llama.cpp banner, model filesystem path, echoed prompts, and CLI footer.
+    # Only a separately detected hypothesis section may enter a shareable artifact.
+    text=re.sub(r"\\x1b\\[[0-9;]*[A-Za-z]","",text)
+    start=re.search(r"(?im)^\\s*(?:HIPOTESIS|HIPÓTESIS)\\s*:",text)
+    if not start:
+        return "[MODELO SIN HIPÓTESIS IDENTIFICABLE: ninguna propuesta válida.]","insufficient"
+    body=text[start.start():]
+    body=re.split(r"(?im)^\\s*Exiting\\.\\.\\.\\s*$",body)[0].strip()
+    if len(body)<120:
         return "[MODELO SIN RESPUESTA ÚTIL: ninguna propuesta aprobada.]","insufficient"
-    return stripped[:6500],"candidate_unverified"
+    required=("CAMBIO PROPUESTO","PRUEBAS","CRITERIO DE ACEPTACION")
+    if any(k not in body.upper() for k in required):
+        return body[:6500],"candidate_unstructured_needs_review"
+    if re.search(r"(?i)no hay datos obligatorios",body):
+        return body[:6500],"candidate_requires_missing_evidence"
+    return body[:6500],"candidate_unverified"
 def output(model_output,focus,folder):
     cleaned,state=sanitize(model_output)
     record={
@@ -59,7 +71,8 @@ def output(model_output,focus,folder):
         "no_deployment":True,"no_scientific_claim":True,
         "model_output_sha256":hashlib.sha256(model_output.encode()).hexdigest(),
         "proposal":cleaned,
-        "required_review":"Independent human/advanced-model code review, unit tests, browser QA and reference comparisons BEFORE any change"
+        "required_review":"Independent human/advanced-model code review, unit tests, browser QA and reference comparisons BEFORE any change",
+        "observed_limit":"Only 2/614 OSM building heights were explicitly measured in the last referenced run. No inference about 612 individual heights is validated."
     }
     folder.mkdir(parents=True,exist_ok=True)
     (folder/"candidate.json").write_text(json.dumps(record,indent=2,ensure_ascii=False),encoding="utf-8")
