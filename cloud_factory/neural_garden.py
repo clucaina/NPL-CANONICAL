@@ -64,6 +64,8 @@ def fetch_public_repo(repo,opener=urlopen):
         if not isinstance(t,dict):continue
         name=str(t.get("name") or "")[:110]
         if not name:continue
+        # Exclude this observatory and passive inventory jobs: prevent artificial "new progress" loops.
+        if name.startswith(("Jardín Sináptico","Factory independent shift","NPL Alicante 3D - open city on free CPU")):continue
         runs.append({"name":name,"status":str(t.get("status","unknown"))[:25],
                      "conclusion":str(t.get("conclusion") or "pending")[:25],
                      "time":str(t.get("created_at") or "")[:35],
