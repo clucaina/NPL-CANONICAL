@@ -20,7 +20,7 @@ from open_imagery_inventory import (
 
 LIMIT=100
 MAX_IMAGE_BYTES=6*1024*1024
-MAX_PHOTOS=20
+MAX_PHOTOS=30
 
 def safe_image_url(url):
     if not isinstance(url,str) or len(url)>2048:return False
@@ -55,8 +55,10 @@ def choose_sequence(payload,photo_limit=MAX_PHOTOS):
     sid,ordered=max(sequences.items(),key=lambda pair:len(pair[1]))
     ordered.sort(key=lambda x:(x['date'],x['image_id']))
     if len(ordered)>photo_limit:
-        indices=[round(i*(len(ordered)-1)/(photo_limit-1)) for i in range(photo_limit)]
-        ordered=[ordered[i] for i in indices]
+        # COLMAP requires abundant parallax/overlap. Widely spaced photos were
+        # observed to yield no initial pair in the first real Alicante run.
+        start=(len(ordered)-photo_limit)//2
+        ordered=ordered[start:start+photo_limit]
     return ordered,{'eligible_sources':audit['license_link_approved_count'],
                     'longest_sequence_available':len(sequences[sid]),
                     'sequence_id':sid,'sample_size':len(ordered)}
@@ -79,6 +81,7 @@ def prepare_photos(items,image_dir):
     from io import BytesIO
     successes=0
     errors=collections.Counter()
+    aspect={'panorama_2to1':0,'regular_landscape':0,'portrait':0}
     for item in items:
         if successes>=MAX_PHOTOS:break
         try:
@@ -86,15 +89,18 @@ def prepare_photos(items,image_dir):
             with Image.open(BytesIO(raw)) as image:
                 if image.width<400 or image.height<300 or image.width*image.height>32_000_000:
                     raise ValueError('Unsafe or undersized image geometry')
+                ratio=image.width/image.height
+                key='panorama_2to1' if ratio>=1.85 else ('regular_landscape' if ratio>=1 else 'portrait')
+                aspect[key]+=1
                 # Save RGB downsample without EXIF/GPS and without emitting originals.
                 converted=ImageOps.exif_transpose(image).convert('RGB')
-                converted.thumbnail((1100,850))
+                converted.thumbnail((1400,1050))
                 output=image_dir/f'frame_{successes:03d}.jpg'
                 converted.save(output,'JPEG',quality=84,exif=b'')
             successes+=1
         except Exception as exc:
             errors[type(exc).__name__]+=1
-    return successes,dict(errors)
+    return successes,dict(errors),aspect
 
 def colmap_sparse(image_dir,work_dir):
     report={'attempted':False,'registered_images':0,'sparse_points':0}
@@ -107,7 +113,7 @@ def colmap_sparse(image_dir,work_dir):
     commands=[
       ['colmap','feature_extractor','--database_path',str(db),'--image_path',str(image_dir),
        '--ImageReader.single_camera','1','--SiftExtraction.use_gpu','0',
-       '--SiftExtraction.max_image_size','1100','--SiftExtraction.max_num_features','3000'],
+       '--SiftExtraction.max_image_size','1400','--SiftExtraction.max_num_features','5000'],
       ['colmap','exhaustive_matcher','--database_path',str(db),
        '--SiftMatching.use_gpu','0'],
       ['colmap','mapper','--database_path',str(db),'--image_path',str(image_dir),
@@ -164,8 +170,9 @@ def run(output):
             with tempfile.TemporaryDirectory(prefix='neurocity-stac-photo-') as temp:
                 root=Path(temp)
                 images=root/'images';images.mkdir()
-                count,failures=prepare_photos(items,images)
+                count,failures,aspects=prepare_photos(items,images)
                 report['ephemeral_photos_processed']=count
+                report['input_photo_aspect_distribution']=aspects
                 report['download_error_types']=failures
                 if count<8:
                     report['status']='BLOCKED_INSUFFICIENT_VERIFIED_PHOTO_BYTES'
