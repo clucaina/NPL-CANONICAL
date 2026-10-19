@@ -44,6 +44,24 @@ def collect_glbs(tree):
     return sorted([e for e in result if 1000<e['size']<=MAX_BYTES],
                   key=lambda e:(e['size'],e['url']))
 
+def describe_variants(tree):
+    formats={}
+    def walk(obj):
+        if isinstance(obj,dict):
+            url=obj.get('url')
+            size=obj.get('size')
+            if permitted(url) and isinstance(size,int) and not isinstance(size,bool):
+                ext=Path(urlsplit(url).path).suffix.lower() or 'no_extension'
+                entry=formats.setdefault(ext,{'count':0,'smallest_size':size})
+                entry['count']+=1
+                entry['smallest_size']=min(entry['smallest_size'],size)
+            for v in obj.values():
+                if isinstance(v,(dict,list)):walk(v)
+        elif isinstance(obj,list):
+            for v in obj:walk(v)
+    walk(tree)
+    return dict(sorted(formats.items()))
+
 def validate_glb(raw):
     if len(raw)<24 or raw[:4]!=b'glTF' or len(raw)>MAX_BYTES:
         raise ValueError('Not bounded binary glTF')
@@ -90,6 +108,7 @@ def acquire(output,slugs=SLUGS):
         try:
             tree=json.loads(request_bytes(BASE+'/files/'+slug,1_500_000))
             variants=collect_glbs(tree)
+            item['provider_formats']=describe_variants(tree)
             item['glb_variants_under_16mb']=len(variants)
             if not variants:
                 item['status']='NO_DIRECT_LIGHTWEIGHT_GLB_VARIANT'
