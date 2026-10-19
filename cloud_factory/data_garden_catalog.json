@@ -1,0 +1,24 @@
+{
+  "schema": "neurohuerto.data_source_catalog.v1",
+  "visibility": "public_aggregates_only",
+  "store_raw_rows": false,
+  "pipeline": "candidate_qa_does_not_publish",
+  "sources": [
+    {
+      "batch_id": "T27_SALARIOS_CCAA_2024",
+      "public_path": "database/T27_SALARIOS_CCAA_2024.json",
+      "raw_url": "https://raw.githubusercontent.com/clucaina/psicologia-politica/integracion/v78-maestro-sin-despliegue/database/T27_SALARIOS_CCAA_2024.json",
+      "source_family": "INE",
+      "license": "INE CC BY 4.0 subject to own-source condition",
+      "scope": "España y CCAA, medias salariales 2024"
+    },
+    {
+      "batch_id": "T36_EUROSTAT_AROPE_HOGARES_CON_HIJOS_2025",
+      "public_path": "database/T36_EUROSTAT_AROPE_HOGARES_CON_HIJOS_2025.json",
+      "raw_url": "https://raw.githubusercontent.com/clucaina/psicologia-politica/integracion/v78-maestro-sin-despliegue/database/T36_EUROSTAT_AROPE_HOGARES_CON_HIJOS_2025.json",
+      "source_family": "EUROSTAT",
+      "license": "NOT_VERIFIED_FOR_AUTOMATIC_REUSE",
+      "scope": "España, hogares con hijos 2025"
+    }
+  ]
+}
