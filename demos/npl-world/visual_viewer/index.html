@@ -12,22 +12,50 @@ button:hover{background:#2e6474}button:disabled{opacity:.45;cursor:not-allowed}
 #info{bottom:15px;left:50%;transform:translateX(-50%);max-width:85vw;text-align:center;font-size:12px}
 #info.error{border-color:#df7f77;color:#ffd0c5}
 #stat{left:15px;bottom:15px}#cameraMode{color:#ffd790}
+#neurohud{position:absolute;right:12px;top:83px;width:min(325px,calc(100vw - 24px));z-index:4;
+ background:#221922e8;border:1px solid #d7a4a17a;color:#f8ebe2;border-radius:16px;
+ box-shadow:0 16px 36px #0008;backdrop-filter:blur(16px);max-height:calc(100vh - 110px);overflow:auto}
+#neurohud summary{cursor:pointer;padding:13px 15px;display:flex;justify-content:space-between;align-items:center;
+ font-weight:700;letter-spacing:.04em;color:#ffe8df;list-style:none}
+#neurohud summary::-webkit-details-marker{display:none}
+#neurohud summary em{font-style:normal;font-weight:500;font-size:11px;color:#f0c0b1}
+#neurohud section{padding:0 15px 15px}
+#neurohud h3{font-size:12px;letter-spacing:.14em;color:#e9b1ad;margin:12px 0 6px}
+#neurohud p,#neurohud li{font-size:12px;line-height:1.46;margin:6px 0}
+#neurohud ol{padding-left:17px;margin:6px 0}
+#neurohud .npl-step{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #ffffff18;padding:7px 0}
+#neurohud .npl-step span{color:#dcbcc7;font-size:12px}
+#neurohud .npl-step b{font-size:11px;font-weight:600;text-align:right}
+#neurohud button{font-size:12px;width:100%;text-align:left;margin:4px 0;border-color:#af8390;background:#493044}
+#neurohud button:focus-visible{outline:2px solid #ffe1b7;outline-offset:2px}
+#neurohud button:hover{background:#72465a}
+#nplDataState[data-ready="true"]{color:#aee3c8}
+#nplDataState[data-ready="false"]{color:#ffd0a9}
+#nplFeedback{min-height:34px;color:#f9e0c4}
+#nplBrainLabel{font-size:11px;color:#ead0c8}
+#neurohud .npl-note{color:#d4b0c3;font-size:11px}
+
 #walkPad{display:none;touch-action:none;user-select:none;-webkit-user-select:none}
 #walkKnob{width:48px;height:48px;border-radius:50%;background:linear-gradient(140deg,#ebdbc7,#cba88b);border:2px solid #ffefd6;box-shadow:0 4px 18px #0008;pointer-events:none;will-change:transform}
 @media (pointer:coarse){
  #walkPad{position:absolute;display:grid;place-items:center;bottom:104px;left:20px;width:120px;height:120px;border:2px solid #edcba5a3;border-radius:50%;background:radial-gradient(circle,#6b3441d9,#261923b8);box-shadow:0 10px 36px #0007;z-index:2}
  #panelControls{flex-wrap:wrap;max-width:calc(100vw - 24px);justify-content:flex-start}
  #panelControls button{padding:7px 9px;font-size:12px}
- #stat{bottom:238px;left:20px}
+ #stat{bottom:238px;left:20px}#neurohud{top:140px;right:10px;width:min(280px,55vw);max-height:calc(100vh - 145px)}
 }
 
-@media(max-width:680px){header{width:calc(100% - 30px);top:117px}#panelControls{left:12px;right:auto;top:9px}#info{bottom:9px;right:10px;left:auto;transform:none;min-width:0;max-width:calc(100% - 20px);font-size:11px}
+@media(max-width:680px){#neurohud{top:168px;right:10px;width:min(270px,56vw)}header{width:calc(100% - 30px);top:117px}#panelControls{left:12px;right:auto;top:9px}#info{bottom:9px;right:10px;left:auto;transform:none;min-width:0;max-width:calc(100% - 20px);font-size:11px}
  @media (pointer:coarse){#info{max-width:calc(100% - 162px);bottom:60px}#stat{bottom:236px;}}
 }
 </style></head><body>
 <canvas id="game"></canvas>
 <header class="panel"><strong>N✦ NPL WORLD</strong><p>Explanada de Alicante · Edificios OSM y escena 3D con vestuario y paisaje mediterráneo.<br><small>Ciudad y semejanza facial aún no fotogramétricas.</small></p></header>
 <div id="panelControls" class="panel"><button id="cam">◉ Cámara (C)</button><button id="face">◎ Ver rostro</button><button id="fidelity">◈ Calidad</button><button id="reset">↻ Centrar</button></div>
+<details id="neurohud" open aria-label="NPL: cerebro del personaje y misión de aprendizaje"><summary><span>◉ NPL · Cerebro de tu personaje</span><em id="nplMode">Formación</em></summary><section>
+<div class="npl-note" id="nplBrainLabel">Modelo didáctico, no medición cerebral.</div><div id="nplFlow" aria-live="off"></div>
+<h3>CONFLICTÓMETRO · CONTEXTO</h3><p id="nplDataState" data-ready="false">Buscando observaciones verificadas…</p><p id="nplConflictSummary">Sin atribuciones causales ni diagnósticos colectivos.</p>
+<h3>MISIÓN · INVESTIGAR ANTES DE ACTUAR</h3><p id="nplMissionStage" aria-live="polite">Verificando fuente…</p><div id="nplOptions"></div><p id="nplFeedback" aria-live="polite"></p>
+<p class="npl-note">Modo sin cuentas, sin chat, sin personas identificables. Progreso local de sesión, no registrado.</p></section></details>
 <div id="walkPad" role="group" aria-label="Control táctil de desplazamiento. Desliza para avanzar, retroceder y moverte lateralmente."><div id="walkKnob"></div></div>
 <div id="loading"><h2>Cargando recursos locales 3D</h2><p id="progress">Preparando motor gráfico…</p><p>No se descargan personas ni edificios al abrir. Los modelos ya están en el paquete.</p></div>
 <div id="stat" class="panel">0,0 m</div><div id="info" class="panel"><span id="messageText">W/S avanzar y retroceder · A/D lateral · Mayús correr · ratón cámara</span> · <span id="cameraMode">Tercera persona</span></div>
