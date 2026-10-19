@@ -31,6 +31,10 @@ def decode_blend(raw):
         data=raw
     if len(data)>MAX_DECODED_BLEND_BYTES or not data.startswith(b'BLENDER'):
         raise ValueError('Not a bounded Blender source after decoding')
+    # The header alone is not enough: genuine Blender files need schema and terminator blocks.
+    # Without DNA1 / ENDB, treat provider bytes as a corrupt or stub source, not a valid model.
+    if b'DNA1' not in data or b'ENDB' not in data:
+        raise ValueError('BLENDER_HEADER_ONLY_OR_CORRUPT: required DNA1/ENDB blocks absent')
     return data
 
 def permitted(url):
