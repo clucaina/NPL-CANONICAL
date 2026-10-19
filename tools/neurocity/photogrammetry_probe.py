@@ -114,8 +114,9 @@ def colmap_sparse(image_dir,work_dir):
       ['colmap','feature_extractor','--database_path',str(db),'--image_path',str(image_dir),
        '--ImageReader.single_camera','1','--SiftExtraction.use_gpu','0',
        '--SiftExtraction.max_image_size','1400','--SiftExtraction.max_num_features','5000'],
-      ['colmap','exhaustive_matcher','--database_path',str(db),
-       '--SiftMatching.use_gpu','0'],
+      ['colmap','sequential_matcher','--database_path',str(db),
+       '--SiftMatching.use_gpu','0','--SequentialMatching.overlap','10',
+       '--SequentialMatching.loop_detection','0'],
       ['colmap','mapper','--database_path',str(db),'--image_path',str(image_dir),
        '--output_path',str(models)]
     ]
