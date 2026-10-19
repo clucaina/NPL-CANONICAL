@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "esbuild app.js --bundle --format=iife --minify --outfile=dist/game.js"
+    "build": "esbuild app.js --bundle --format=iife --minify --outfile=dist/game.js && esbuild water_preview.mjs --bundle --format=iife --minify --outfile=dist/water_preview.js && node -e \"require('node:fs').copyFileSync('water_preview.html','dist/water_preview.html')\""
   },
   "dependencies": {
     "three": "0.169.0"
