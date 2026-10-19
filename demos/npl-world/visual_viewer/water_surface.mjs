@@ -3,10 +3,16 @@ export const WATER_SOURCE='artistic_mediterranean_surface_not_surveyed';
 const vertexShader=`
 varying vec2 vLocal;
 varying vec3 vWorld;
+varying vec3 vBasisX;
+varying vec3 vBasisY;
+varying vec3 vBasisN;
 #include <fog_pars_vertex>
 void main(){
  vLocal=position.xy;
  vWorld=(modelMatrix*vec4(position,1.0)).xyz;
+ vBasisX=normalize((modelMatrix*vec4(1.0,0.0,0.0,0.0)).xyz);
+ vBasisY=normalize((modelMatrix*vec4(0.0,1.0,0.0,0.0)).xyz);
+ vBasisN=normalize((modelMatrix*vec4(0.0,0.0,1.0,0.0)).xyz);
  vec4 mvPosition=modelViewMatrix*vec4(position,1.0);
  gl_Position=projectionMatrix*mvPosition;
  #include <fog_vertex>
@@ -16,6 +22,9 @@ uniform float uTime;
 uniform float uDetail;
 varying vec2 vLocal;
 varying vec3 vWorld;
+varying vec3 vBasisX;
+varying vec3 vBasisY;
+varying vec3 vBasisN;
 #include <fog_pars_fragment>
 void main(){
  vec2 p=vLocal;
@@ -28,7 +37,7 @@ void main(){
   slope+=vec2(.61,-.37)*(.006*cos(c));
   swell+=sin(c)*.08;
  }
- vec3 n=normalize(mat3(modelMatrix)*vec3(-slope.x*3.0,-slope.y*3.0,1.0));
+ vec3 n=normalize(vBasisN-3.0*slope.x*vBasisX-3.0*slope.y*vBasisY);
  vec3 eye=normalize(cameraPosition-vWorld);
  vec3 sun=normalize(vec3(-.38,.75,.53));
  float fresnel=.035+.77*pow(1.0-clamp(dot(n,eye),0.0,1.0),5.0);
