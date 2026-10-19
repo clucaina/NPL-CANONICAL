@@ -39,3 +39,10 @@ El comando consulta el listado público de **metadatos** de modelos de Poly Have
 - Calidad visual actual es estilizada; no es un gemelo digital de Alicante, y las ubicaciones de bancos/palmeras son ilustrativas.
 - No se ha demostrado objetivo de 60 FPS sostenidos ni menor gasto energético en hardware móvil; Chromium con renderizado software sirve para integridad funcional, no para rendimiento.
 - No cargar **automáticamente** archivos 3D de proveedores externos en la web: metadatos y archivos requieren revisión de geometría/licencia/atribuciones.
+
+## Auditoría de binarios de Poly Haven (ejecución del 19/10/2026)
+Los tres slugs públicos examinados (`street_lamp_01`, `modular_street_seating`, `painted_wooden_bench`) sí exponen `.gltf` + `.bin` y `.blend`, pero **no** variantes GLB directas bajo 16 MB. El servicio entregó `.blend` con envoltorio Zstandard (magic `28b52ffd`) y longitud comprimida coincidente con su metadato.
+
+Tras descodificar, los tres archivos recibidos tenían exactamente **35.572 bytes** cada uno y cabeceras Blender, **pero carecían de los bloques estructurales `DNA1` y `ENDB`**: por tanto NO pueden certificarse como fuentes Blender completas ni promocionarse como modelos 3D importados. El validador actualizado los rechaza. Puede tratarse de una respuesta corrupta/incompleta en esta ruta de transferencia; no se atribuye el fallo necesariamente al proveedor ni a su colección original.
+
+**Acción siguiente:** inspeccionar variantes `.gltf` y dependencias `.bin` con validación de accesores/primitivas y comprobación de hash, o convertir directamente paquetes oficiales ya completos en un entorno Blender aislado con ejecución automática de scripts deshabilitada. Ningún modelo externo se introduce en la escena OSM hasta superar carga, integridad, licencias, triángulos, materiales y revisión visual.
