@@ -4,10 +4,10 @@ No personal data, external services, or credentials. Does not assert photorealis
 """
 import json
 import math
-import struct
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from glb_structure import inspect_glb
 
 def audit(osm_file, manifest_file, scene_file, glb_file):
     manifest = json.loads(Path(manifest_file).read_text(encoding="utf-8"))
@@ -30,17 +30,12 @@ def audit(osm_file, manifest_file, scene_file, glb_file):
         if tags.get("highway"):
             roads += 1
     data = Path(glb_file).read_bytes()
-    valid_header = len(data) >= 20 and data[:4] == b"glTF" and struct.unpack_from("<I", data, 8)[0] == len(data)
-    mesh_count = 0
-    if valid_header:
-        json_length, chunk_type = struct.unpack_from("<I4s", data, 12)
-        if chunk_type == b"JSON" and 20 + json_length <= len(data):
-            gltf = json.loads(data[20:20 + json_length].decode("utf-8"))
-            mesh_count = len(gltf.get("meshes", []))
+    geometry = inspect_glb(data)
+    mesh_count = geometry["meshes"]
     width = manifest.get("bbox_local_m")
     errors = []
     if buildings == 0 or complete == 0: errors.append("No complete georeferenced building footprints")
-    if not valid_header or mesh_count == 0: errors.append("Invalid or empty GLB")
+    errors.extend(geometry["errors"])
     if not isinstance(width, list) or len(width) != 4 or not (width[2] > width[0] and width[3] > width[1]):
         errors.append("Invalid projected bounding box")
     if scene.get("real_osm_buildings", -1) > complete:
@@ -59,7 +54,11 @@ def audit(osm_file, manifest_file, scene_file, glb_file):
             "scene_exported_buildings": scene.get("real_osm_buildings"),
             "height_data_coverage_ratio": round(explicit_heights / buildings, 4) if buildings else 0,
             "real_pnoa_ground": bool(manifest.get("real_orthophoto")),
-            "glb_bytes": len(data), "glb_meshes": mesh_count},
+            "glb_bytes": len(data), "glb_meshes": mesh_count,
+            "glb_drawable_primitives": geometry["drawable_primitives"],
+            "glb_position_vertices": geometry["position_vertices"],
+            "glb_embedded_bin_bytes": geometry["bin_bytes"],
+            "osm_buildings_with_no_valid_measured_height": buildings - explicit_heights},
         "limitations": ["Street facades are not photogrammetric",
             "Approximate road widths and estimated heights are not surveyed measurements",
             "GLB structural validity does not demonstrate navigability, FPS, visual realism or psychological validity",
