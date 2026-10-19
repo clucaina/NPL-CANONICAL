@@ -13,6 +13,8 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
+import subprocess
 from urllib.request import Request, urlopen
 
 ROOTS=[
@@ -59,8 +61,16 @@ def fetch_public_repo(repo,opener=urlopen):
     token=os.getenv("GITHUB_TOKEN","")
     if token:headers["Authorization"]="Bearer "+token
     req=Request(url,headers=headers)
-    with opener(req,timeout=18) as res:
-        obj=json.loads(res.read(130000))
+    # The official GH CLI handles authenticated GitHub Actions APIs reliably.
+    # Fixed allowlisted repo names only, never a user-controlled command.
+    if os.getenv("GH_TOKEN") and shutil.which("gh"):
+        result=subprocess.run(["gh","api","repos/"+repo+"/actions/runs?per_page=12"],
+                              capture_output=True,text=True,timeout=24)
+        if result.returncode!=0:raise ValueError("GitHub CLI evidence unavailable")
+        obj=json.loads(result.stdout)
+    else:
+        with opener(req,timeout=18) as res:
+            obj=json.loads(res.read(130000))
     data=obj.get("workflow_runs",[])
     if not isinstance(data,list):raise ValueError("GitHub runs are malformed")
     runs=[]
