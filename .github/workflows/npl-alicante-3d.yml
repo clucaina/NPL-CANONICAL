@@ -11,6 +11,7 @@ on:
       - "tools/factory/test_city_quality.py"
 permissions:
   contents: read
+  issues: write
 concurrency:
   group: npl-alicante-3d-source-qa
   cancel-in-progress: false
@@ -67,5 +68,30 @@ jobs:
           path: |
             demos/npl-world/open_city_pipeline/output/
             demos/npl-world/open_city_pipeline/input/source_manifest.json
-          retention-days: 3
+          retention-days: 14
           if-no-files-found: error
+      - name: Preserve only anonymous geodata evidence on project control issue
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import json,os,hashlib
+          from pathlib import Path
+          base=Path("demos/npl-world/open_city_pipeline/output")
+          q=json.loads((base/"QA_independent_provenance.json").read_text())
+          e=q["evidence"];digest=hashlib.sha256((base/"Alicante_REAL_OSM_PNOA.glb").read_bytes()).hexdigest()
+          body=(
+              "### Alicante · OSM/PNOA reference — automatic provenance snapshot\\n\\n"
+              f"**QA:** {q['gate']} · buildings {e['scene_exported_buildings']} · "
+              f"OSM roads {e['osm_road_ways']} · directly measured height tags {e['osm_explicit_height_tags_valid']} "
+              f"({e['height_data_coverage_ratio']*100:.2f}%) · PNOA {e['real_pnoa_ground']} · "
+              f"GLB meshes {e['glb_meshes']}.\\n\\n"
+              f"GLB SHA-256: \`{digest}\`\\n\\n"
+              f"Run: https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}\\n\\n"
+              "**Not canonical NeuroCity production**; does not certify photorealism, FPS or NPL/Conflictómetro integration. "
+              "Never includes personal data or avatars."
+          )
+          Path("/tmp/neurocity-evidence.md").write_text(body,encoding="utf-8")
+          PY
+          gh issue comment 3 --body-file /tmp/neurocity-evidence.md
