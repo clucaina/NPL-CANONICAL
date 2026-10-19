@@ -23,7 +23,9 @@ def inside(lon,lat,bbox=ALICANTE_BBOX):
             bbox[0]<=lon<=bbox[2] and bbox[1]<=lat<=bbox[3])
 
 def classify_response(data,bbox=ALICANTE_BBOX,provider="Panoramax IGN",license_hint=SOURCE_LICENCE):
-    if not isinstance(data,dict) or data.get("type")!="FeatureCollection":
+    # Some Panoramax federation versions return a STAC feature list without
+    # the optional top-level type key. Do not confuse that shape with no coverage.
+    if not isinstance(data,dict) or "features" not in data or data.get("type","FeatureCollection")!="FeatureCollection":
         raise ValueError("Unexpected non-STAC feature collection")
     features=data.get("features")
     if not isinstance(features,list) or len(features)>MAX_ITEMS:
@@ -92,7 +94,7 @@ def query_live():
     # Its root license is mixed; NEVER treat federated photos as individually cleared.
     federated_url=FEDERATION+"/search?"+urlencode({"bbox":",".join(str(x) for x in ALICANTE_BBOX),"limit":MAX_ITEMS})
     federated_payload=load_public_api(federated_url,"api.panoramax.xyz")
-    if federated_payload.get("type")=="FeatureCollection":
+    if isinstance(federated_payload.get("features"),list):
         federation=classify_response(federated_payload,
             provider="Panoramax Federation",license_hint="PER_IMAGE_LICENSE_REVIEW_REQUIRED")
         report["federation_discovery"]={
