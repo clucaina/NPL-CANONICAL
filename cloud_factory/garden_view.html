@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Jardín Sináptico · Centro de continuidad</title>
+<style>
+:root{--bg:#160e15;--ink:#f6efe4;--muted:#bdaeaf;--line:#57404d;--wine:#a85c79;--cream:#f1d8ad;--moss:#8da48a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink)}
+.app{max-width:1660px;margin:auto;padding:24px;display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,390px);gap:16px}
+header{grid-column:1/-1;display:flex;justify-content:space-between;gap:20px;align-items:end;border-bottom:1px solid #614552;padding:12px 0 25px}
+.eyebrow{text-transform:uppercase;letter-spacing:.2em;font-size:10px;color:var(--cream);font-weight:700}
+h1{font-weight:580;font-family:Georgia,serif;letter-spacing:-.025em;font-size:clamp(34px,5vw,58px);margin:6px 0;line-height:1.1}
+p{margin:6px 0;color:var(--muted)}.sub{max-width:760px}
+.stats{display:flex;gap:15px;flex-wrap:wrap}.stats b{font-size:23px;display:block;font-weight:500}.stats small{font-size:11px;color:var(--muted)}
+.panel{background:radial-gradient(circle at 30% 10%,#35202d 0%,#251923 43%,#1e151c 100%);border:1px solid #583c4c;border-radius:20px;overflow:hidden}
+.bed{padding:10px 18px}.toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 12px}
+.toolbar strong{font-size:13px;letter-spacing:.03em}.filters{display:flex;gap:6px;flex-wrap:wrap}
+button{cursor:pointer;background:#3a2433;border:1px solid #715261;color:#ede4d9;border-radius:30px;padding:7px 12px;font:600 11px system-ui}
+button:hover,button.active,button:focus-visible{background:#77415a;outline:2px solid #cfaa9b;outline-offset:1px}
+svg{display:block;width:100%;height:auto;min-height:380px}
+.garden-root{cursor:pointer;outline:0}.garden-root .petals{transition:transform .35s,opacity .2s;transform-box:fill-box;transform-origin:center}
+.garden-root:hover .petals,.garden-root.selected .petals{transform:scale(1.14)}.garden-root.dim{opacity:.18}
+.root-label{font:600 15px system-ui;fill:#f7e9d9;text-anchor:middle;paint-order:stroke;stroke:#160e15;stroke-width:4px;stroke-linejoin:round}
+.root-meta{font:10px system-ui;fill:#b8a5ad;text-anchor:middle}.mycelium{stroke:#b88a95;stroke-width:1.1;opacity:.36;fill:none;stroke-dasharray:3 7}.growth{stroke:#d7b68d;stroke-width:1.4;opacity:.6;fill:none}
+.legend{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 16px;border-top:1px solid #583c4c;font-size:11px;color:#c5afb7}
+.pip{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+.info{padding:24px}.info h2{font:500 29px Georgia,serif;margin:6px 0 2px}
+.status{font-size:11px;color:var(--cream);font-weight:700;letter-spacing:.09em;overflow-wrap:anywhere}
+.info h3{font-size:12px;text-transform:uppercase;letter-spacing:.12em;margin:24px 0 10px;color:#ebc8ae}
+.info p{font-size:13px;line-height:1.65}.tag{display:inline-flex;background:#473240;border:1px solid #6b4d5f;color:#e8d9d8;padding:5px 9px;border-radius:20px;font-size:11px;margin:3px 3px 0 0}
+.signal{background:#22181f;padding:12px;border-radius:10px;border-left:3px solid #8c9f88;margin:8px 0;font-size:12px}
+.source{font-size:11px;overflow-wrap:anywhere;color:#d1bdc2}.list{margin:0;padding-left:18px}.list li{margin:10px 0;color:#c5b3b8;font-size:12px}
+.list a{color:#e7cebd}.lower{grid-column:1/-1;display:grid;grid-template-columns:1.2fr .8fr;gap:15px}
+.note{padding:20px 24px}.note h2{margin:0 0 10px;font:500 23px Georgia,serif}.note p{font-size:12px;line-height:1.6}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;font-size:12px;border-bottom:1px solid #473240;padding:9px 6px}th{color:#cdaeb9;font-weight:500}
+footer{grid-column:1/-1;color:#a88f9a;font-size:11px;line-height:1.65;padding:5px 3px 15px}
+@media(max-width:1050px){.app{display:block;padding:12px}.panel{margin:12px 0}.lower{display:block}header{display:block;padding:16px 5px}.stats{margin-top:18px}svg{min-width:640px}.bed{overflow-x:auto}.info{min-height:300px}}
+</style>
+</head>
+<body>
+<div class="app">
+<header><div><div class="eyebrow">LUCÍA LAB / GOBERNANZA VIVA</div><h1>Jardín Sináptico</h1>
+<p class="sub">Cada raíz conserva su identidad. La evidencia circula solo por sinapsis aprobadas. Las pruebas fallidas generan atención; los informes verificados, crecimiento.</p></div><div class="stats" id="summary"></div></header>
+<section class="panel"><div class="toolbar"><strong>Topología de investigación y desarrollo</strong><div class="filters" id="filters">
+<button class="active" data-filter="all">Todas</button><button data-filter="live">Con fuentes</button><button data-filter="private">Privadas</button><button data-filter="research">Investigación</button></div></div>
+<div class="bed"><svg id="garden" viewBox="0 0 1010 710" role="img" aria-label="Diez proyectos independientes interconectados mediante seis sinapsis condicionadas">
+<defs><radialGradient id="ambient"><stop stop-color="#6b374f" stop-opacity=".33"/><stop offset="1" stop-color="#241620" stop-opacity="0"/></radialGradient>
+<linearGradient id="petal"><stop stop-color="#edbf9f"/><stop offset="1" stop-color="#7b4761"/></linearGradient>
+<linearGradient id="wood"><stop stop-color="#9da48a"/><stop offset="1" stop-color="#443649"/></linearGradient>
+<pattern id="grain" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M0 18 Q10 7 20 18" fill="none" stroke="#806479" opacity=".13"/></pattern></defs>
+<rect width="1010" height="710" fill="url(#grain)"/><ellipse cx="495" cy="335" rx="520" ry="340" fill="url(#ambient)"/>
+<g id="synapses"></g><g id="roots"></g></svg></div>
+<div class="legend"><span><span class="pip" style="background:#dcb88e"></span>Fuente pública accesible</span><span><span class="pip" style="background:#9f84a1"></span>Archivo independiente o privado</span><span><span class="pip" style="background:#8da48a"></span>Enlace con contrato, todavía bloqueado</span></div></section>
+<aside class="panel info" id="details" aria-live="polite"></aside>
+<div class="lower"><section class="panel note"><h2>Ciclos de atención</h2><p>No representa horas inventadas de trabajo. Son turnos seleccionados por disponibilidad de fuentes, errores recientes, prioridades y deuda de revisión.</p>
+<table><thead><tr><th>Raíz</th><th>Tipo de ciclo</th><th>Prioridad</th></tr></thead><tbody id="turns"></tbody></table></section>
+<section class="panel note"><h2>Membranas de seguridad</h2><div class="signal">Datos clínicos, expedientes y credenciales: fuera del jardín público.</div><div class="signal">Las propuestas no atraviesan las sinapsis hasta disponer de contrato, procedencia y revisión.</div><div class="signal">Publicar un boletín técnico nunca publica una web, un modelo privado ni un informe pericial.</div></section></div>
+<footer id="footer">Cargando observaciones verificables…</footer>
+</div>
+<script id="snapshot" type="application/json">__GARDEN_DATA__</script>
+<script>
+(()=>{
+'use strict';
+const state=JSON.parse(document.getElementById('snapshot').textContent);
+const q=id=>document.getElementById(id);
+const svgNS='http://www.w3.org/2000/svg';
+const S=(tag,attrs,parent,text)=>{
+ const el=document.createElementNS(svgNS,tag);
+ Object.entries(attrs||{}).forEach(([k,v])=>el.setAttribute(k,String(v)));
+ if(text!==undefined)el.textContent=String(text);parent.appendChild(el);return el;
+};
+const rootmap=new Map(state.roots.map(p=>[p.id,p]));
+let selected='neurocity',filter='all';
+function statusLabel(v){
+ const table={CHECKS_FAILED:'Revisar fallos de CI',CI_PRESENT_NOT_PRODUCT_VALIDATION:'CI observada; producto sin validar',
+  NEEDS_PRIVATE_CANONICAL_SOURCE:'Fuente privada pendiente',NEEDS_PUBLIC_CORPUS:'Corpus verificable pendiente',
+  SOURCE_UNREACHABLE:'No se pudo consultar',NO_RECENT_CI_OBSERVED:'Sin actividad de CI reciente',IN_PROGRESS_UNVERIFIED:'Ejecución pendiente'};
+ return table[v]||v;
+}
+const urlsafe=url=>typeof url==='string' && /^https:\/\/github\.com\/clucaina\/[a-zA-Z0-9_.-]+\/actions\/runs\/\d+$/.test(url);
+function fillSummary(){
+ const values=[['Raíces',state.roots.length],['Sinapsis aprobadas',state.safety.cross_project_signals_enabled],['Fuentes públicas',state.roots.filter(x=>x.source).length]];
+ q('summary').replaceChildren();
+ values.forEach(([name,value])=>{const d=document.createElement('div'),b=document.createElement('b'),s=document.createElement('small');b.textContent=value;s.textContent=name;d.append(b,s);q('summary').append(d)});
+}
+function render(){
+ const layer=q('roots'),paths=q('synapses');layer.replaceChildren();paths.replaceChildren();
+ const visible=p=>filter==='all'||(filter==='live'&&p.source)||(filter==='private'&&p.privacy==='private')||(filter==='research'&&p.privacy==='research');
+ state.synapses.forEach(e=>{
+  const a=rootmap.get(e.from),b=rootmap.get(e.to);if(!a||!b)return;
+  const x=a.position[0],y=a.position[1],u=b.position[0],v=b.position[1];
+  const curve='M'+x+' '+y+' Q'+((x+u)/2+24)+' '+((y+v)/2-30)+' '+u+' '+v;
+  S('path',{d:curve,class:'mycelium',opacity:visible(a)&&visible(b)?0.34:0.05},paths);
+ });
+ state.roots.forEach((root,i)=>{
+  const x=root.position[0],y=root.position[1];
+  const g=S('g',{class:'garden-root'+(selected===root.id?' selected':'')+(!visible(root)?' dim':''),role:'button',tabindex:0,'aria-label':root.title+'; '+statusLabel(root.status),transform:'translate('+x+' '+y+')'},layer);
+  const color=root.source?'url(#petal)':'url(#wood)';
+  S('circle',{cx:0,cy:0,r:39,fill:root.source?'#4f293e':'#36323d',stroke:'#917280','stroke-width':1.2},g);
+  const petals=S('g',{class:'petals'},g);
+  for(let k=0;k<5;k++){
+   S('path',{d:'M0 -6 C-16 -18 -13 -43 0 -48 C13 -43 16 -18 0 -6Z',
+   fill:color,opacity:.85,transform:'rotate('+(k*72)+')'},petals);
+  }
+  S('circle',{cx:0,cy:0,r:15,fill:'#241920',stroke:'#ceb4a2','stroke-width':1.5},g);
+  S('circle',{cx:0,cy:0,r:5,fill:root.source?'#f4d7ad':'#9ea48d'},g);
+  S('text',{x:0,y:64,class:'root-label'},g,root.title);
+  S('text',{x:0,y:80,class:'root-meta'},g,root.source?'Evidencia pública':'Sistema independiente');
+  g.addEventListener('click',()=>pick(root.id));
+  g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick(root.id)}});
+ });
+}
+function pick(id){
+ selected=id;render();const r=rootmap.get(id);const d=q('details');
+ d.replaceChildren();
+ const tag=(kind,content)=>{const el=document.createElement(kind);el.textContent=content;d.appendChild(el);return el};
+ tag('div','RAÍZ AUTÓNOMA · '+r.privacy.toUpperCase()).className='eyebrow';
+ tag('h2',r.title);tag('p',r.subtitle);
+ tag('div',statusLabel(r.status)).className='status';
+ tag('h3','Propósito y frontera');
+ tag('p',r.focus);
+ if(r.modules.length){tag('h3','Órganos internos (no proyectos separados)');r.modules.forEach(m=>tag('span',m).className='tag')}
+ tag('h3','Siguiente prueba necesaria');tag('p',r.next);
+ tag('h3','Fuente y trazabilidad');
+ tag('p',r.source?'Repositorio público: '+r.source:'No se ha conectado una fuente pública. No se ha leído ningún archivo privado.').className='source';
+ if(r.verification_error)tag('p','Error de consulta: '+r.verification_error);
+ tag('h3','Ejecuciones observadas');
+ if(!r.recent_runs.length)tag('p','Sin ejecuciones comprobadas en este observatorio.');
+ else {const ol=tag('ol','');ol.className='list';r.recent_runs.slice(0,4).forEach(run=>{const li=document.createElement('li');li.textContent=run.name+' · '+run.status+' · '+run.conclusion+' ';if(urlsafe(run.url)){const a=document.createElement('a');a.href=run.url;a.target='_blank';a.rel='noopener noreferrer';a.textContent='abrir evidencia ↗';li.appendChild(a)}ol.appendChild(li)})}
+}
+function renderTurns(){
+ const tbody=q('turns');tbody.replaceChildren();
+ state.active_turns.forEach(t=>{const row=document.createElement('tr');[rootmap.get(t.id)?.title||t.id,t.turn,t.score].forEach(v=>{const td=document.createElement('td');td.textContent=String(v);row.append(td)});tbody.append(row)});
+}
+document.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>{
+ filter=b.dataset.filter;document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('active',x===b));render()
+}));
+fillSummary();renderTurns();pick(selected);
+q('footer').textContent='Observación '+state.generated_utc+' · Separación total de fuentes · '+state.limits.join(' · ');
+})();
+</script>
+</body></html>
