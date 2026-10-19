@@ -1,0 +1,23 @@
+name: Free-tier coordinator QA - no cloud deployment
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'cloud_factory/oci_supervisor.py'
+      - 'cloud_factory/test_oci_supervisor.py'
+      - 'cloud_factory/setup_oci_free.sh'
+      - '.github/workflows/oci-supervisor-qa.yml'
+permissions:
+  contents: read
+jobs:
+  isolated_tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify no hidden shell effects and syntax
+        run: |
+          python3 -m py_compile cloud_factory/oci_supervisor.py
+          bash -n cloud_factory/setup_oci_free.sh
+      - name: Verify SQLite continuity, priority parser and truthful AI state
+        run: python3 -m unittest discover -s cloud_factory -p 'test_oci_supervisor.py' -v
