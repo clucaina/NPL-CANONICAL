@@ -1,0 +1,37 @@
+name: NeuroCity · Alicante coastal-source reality audit (NO DEPLOY)
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '27 4 * * 1'
+  push:
+    paths:
+      - 'tools/factory/coast_inventory.py'
+      - 'tools/factory/test_coast_inventory.py'
+      - '.github/workflows/neurocity-coast-audit.yml'
+permissions:
+  contents: read
+jobs:
+  verify_coast_source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prove coastline inventory never invents meshes
+        run: python3 -m unittest discover -s tools/factory -p 'test_coast_inventory.py' -v
+      - name: Download real public map extent for Alicante
+        working-directory: demos/npl-world/open_city_pipeline
+        run: python3 download_city.py
+      - name: Measure coastline, harbor and street tags in actual bounded OSM file
+        run: |
+          python3 tools/factory/coast_inventory.py \
+            --osm demos/npl-world/open_city_pipeline/input/alicante.osm \
+            --manifest demos/npl-world/open_city_pipeline/input/source_manifest.json \
+            --output /tmp/neurocity-coast-source/QA_COASTAL_SOURCE.json
+          test -s /tmp/neurocity-coast-source/QA_COASTAL_SOURCE.json
+      - name: Preserve provenance only, without inventing a water mesh
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEUROCITY_ALICANTE_COAST_OSM_SOURCE_GAPS
+          path: /tmp/neurocity-coast-source/
+          retention-days: 7
+          if-no-files-found: error
