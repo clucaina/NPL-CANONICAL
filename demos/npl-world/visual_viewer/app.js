@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { nextCameraMode, canNavigate } from './navigation_policy.mjs';
 
 // NPL WORLD - real GLB integration. No placeholder people, no pay-per-map API.
 // Local public cartographic geometry + separate PRIVATE human GLB. Offline runtime.
@@ -265,7 +266,7 @@ function frame(){
  const forward=Number(keys.has('KeyW')||keys.has('ArrowUp'))-Number(keys.has('KeyS')||keys.has('ArrowDown'));
  const strafe=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft'));
  const total=Math.hypot(forward,strafe);
- moving=total>0.01 && !!city;
+ moving=total>0.01 && canNavigate(city);
  const fast=keys.has('ShiftLeft')||keys.has('ShiftRight');
  if(moving){
   const speed=(fast?6.6:2.6)*dt/total;
@@ -317,7 +318,7 @@ view.addEventListener('pointermove',e=>{if(!dragging)return;
  const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;
  yaw+=dx*.006;pitch=Math.max(-.08,Math.min(.92,pitch+dy*.004));});
 view.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(1.85,Math.min(28,zoom+Math.sign(e.deltaY)*.65));},{passive:false});
-const cycleCamera=()=>{mode=avatar?(mode==='back'?'face':mode==='face'?'first':'back'):(mode==='first'?'back':'first');$('cameraMode').textContent=mode==='back'?'Tercera persona':mode==='face'?'Inspección facial':'Primera persona · ciudad pública';};
+const cycleCamera=()=>{mode=nextCameraMode(mode,!!avatar);$('cameraMode').textContent=mode==='back'?'Tercera persona':mode==='face'?'Inspección facial':'Primera persona · ciudad pública';};
 $('cam').onclick=cycleCamera;
 $('reset').onclick=()=>{player.position.set(-10.664,0,113.546);yaw=-.65;mode=avatar?'back':'first';};
 $('fidelity').onclick=()=>{let hi=renderer.getPixelRatio()<1.7;renderer.setPixelRatio(hi?Math.min(devicePixelRatio,2):1);sun.shadow.mapSize.set(hi?2048:1024,hi?2048:1024);sun.shadow.map?.dispose();sun.shadow.map=null;};
