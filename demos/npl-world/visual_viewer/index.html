@@ -12,7 +12,17 @@ button:hover{background:#2e6474}button:disabled{opacity:.45;cursor:not-allowed}
 #info{bottom:15px;left:50%;transform:translateX(-50%);max-width:85vw;text-align:center;font-size:12px}
 #info.error{border-color:#df7f77;color:#ffd0c5}
 #stat{left:15px;bottom:15px}#cameraMode{color:#ffd790}
-#neurohud{position:absolute;right:12px;top:83px;width:min(325px,calc(100vw - 24px));z-index:4;
+#brainWidget{position:absolute;right:12px;top:80px;width:300px;height:239px;z-index:5;
+  border:1px solid #bb8b9d;background:radial-gradient(ellipse at 60% 40%,#704b65ea,#25182aeb 68%);
+  box-shadow:0 16px 44px #0009;backdrop-filter:blur(12px);border-radius:17px;overflow:hidden;
+  display:flex;flex-direction:column;padding:8px}
+#brainCanvas{display:block;width:100%;height:174px;touch-action:none;cursor:grab}
+#brainCanvas:active{cursor:grabbing}
+#brainFocus{font-size:11px;color:#f5dcd2;min-height:19px;text-align:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#brainWidget label{font-size:10px;color:#dfc0c6;display:flex;align-items:center;gap:8px}
+#brainTimeScrub{width:130px;accent-color:#f0abae;height:16px}
+#brainWidget h2{position:absolute;top:6px;left:10px;font-size:11px;font-weight:600;letter-spacing:.09em;margin:0;color:#fff0e7}
+#neurohud{position:absolute;right:12px;top:330px;width:min(325px,calc(100vw - 24px));z-index:4;
  background:#221922e8;border:1px solid #d7a4a17a;color:#f8ebe2;border-radius:16px;
  box-shadow:0 16px 36px #0008;backdrop-filter:blur(16px);max-height:calc(100vh - 110px);overflow:auto}
 #neurohud summary{cursor:pointer;padding:13px 15px;display:flex;justify-content:space-between;align-items:center;
@@ -41,17 +51,23 @@ button:hover{background:#2e6474}button:disabled{opacity:.45;cursor:not-allowed}
  #walkPad{position:absolute;display:grid;place-items:center;bottom:104px;left:20px;width:120px;height:120px;border:2px solid #edcba5a3;border-radius:50%;background:radial-gradient(circle,#6b3441d9,#261923b8);box-shadow:0 10px 36px #0007;z-index:2}
  #panelControls{flex-wrap:wrap;max-width:calc(100vw - 24px);justify-content:flex-start}
  #panelControls button{padding:7px 9px;font-size:12px}
- #stat{bottom:238px;left:20px}#neurohud{top:140px;right:10px;width:min(280px,55vw);max-height:calc(100vh - 145px)}
+ #stat{bottom:238px;left:20px}#brainWidget{top:80px;right:10px;width:min(260px,56vw);height:210px}#brainCanvas{height:142px}#neurohud{top:298px;right:10px;width:min(260px,56vw);max-height:calc(100vh - 306px)}
 }
 
-@media(max-width:680px){#neurohud{top:168px;right:10px;width:min(270px,56vw)}header{width:calc(100% - 30px);top:117px}#panelControls{left:12px;right:auto;top:9px}#info{bottom:9px;right:10px;left:auto;transform:none;min-width:0;max-width:calc(100% - 20px);font-size:11px}
+@media(max-width:680px){#brainWidget{top:80px;width:min(220px,58vw)}#neurohud{top:300px;right:10px;width:min(220px,58vw);max-height:calc(100vh - 310px)}header{width:max-content;max-width:39vw;top:118px}header p{display:none}header strong{font-size:14px}#panelControls{left:12px;right:auto;top:9px}#info{bottom:9px;right:10px;left:auto;transform:none;min-width:0;max-width:calc(100% - 20px);font-size:11px}
  @media (pointer:coarse){#info{max-width:calc(100% - 162px);bottom:60px}#stat{bottom:236px;}}
 }
 </style></head><body>
 <canvas id="game"></canvas>
 <header class="panel"><strong>N✦ NPL WORLD</strong><p>Explanada de Alicante · Edificios OSM y escena 3D con vestuario y paisaje mediterráneo.<br><small>Ciudad y semejanza facial aún no fotogramétricas.</small></p></header>
 <div id="panelControls" class="panel"><button id="cam">◉ Cámara (C)</button><button id="face">◎ Ver rostro</button><button id="fidelity">◈ Calidad</button><button id="reset">↻ Centrar</button></div>
-<details id="neurohud" open aria-label="NPL: cerebro del personaje y misión de aprendizaje"><summary><span>◉ NPL · Cerebro de tu personaje</span><em id="nplMode">Formación</em></summary><section>
+<section id="brainWidget" aria-label="Cerebro 3D educativo del personaje">
+<h2>◉ NPL · CEREBRO 3D / TIEMPO</h2>
+<canvas id="brainCanvas" width="300" height="174" role="img" aria-label="Representación animada 3D interactiva de un cerebro, vinculada a acciones del personaje. No es un registro neurológico."></canvas>
+<div id="brainFocus" aria-live="polite">Gira, toca regiones y observa la actividad del juego.</div>
+<label for="brainTimeScrub">Rebobinar <input type="range" id="brainTimeScrub" min="0" max="12" value="0" step="1" aria-label="Rebobinar actividad del juego, en segundos"/> <span id="brainTimeText">0 s</span></label>
+</section>
+<details id="neurohud" aria-label="Explicaciones accesibles y misión del cerebro NPL"><summary><span>◉ NPL · Cerebro de tu personaje</span><em id="nplMode">Formación</em></summary><section>
 <div class="npl-note" id="nplBrainLabel">Modelo didáctico, no medición cerebral.</div><div id="nplFlow" aria-live="off"></div>
 <h3>CONFLICTÓMETRO · CONTEXTO</h3><p id="nplDataState" data-ready="false">Buscando observaciones verificadas…</p><p id="nplConflictSummary">Sin atribuciones causales ni diagnósticos colectivos.</p>
 <h3>MISIÓN · INVESTIGAR ANTES DE ACTUAR</h3><p id="nplMissionStage" aria-live="polite">Verificando fuente…</p><div id="nplOptions"></div><p id="nplFeedback" aria-live="polite"></p>
