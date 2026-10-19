@@ -16,6 +16,22 @@ BASE='https://api.polyhaven.com'
 SLUGS=('street_lamp_01','modular_street_seating','painted_wooden_bench')
 MAX_BYTES=16*1024*1024
 MAX_TRIS=250_000
+MAX_DECODED_BLEND_BYTES=64*1024*1024
+
+def decode_blend(raw):
+    """Poly Haven sometimes stores .blend as a full zstd frame.
+    Stream-decompress under a hard cap, never unpickle or execute 3D content.
+    """
+    if raw.startswith(b'\x28\xb5\x2f\xfd'):
+        import io
+        import zstandard
+        with zstandard.ZstdDecompressor().stream_reader(io.BytesIO(raw)) as stream:
+            data=stream.read(MAX_DECODED_BLEND_BYTES+1)
+    else:
+        data=raw
+    if len(data)>MAX_DECODED_BLEND_BYTES or not data.startswith(b'BLENDER'):
+        raise ValueError('Not a bounded Blender source after decoding')
+    return data
 
 def permitted(url):
     try:
@@ -134,11 +150,15 @@ def acquire(output,slugs=SLUGS):
                 else:
                     chosen=blends[0]
                     raw=request_bytes(chosen['url'],MAX_BYTES)
-                    if len(raw)!=chosen['size'] or not raw.startswith(b'BLENDER'):
-                        raise ValueError('Bad Blender source: expected_bytes='+str(chosen['size'])+' received_bytes='+str(len(raw))+' header_hex='+raw[:12].hex())
+                    if len(raw)!=chosen['size']:
+                        raise ValueError('Provider file size mismatch')
+                    packed=raw
+                    raw=decode_blend(packed)
+                    item['provider_encoded_sha256']=hashlib.sha256(packed).hexdigest()
+                    item['provider_encoded_bytes']=len(packed)
                     md5=chosen.get('md5')
                     if isinstance(md5,str) and re.fullmatch(r'[0-9a-fA-F]{32}',md5):
-                        if hashlib.md5(raw).hexdigest()!=md5.lower():
+                        if hashlib.md5(packed).hexdigest()!=md5.lower():
                             raise ValueError('Provider MD5 mismatch')
                     item['sha256']=hashlib.sha256(raw).hexdigest()
                     item['bytes']=len(raw)
