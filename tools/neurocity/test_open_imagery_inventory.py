@@ -33,6 +33,16 @@ class PanoramaxStacTests(unittest.TestCase):
         with self.assertRaises(ValueError):mod.classify_response({"type":"FeatureCollection","features":[{}]*101})
         with self.assertRaises(ValueError):mod.load_public_api("http://evil.test/search","panoramax.ign.fr")
         with self.assertRaises(ValueError):mod.load_public_api("https://panoramax.ign.fr.evil.test/search","panoramax.ign.fr")
+    def test_per_photo_license_no_catalog_assumption(self):
+        ok=self.item("licensed")
+        ok["links"]=[{"rel":"license","href":"https://creativecommons.org/licenses/by-sa/4.0/"}]
+        no=self.item("unverified")
+        no["links"]=[{"rel":"license","href":"https://example.net/proprietary"}]
+        report=mod.license_audit([ok,no])
+        self.assertEqual(report["license_link_approved_count"],1)
+        self.assertEqual(report["license_unknown_or_incompatible_count"],1)
+        self.assertEqual(report["image_bytes_downloaded"],0)
+        self.assertFalse(report["sfm_model_created"])
     def test_zero_images_does_not_fabricate_reconstruction(self):
         out=mod.classify_response({"type":"FeatureCollection","features":[]})
         self.assertEqual(out["image_count"],0)
