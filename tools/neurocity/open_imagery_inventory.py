@@ -141,7 +141,12 @@ def query_live():
         federation=classify_response(federated_payload,
             provider="Panoramax Federation",license_hint="PER_IMAGE_LICENSE_REVIEW_REQUIRED")
         rights=license_audit(federated_payload["features"])
+        # Report public API schema, not binary images or contributor details.
+        first=next((q for q in federated_payload["features"]
+                    if isinstance(q,dict) and isinstance(q.get("assets"),dict)),{})
+        asset_keys=sorted(first.get("assets",{}).keys())[:18]
         report["federation_discovery"]={
+            "available_image_asset_types":asset_keys,
             "rights_audit":rights,
             "status":"STAC_METADATA_DISCOVERED",
             "records":federation["image_count"],"sequences":federation["sequence_count"],
