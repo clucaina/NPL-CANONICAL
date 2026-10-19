@@ -19,6 +19,54 @@
       "source_family": "EUROSTAT",
       "license": "NOT_VERIFIED_FOR_AUTOMATIC_REUSE",
       "scope": "España, hogares con hijos 2025"
+    },
+    {
+      "batch_id": "T26_VULNERABILIDAD_SEGURIDAD_2025",
+      "public_path": "database/T26_VULNERABILIDAD_SEGURIDAD_2025.json",
+      "raw_url": "https://raw.githubusercontent.com/clucaina/psicologia-politica/integracion/v78-maestro-sin-despliegue/database/T26_VULNERABILIDAD_SEGURIDAD_2025.json",
+      "source_family": "MULTI_SOURCE",
+      "license": "NOT_VERIFIED_FOR_AUTOMATIC_REUSE",
+      "scope": "Research candidate, source-specific provenance and measurement review required"
+    },
+    {
+      "batch_id": "T28_DERIVADOS_SALARIOS_2024",
+      "public_path": "database/T28_DERIVADOS_SALARIOS_2024.json",
+      "raw_url": "https://raw.githubusercontent.com/clucaina/psicologia-politica/integracion/v78-maestro-sin-despliegue/database/T28_DERIVADOS_SALARIOS_2024.json",
+      "source_family": "NPL_DERIVED_INE",
+      "license": "DERIVED_SOURCE_REQUIRES_ATTRIBUTION_AND_METHOD_REVIEW",
+      "scope": "Research candidate, source-specific provenance and measurement review required"
+    },
+    {
+      "batch_id": "T30_ABANDONO_EDUCATIVO_2022_2025",
+      "public_path": "database/T30_ABANDONO_EDUCATIVO_2022_2025.json",
+      "raw_url": "https://raw.githubusercontent.com/clucaina/psicologia-politica/integracion/v78-maestro-sin-despliegue/database/T30_ABANDONO_EDUCATIVO_2022_2025.json",
+      "source_family": "EDUCATION_STATISTICS",
+      "license": "NOT_VERIFIED_FOR_AUTOMATIC_REUSE",
+      "scope": "Research candidate, source-specific provenance and measurement review required"
+    },
+    {
+      "batch_id": "T31_EMPLEO_PARO_25_64_2015_2025",
+      "public_path": "database/T31_EMPLEO_PARO_25_64_2015_2025.json",
+      "raw_url": "https://raw.githubusercontent.com/clucaina/psicologia-politica/integracion/v78-maestro-sin-despliegue/database/T31_EMPLEO_PARO_25_64_2015_2025.json",
+      "source_family": "EPA_AND_EDUCATION",
+      "license": "NOT_VERIFIED_FOR_AUTOMATIC_REUSE",
+      "scope": "Research candidate, source-specific provenance and measurement review required"
+    },
+    {
+      "batch_id": "T32_PEW_PERCEPCION_DEMOCRACIA_2026",
+      "public_path": "database/T32_PEW_PERCEPCION_DEMOCRACIA_2026.json",
+      "raw_url": "https://raw.githubusercontent.com/clucaina/psicologia-politica/integracion/v78-maestro-sin-despliegue/database/T32_PEW_PERCEPCION_DEMOCRACIA_2026.json",
+      "source_family": "PEW",
+      "license": "NOT_VERIFIED_FOR_AUTOMATIC_REUSE",
+      "scope": "Research candidate, source-specific provenance and measurement review required"
+    },
+    {
+      "batch_id": "T111_INE_IPI_TV_202608",
+      "public_path": "database/T111_INE_IPI_TV_202608.json",
+      "raw_url": "https://raw.githubusercontent.com/clucaina/psicologia-politica/integracion/v78-maestro-sin-despliegue/database/T111_INE_IPI_TV_202608.json",
+      "source_family": "INE",
+      "license": "INE CC BY 4.0 subject to own-source condition",
+      "scope": "Research candidate, source-specific provenance and measurement review required"
     }
   ]
 }

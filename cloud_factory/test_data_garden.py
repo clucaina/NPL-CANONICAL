@@ -31,6 +31,10 @@ class SourceGardenTests(unittest.TestCase):
         self.assertEqual(report["candidates_requiring_review"],1)
         self.assertNotIn("34410.01",serialized)
         self.assertIn("a"*64,serialized)
+    def test_lowercase_indicator_ids_in_public_source_are_preserved(self):
+        row=dict(self.row,indicator_id="ecv_arope_pct")
+        batch={**self.batch,"observations":[row]}
+        self.assertNotIn("invalid_indicator",audit_batch(batch,self.spec)["flags"])
     def test_fails_closed_on_network_and_keeps_clean_schema(self):
         report=run({"sources":[self.spec]},fetcher=lambda url: (_ for _ in ()).throw(OSError("username:secret")))
         self.assertEqual(report["sources_with_errors"],1)
