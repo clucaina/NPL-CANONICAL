@@ -1,0 +1,24 @@
+{
+  "project": "NPL-CANONICAL",
+  "source_evidence": [
+    [
+      "src/components/BrainViewer.tsx"
+    ],
+    [
+      "src/data/networkRegistry.ts"
+    ],
+    [
+      "public/assets/brain/manifest.json"
+    ],
+    [
+      "public/assets/brain/brain.glb"
+    ]
+  ],
+  "work": [
+    "Sincronizar codigo completo en fuentes individuales antes de continuar.",
+    "Verificar Brain Gate y Brain Runtime con ejecucion real de pruebas.",
+    "Explorar experiencias NeuroCity con simulacion util y modo 2D accesible.",
+    "Auditar rendimiento, geometria, dispositivos moviles y navegacion por teclado."
+  ],
+  "guard": "No crear versiones paralelas ni reconstrucciones del cerebro; resultados simulados no equivalen a diagnosticos."
+}
