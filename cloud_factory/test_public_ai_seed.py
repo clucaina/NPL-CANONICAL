@@ -15,9 +15,9 @@ class TestSeed(unittest.TestCase):
         self.assertEqual(sanitize("breve")[1],"insufficient")
     def test_no_execution_or_public_release(self):
         with tempfile.TemporaryDirectory() as d:
-            output("Hipótesis falsable y método reproducible. "*8,"DATOS",Path(d))
+            output("HIPOTESIS: altura incierta para 612 edificios.\nCAMBIO PROPUESTO: mostrar etiquetas de procedencia.\nPRUEBAS: verificar fuente de 2 medidas y tratar estimaciones por separado.\nCRITERIO DE ACEPTACION: nunca llamar medición a una estimación.\n","DATOS",Path(d))
             record=json.loads((Path(d)/"candidate.json").read_text())
             self.assertEqual(record["review_status"],"candidate_unverified")
             self.assertTrue(record["no_deployment"])
-            self.assertIn("solamente",prompt("VISUAL").replace("SOLO","solamente")) if False else None
+            self.assertNotIn("Loading model",record["proposal"])
 if __name__=="__main__":unittest.main()
