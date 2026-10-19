@@ -36,7 +36,7 @@ test('reject unsafe numeric counts and malformed provenance URLs',()=>{
   const d=fixture();d.records[0].unit='count';d.records[0].value=value;
   assert.throws(()=>parse(d),/rango/);
  }
- for(const url of ['https://example.org/a b','https://example.org/\\n','https://example.org/'+ 'a'.repeat(2050)]){
+ for(const url of ['https://example.org/a b','https://example.org/\n','https://example.org/'+ 'a'.repeat(2050)]){
   const d=fixture();d.records[0].source_url=url;
   assert.throws(()=>parse(d),/Fuente pública/);
  }
