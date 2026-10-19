@@ -117,7 +117,7 @@ async function addRealPalmObjects(){
  }catch(err){display('Ciudad cargada; palmeras 3D opcionales no disponibles: '+err.message,true)}
 }
 // Construct facade detail only on ACTUAL OSM walls: no fabricated building footprints.
-function addFacadeDetail(group){
+function addFacadeDetail(group,maxDistance=Infinity){
  let buildingWall=null;
  group.traverse(o=>{if(o.isMesh&&o.name.includes('Building_Walls'))buildingWall=o;});
  if(!buildingWall)return;
@@ -139,6 +139,9 @@ function addFacadeDetail(group){
    if(length<2.7||length>37)continue;
    const mx=(a.x+b.x)/2,mz=(a.z+b.z)/2;
    if(Math.abs(mx+10)>235||Math.abs(mz-119)>280)continue;
+   // LOD: public GPU budget limits artistic windows to nearby actual OSM walls.
+   // These motifs are illustrative, not surveyed facade/window measurements.
+   if(Math.hypot(mx+10.664,mz-113.546)>maxDistance)continue;
    const key=[Math.round(a.x*10),Math.round(a.z*10),Math.round(b.x*10),Math.round(b.z*10)].sort((x,y)=>x-y).join(':')+':'+a.y.toFixed(0);
    if(!edges.has(key))edges.set(key,{ax:a.x,az:a.z,bx:b.x,bz:b.z,h:a.y,len:length});
   }
@@ -166,7 +169,9 @@ function addFacadeDetail(group){
   const mesh=new THREE.InstancedMesh(geometry,material,points.length);
   const obj=new THREE.Object3D();
   points.forEach(([x,y,z,rot],i)=>{obj.position.set(x,y,z);obj.rotation.y=rot;obj.updateMatrix();mesh.setMatrixAt(i,obj.matrix)});
-  mesh.instanceMatrix.needsUpdate=true;mesh.castShadow=true;scene.add(mesh);
+  mesh.instanceMatrix.needsUpdate=true;
+  // Decorative details need no individual shadow pass on low-end/mobile GPUs.
+  mesh.castShadow=false;mesh.receiveShadow=true;scene.add(mesh);
  };
  make(windows,new THREE.BoxGeometry(1.35,1.86,.11),new THREE.MeshPhysicalMaterial({color:0x163240,metalness:.32,roughness:.16,clearcoat:.53}));
  make(frames,new THREE.BoxGeometry(1.61,.15,.18),new THREE.MeshStandardMaterial({color:0xe5d6bd,roughness:.67}));
@@ -199,10 +204,10 @@ function enterPublicCity(){
  mode='first';
  $('cameraMode').textContent='Primera persona · ciudad pública';
  window.NPL_READY={cityMeshes:city?.children?.length||0,cityOnly:true,privateAvatarLoaded:false,
-  explanadaCoords:[38.34318,-0.48326],windows:windowCount,palms:palmCount,skins:0,clips:[]};
+  explanadaCoords:[38.34318,-0.48326],windows:windowCount,facadeStyle:'artistic_not_surveyed',palms:palmCount,skins:0,clips:[]};
  loading.remove();
  showLoad('Ciudad pública geográfica lista');
- display('Alicante 3D con edificios cartografiados y alturas parcialmente estimadas. Navegación experimental; realismo y FPS sin certificar.');
+ display('Alicante 3D OSM con fachadas artísticas próximas. Las ventanas y alturas no están medidas. Navegación experimental; realismo y FPS sin certificar.');
 }
 
 async function loadWorld(){
@@ -210,6 +215,9 @@ async function loadWorld(){
  try{
   const data=await model('./assets/alicante.glb');
   city=data.scene;scene.add(city);
+  // Public-only, bounded artistic facade detail on verifiable OSM wall geometry.
+  // Never loads the optional private facade GLB.
+  if(publicPreview)addFacadeDetail(city,170);
   // v11 architectural detail baked on exactly 150 ACTUAL OSM building-wall edges.
   // Geometry intentionally separate from the PNOA georeferenced base.
   if(!publicPreview) try {

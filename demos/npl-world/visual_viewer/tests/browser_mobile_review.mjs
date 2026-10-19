@@ -10,6 +10,10 @@ try{
  await page.waitForFunction(()=>window.NPL_READY?.cityOnly===true,null,{timeout:70000});
  const pad=page.locator('#walkPad');
  if(!await pad.isVisible())throw Error('Mobile control is hidden in coarse-pointer viewport');
+ const header=await page.locator('header.panel').boundingBox();
+ const controls=await page.locator('#panelControls').boundingBox();
+ if(!header||!controls||header.y<controls.y+controls.height+4)
+   throw Error('Mobile title and camera controls overlap');
  const bounds=await pad.boundingBox();
  if(!bounds)throw Error('Mobile joystick has no touchable bounds');
  const centerX=bounds.x+bounds.width/2,centerY=bounds.y+bounds.height/2;

@@ -30,6 +30,7 @@ try{
   };
   if(state.ready?.privateAvatarLoaded!==false || state.loadingVisible ||
      !state.webglCanvas || state.ready?.cityMeshes<1 ||
+     state.ready?.windows<500 || state.ready?.facadeStyle!=='artistic_not_surveyed' ||
      !state.selectedCamera.includes('Primera persona')){
     throw new Error('Public review did not load expected geo scene: '+JSON.stringify(reportCopy));
   }
