@@ -1,0 +1,47 @@
+name: NeuroCity · fotos CC-BY-SA a geometria 3D COLMAP (EXPERIMENTO NO DEPLOY)
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/neurocity-open-photogrammetry-probe.yml'
+      - 'tools/neurocity/photogrammetry_probe.py'
+      - 'tools/neurocity/test_photogrammetry_probe.py'
+permissions:
+  contents: read
+jobs:
+  open_licensed_sfm:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify photo license and safe API before any download
+        run: python3 -m unittest discover -s tools/neurocity -p 'test_photogrammetry_probe.py' -v
+      - name: Install free CPU SfM engine and image decoder
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -qq -y --no-install-recommends colmap
+          python3 -m pip install --disable-pip-version-check Pillow==11.3.0
+      - name: Try sparse 3D triangulation on no more than twenty independently licensed public Alicante frames
+        run: |
+          python3 tools/neurocity/photogrammetry_probe.py --output _qa_photos/NEUROCITY_PHOTO_SFM_QA.json
+          python3 - <<'PY'
+          import json,pathlib
+          d=json.loads(pathlib.Path('_qa_photos/NEUROCITY_PHOTO_SFM_QA.json').read_text())
+          assert d['schema']=='neurocity.public-photo-sfm-experiment.v1'
+          assert d['images_published']==0 and not d['model_published']
+          assert not d['original_osm_or_npl_modified']
+          if d.get('colmap',{}).get('registered_images',0)<5:
+              print('VERIFIED_BLOCKER_NO_SUCCESSFUL_SPARSE_3D_YET')
+          else:
+              print('VERIFIED_REGISTERED_CAMERAS',d['colmap']['registered_images'])
+          PY
+      - name: Upload ONLY public source license + numeric QA (NEVER photos or photogrammetric meshes)
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEUROCITY_REAL_PHOTOGRAMMETRY_RESULT_NO_IMAGES
+          path: _qa_photos/NEUROCITY_PHOTO_SFM_QA.json
+          retention-days: 7
+          if-no-files-found: error

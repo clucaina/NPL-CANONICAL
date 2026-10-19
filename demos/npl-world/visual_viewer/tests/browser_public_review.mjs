@@ -51,6 +51,9 @@ try{
      state.ready?.windows<500 || state.ready?.facadeStyle!=='artistic_not_surveyed' ||
      state.ready?.urbanKit?.meshGroups!==9 || state.ready?.urbanKit?.palmCount<20 ||
      state.ready?.urbanKit?.scope!=='illustrative_placement_not_surveyed' ||
+     state.ready?.hedges?.count<190 || state.ready?.hedges?.meshGroups!==5 ||
+     !state.ready?.roadSurface?.asphaltMaterialApplied ||
+     state.ready?.roadSurface?.source!=='OSM_centerline_width_estimated_not_surveyed' ||
      !state.selectedCamera.includes('Primera persona')){
     throw new Error('Public review did not load expected geo scene: '+JSON.stringify(reportCopy));
   }
