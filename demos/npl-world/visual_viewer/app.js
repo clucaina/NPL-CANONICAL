@@ -4,6 +4,7 @@ import { nextCameraMode, canNavigate } from './navigation_policy.mjs';
 import {normalizedStick,combineMovement} from './mobile_navigation.mjs';
 import {buildUrbanKit} from './urban_kit.mjs';
 import {inspectDataset,compareObservation,missionStart,missionStep,cognitivePulse,STAGES} from './neuro_mission.mjs';
+import {createBrain4D} from './brain_visual.mjs';
 
 // NPL WORLD - real GLB integration. No placeholder people, no pay-per-map API.
 // Local public cartographic geometry + separate PRIVATE human GLB. Offline runtime.
@@ -200,6 +201,13 @@ const showLoad=(text)=>{progress.textContent=text;};
 // Public preview deliberately excludes optional props and private avatars.
 // Do not expose personal/biometric models through a GitHub artifact.
 const publicPreview=window.NPL_PUBLIC_REVIEW===true;
+const brain3d=createBrain4D($('brainCanvas'),$('brainFocus'));
+$('brainTimeScrub')?.addEventListener('input',()=>{
+ const seconds=Number($('brainTimeScrub').value)||0;
+ brain3d.setTimeAgo(seconds);
+ $('brainTimeText').textContent=seconds+' s';
+});
+
 
 let nplEvidence={usable:false,reason:"no_public_dataset",entries:[]};
 let nplMission=missionStart(nplEvidence);
@@ -368,6 +376,7 @@ function frame(){
  );
  const {forward,strafe}=input, total=input.magnitude;
  moving=total>0.01 && canNavigate(city);
+ brain3d.tick({moving,stage:nplMission.stage,dataReady:nplEvidence.usable,completed:nplMission.completed},performance.now());
  if(clock.elapsedTime-lastNplDraw>=1){lastNplDraw=clock.elapsedTime;refreshNPL(moving);}
  const fast=keys.has('ShiftLeft')||keys.has('ShiftRight');
  if(moving){
