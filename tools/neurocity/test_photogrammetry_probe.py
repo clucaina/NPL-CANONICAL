@@ -22,6 +22,7 @@ class SfMSafetyTests(unittest.TestCase):
         self.assertEqual(meta['longest_sequence_available'],20)
         self.assertEqual(meta['eligible_sources'],20)
         self.assertEqual(len({i['image_id'] for i in images}),8)
+        self.assertEqual([i['image_id'] for i in images],[f'image_{i}' for i in range(6,14)])
         self.assertFalse(any('private' in i['url'] for i in images))
     def test_allowlist_for_photo_only(self):
         for u in ['https://panoramax.openstreetmap.fr/api/pictures/abc/sd.jpg',
