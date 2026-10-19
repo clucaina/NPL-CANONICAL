@@ -35,15 +35,11 @@ jobs:
                   f=p/m['file']
                   assert f.is_file() and f.stat().st_size<=64*1024*1024
                   assert hashlib.sha256(f.read_bytes()).hexdigest()==m['sha256']
-          for m in []:
-              if m['status']=='DOWNLOADED_VALIDATED_NOT_INTEGRATED':
-                  f=p/m['file']
-                  assert f.is_file() and f.stat().st_size<=16*1024*1024
-                  assert hashlib.sha256(f.read_bytes()).hexdigest()==m['sha256']
           print('QA_GLBS_ACQUIRED:',report['validated_downloads'])
+          print('QA_BLENDER_SOURCES_ACQUIRED:',report['blender_sources_downloaded'])
           print('QA_TOTAL_VARIANTS:',sum(m.get('glb_variants_under_16mb',0) for m in report['models']))
           PY
-      - name: Upload reviewed sample GLBs only to 7-day private-free artifact
+      - name: Upload authentic source Blender/GLB files only to 7-day private-free artifact
         uses: actions/upload-artifact@v4
         with:
           name: NEUROCITY_CC0_AUTHENTIC_GLB_SAMPLES_NOT_DEPLOYED
