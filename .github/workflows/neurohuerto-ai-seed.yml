@@ -1,0 +1,88 @@
+name: Neurohuerto · no-card CPU model research (PUBLIC ONLY, NO DEPLOY)
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/neurohuerto-ai-seed.yml'
+      - 'cloud_factory/public_ai_seed.py'
+      - 'cloud_factory/test_public_ai_seed.py'
+  schedule:
+    - cron: '47 4 * * *'
+permissions:
+  contents: read
+  issues: read
+concurrency:
+  group: neurohuerto-public-cpu-seed
+  cancel-in-progress: false
+jobs:
+  seed:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prove prompt and privacy guards
+        run: python3 -m unittest discover -s cloud_factory -p 'test_public_ai_seed.py' -v
+      - name: Download only the owner-authored public focus
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api "repos/${{ github.repository }}/issues/3" --jq .body > /tmp/neurohuerto-focus.txt
+      - name: Prepare constrained open-source code-quality hypothesis
+        run: |
+          python3 cloud_factory/public_ai_seed.py \
+            --focus-file /tmp/neurohuerto-focus.txt \
+            --prompt-out /tmp/neurohuerto-prompt.txt
+      - name: Fetch verified open-source llama.cpp CPU release
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          curl -fL --retry 3 --silent --show-error \
+            'https://github.com/ggml-org/llama.cpp/releases/download/b11723/llama-b11723-bin-ubuntu-x64.tar.gz' \
+            -o llama-b11723.tar.gz
+          echo '8f5652caad0ee6a6473e7eb03a08674f429375554852b83fd7156d550669d069  llama-b11723.tar.gz' | sha256sum -c -
+          mkdir -p llama-release
+          tar -xzf llama-b11723.tar.gz -C llama-release
+          find llama-release -type f -name 'llama-cli' -print -quit | tee /tmp/neurohuerto-cli-path
+          test -s /tmp/neurohuerto-cli-path
+      - name: Cache small Apache-2.0 CPU model (no API token)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/neurohuerto/qwen2p5-coder-1p5b-q4km.gguf
+          key: neurohuerto-qwen2p5-coder-1p5b-q4km-v1
+      - name: Download official Qwen GGUF on initial run only
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.cache/neurohuerto"
+          model="$HOME/.cache/neurohuerto/qwen2p5-coder-1p5b-q4km.gguf"
+          if [[ ! -s "$model" ]]; then
+            curl --fail --location --retry 3 --silent --show-error \
+              'https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q4_k_m.gguf?download=true' \
+              --output "$model"
+          fi
+          test "$(stat -c%s "$model")" -gt 850000000
+      - name: Generate untrusted local-model proposal with CPU budget
+        run: |
+          set -euo pipefail
+          cli="$RUNNER_TEMP/$(cat /tmp/neurohuerto-cli-path)"
+          chmod +x "$cli"
+          timeout 360 "$cli" \
+            --model "$HOME/.cache/neurohuerto/qwen2p5-coder-1p5b-q4km.gguf" \
+            --threads 4 --ctx-size 2048 --temp 0.25 --single-turn \
+            --no-display-prompt --no-show-timings \
+            --prompt "$(cat /tmp/neurohuerto-prompt.txt)" \
+            --n-predict 450 > /tmp/neurohuerto-llm-response.txt
+          test -s /tmp/neurohuerto-llm-response.txt
+      - name: Record only an UNVERIFIED technical proposal
+        run: |
+          python3 cloud_factory/public_ai_seed.py \
+            --focus-file /tmp/neurohuerto-focus.txt \
+            --result-in /tmp/neurohuerto-llm-response.txt \
+            --out public-seed-output
+          cat public-seed-output/candidate.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Store only small public candidate, never model bytes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEUROCITY_PUBLIC_CPU_AI_UNVERIFIED_DRAFT
+          path: public-seed-output/
+          retention-days: 3
+          if-no-files-found: warn
