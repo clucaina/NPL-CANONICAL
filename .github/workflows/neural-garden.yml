@@ -11,6 +11,7 @@ on:
     - cron: '17 */6 * * *'
 permissions:
   contents: read
+  actions: read
   issues: write
 concurrency:
   group: garden-synaptic-pulse
@@ -26,6 +27,8 @@ jobs:
       - name: Prove root isolation, privacy membrane and fairness
         run: python3 -m unittest discover -s cloud_factory -p 'test_neural_garden.py' -v
       - name: Build fresh evidence-anchored orchard snapshot and interactive offline dashboard
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: python3 cloud_factory/neural_garden.py --out garden-output --html cloud_factory/garden_view.html
       - name: Summarize only public traceable evidence
         run: cat garden-output/status.md >> "$GITHUB_STEP_SUMMARY"
