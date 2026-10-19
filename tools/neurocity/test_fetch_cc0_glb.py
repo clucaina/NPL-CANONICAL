@@ -28,6 +28,13 @@ class TestVerified3DAcquisition(unittest.TestCase):
         results=module.collect_glbs(tree)
         self.assertEqual(len(results),1)
         self.assertEqual(results[0]['size'],2020)
+    def test_blender_header_alone_is_not_a_usable_model(self):
+        fake=b'BLENDER-v400'+b'REND'+bytes(35000)
+        with self.assertRaisesRegex(ValueError,'DNA1/ENDB'):
+            module.decode_blend(fake)
+        # Static signature gate is necessary but not sufficient; Blender must still open it.
+        self.assertEqual(module.decode_blend(b'BLENDER-v400'+b'DNA1'+b'ENDB'),
+                         b'BLENDER-v400DNA1ENDB')
     def test_mesh_validation(self):
         self.assertEqual(module.validate_glb(synthetic_glb())['triangles_indexed'],2)
         with self.assertRaises(ValueError):module.validate_glb(b'bad-format')
