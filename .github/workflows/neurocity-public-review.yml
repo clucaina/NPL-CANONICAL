@@ -70,19 +70,19 @@ jobs:
           assert needle in index
           (d/'index.html').write_text(index.replace(needle,'<script>window.NPL_PUBLIC_REVIEW=true;</script>'+needle),encoding='utf-8')
           (d/'ATTRIBUTION.txt').write_text(
-            'Geographic source: © OpenStreetMap contributors, ODbL 1.0, https://www.openstreetmap.org/copyright\\n'
-            'Orthophoto (when manifest confirms): © Instituto Geográfico Nacional (IGN), PNOA. https://pnoa.ign.es/\\n'
-            'Model is NOT a photogrammetric reconstruction. Heights mostly estimated. No private avatar or person.\\n',encoding='utf-8')
+            'Geographic source: © OpenStreetMap contributors, ODbL 1.0, https://www.openstreetmap.org/copyright\n'
+            'Orthophoto (when manifest confirms): © Instituto Geográfico Nacional (IGN), PNOA. https://pnoa.ign.es/\n'
+            'Model is NOT a photogrammetric reconstruction. Heights mostly estimated. No private avatar or person.\n',encoding='utf-8')
           (d/'INICIAR_WINDOWS.bat').write_text(
-            '@echo off\\ncd /d "%~dp0"\\nstart "" "http://127.0.0.1:8766"\\npy -3 -m http.server 8766\\n',
+            '@echo off\ncd /d "%~dp0"\nstart "" "http://127.0.0.1:8766"\npy -3 -m http.server 8766\n',
             encoding='utf-8')
           (d/'INICIAR_LINUX_MAC.sh').write_text(
-            '#!/bin/sh\\ncd "$(dirname "$0")" || exit 1\\npython3 -m http.server 8766\\n',encoding='utf-8')
+            '#!/bin/sh\ncd "$(dirname "$0")" || exit 1\npython3 -m http.server 8766\n',encoding='utf-8')
           (d/'LEEME.txt').write_text(
-            'PREVIEW EXPERIMENTAL NEUROCITY: sin IA, sin avatar privado, sin despliegue público.\\n'
-            'En Windows abre INICIAR_WINDOWS.bat; en macOS/Linux: sh INICIAR_LINUX_MAC.sh y entra en http://127.0.0.1:8766\\n'
-            'Necesitas un navegador con WebGL y Python 3. No abras index.html con file:// porque los GLB usan HTTP local.\\n'
-            'No certifica 30 FPS, georreferenciación de todas las fachadas, accesibilidad ni fotorrealismo.\\n',encoding='utf-8')
+            'PREVIEW EXPERIMENTAL NEUROCITY: sin IA, sin avatar privado, sin despliegue público.\n'
+            'En Windows abre INICIAR_WINDOWS.bat; en macOS/Linux: sh INICIAR_LINUX_MAC.sh y entra en http://127.0.0.1:8766\n'
+            'Necesitas un navegador con WebGL y Python 3. No abras index.html con file:// porque los GLB usan HTTP local.\n'
+            'No certifica 30 FPS, georreferenciación de todas las fachadas, accesibilidad ni fotorrealismo.\n',encoding='utf-8')
           m={'public_viewer':True,'no_personal_avatar':True,'city_glb_sha256':hashlib.sha256((d/'assets/alicante.glb').read_bytes()).hexdigest(),
              'source_qa':json.loads((d/'QA_SOURCE.json').read_text(encoding='utf-8'))}
           (d/'PREVIEW_MANIFEST.json').write_text(json.dumps(m,indent=2,ensure_ascii=False),encoding='utf-8')
