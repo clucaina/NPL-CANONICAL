@@ -1,0 +1,48 @@
+name: NeuroCity command inbox - GitHub issue control
+on:
+  issues:
+    types: [opened, edited]
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: neurocity-command-inbox
+  cancel-in-progress: false
+jobs:
+  command:
+    if: github.event.issue.user.login == github.repository_owner && startsWith(github.event.issue.title, '[NEUROCITY CONTROL]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    steps:
+      - name: Decode an allowlisted instruction (never shell-execute issue text)
+        id: parse
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, re
+          with open(os.environ["GITHUB_EVENT_PATH"],encoding="utf-8") as f: event=json.load(f)
+          body = event["issue"].get("body") or ""
+          before = (event.get("changes") or {}).get("body") or {}
+          prev = before.get("from") or ""
+          pat = re.compile(r"(?m)^COMANDO:\s*(CONSULTAR|AUDITAR|RECONSTRUIR)\s*$")
+          now = pat.search(body)
+          prior = pat.search(prev)
+          command = now.group(1) if now else "CONSULTAR"
+          previous = prior.group(1) if prior else ""
+          if command == previous: command = "CONSULTAR"
+          with open(os.environ["GITHUB_OUTPUT"],"a",encoding="utf-8") as f:
+              f.write(f"command={command}\n")
+          print("Allowlisted command:",command)
+          PY
+      - uses: actions/checkout@v4
+        if: steps.parse.outputs.command == 'AUDITAR'
+        with:
+          persist-credentials: false
+      - name: Run source provenance tests (no secrets or private data)
+        if: steps.parse.outputs.command == 'AUDITAR'
+        run: python3 -m unittest discover -s tools/factory -p 'test_*.py' -v
+      - name: Dispatch existing Alicante city builder only on requested transition
+        if: steps.parse.outputs.command == 'RECONSTRUIR'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api "repos/${{ github.repository }}/actions/workflows/npl-alicante-3d.yml/dispatches" -f ref=main
