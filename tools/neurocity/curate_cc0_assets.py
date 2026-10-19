@@ -41,7 +41,7 @@ def rank_assets(payload: dict, *, limit: int = 120, now: int | None = None) -> d
             continue  # exclude unreleased / future assets
         name = metadata.get("name", "")
         category = metadata.get("category", "")
-        tags = metadata.get("tags", [])
+        tags = metadata.get("tags")
         if not isinstance(name, str) or not isinstance(category, str) or not isinstance(tags, list):
             continue
         tags = [t for t in tags if isinstance(t, str)][:40]
