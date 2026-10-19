@@ -135,7 +135,7 @@ def acquire(output,slugs=SLUGS):
                     chosen=blends[0]
                     raw=request_bytes(chosen['url'],MAX_BYTES)
                     if len(raw)!=chosen['size'] or not raw.startswith(b'BLENDER'):
-                        raise ValueError('Not a bounded Blender source file')
+                        raise ValueError('Bad Blender source: expected_bytes='+str(chosen['size'])+' received_bytes='+str(len(raw))+' header_hex='+raw[:12].hex())
                     md5=chosen.get('md5')
                     if isinstance(md5,str) and re.fullmatch(r'[0-9a-fA-F]{32}',md5):
                         if hashlib.md5(raw).hexdigest()!=md5.lower():
