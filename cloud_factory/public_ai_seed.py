@@ -46,12 +46,12 @@ def sanitize(text):
         return "[PROPUESTA BLOQUEADA: posible información privada o petición de credenciales.]","blocked"
     # Strip llama.cpp banner, model filesystem path, echoed prompts, and CLI footer.
     # Only a separately detected hypothesis section may enter a shareable artifact.
-    text=re.sub(r"\\x1b\\[[0-9;]*[A-Za-z]","",text)
-    start=re.search(r"(?im)^\\s*(?:HIPOTESIS|HIPÓTESIS)\\s*:",text)
+    text=re.sub(r"\x1b\[[0-9;]*[A-Za-z]","",text)
+    start=re.search(r"(?im)^\s*(?:HIPOTESIS|HIPÓTESIS)\s*:",text)
     if not start:
         return "[MODELO SIN HIPÓTESIS IDENTIFICABLE: ninguna propuesta válida.]","insufficient"
     body=text[start.start():]
-    body=re.split(r"(?im)^\\s*Exiting\\.\\.\\.\\s*$",body)[0].strip()
+    body=re.split(r"(?im)^\s*Exiting\.\.\.\s*$",body)[0].strip()
     if len(body)<120:
         return "[MODELO SIN RESPUESTA ÚTIL: ninguna propuesta aprobada.]","insufficient"
     required=("CAMBIO PROPUESTO","PRUEBAS","CRITERIO DE ACEPTACION")
