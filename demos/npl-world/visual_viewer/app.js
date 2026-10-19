@@ -205,6 +205,7 @@ const publicPreview=window.NPL_PUBLIC_REVIEW===true;
 
 let nplEvidence={usable:false,reason:"no_public_dataset",entries:[]};
 let nplMission=missionStart(nplEvidence);
+let lastMissionButtonsKey=null;
 const taskChoices=[
   [["verificar_fuente","Comprobar procedencia, fecha y límites"],["suponer_sin_fuente","Aceptar sin comprobar"]],
   [["comparar_misma_poblacion","Comparar mismo periodo, unidad y población"],["mezclar_poblaciones","Comparar poblaciones distintas"]],
@@ -231,17 +232,24 @@ function refreshNPL(moving=false){
  $('nplMissionStage').textContent=nplMission.completed?'Misión completada · reflexión crítica'
   : 'Paso '+(nplMission.stage+1)+' de '+STAGES.length+' · '+STAGES[nplMission.stage];
  $('nplFeedback').textContent=nplMission.insight||'Investiga, contrasta y decide; no confundas percepción y evidencia.';
- const options=$('nplOptions');options.replaceChildren();
- if(!nplMission.completed){
-   for(const [code,label] of taskChoices[nplMission.stage]){
-     const btn=document.createElement('button');btn.type='button';btn.textContent=label;
-     btn.addEventListener('click',()=>{nplMission=missionStep(nplMission,code,nplEvidence);refreshNPL(moving);});
-     options.appendChild(btn);
+ const options=$('nplOptions');
+ // Rendering a 3D city at low FPS must not detach active mission buttons every second.
+ // Only replace their DOM nodes when the mission step actually changes.
+ const key=nplMission.stage+':'+String(nplMission.completed);
+ if(key!==lastMissionButtonsKey){
+   options.replaceChildren();
+   if(!nplMission.completed){
+     for(const [code,label] of taskChoices[nplMission.stage]){
+       const btn=document.createElement('button');btn.type='button';btn.textContent=label;
+       btn.addEventListener('click',()=>{nplMission=missionStep(nplMission,code,nplEvidence);refreshNPL(moving);});
+       options.appendChild(btn);
+     }
+   }else{
+     const reset=document.createElement('button');reset.type='button';reset.textContent='↻ Nueva misión de investigación';
+     reset.addEventListener('click',()=>{nplMission=missionStart(nplEvidence);refreshNPL(moving);});
+     options.appendChild(reset);
    }
- }else{
-   const reset=document.createElement('button');reset.type='button';reset.textContent='↻ Nueva misión de investigación';
-   reset.addEventListener('click',()=>{nplMission=missionStart(nplEvidence);refreshNPL(moving);});
-   options.appendChild(reset);
+   lastMissionButtonsKey=key;
  }
  const summary=$('nplConflictSummary');
  if(!nplEvidence.usable){
