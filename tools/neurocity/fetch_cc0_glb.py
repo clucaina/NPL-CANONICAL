@@ -72,7 +72,7 @@ def validate_glb(raw):
 def request_bytes(url, max_bytes):
     req=Request(url,headers={'User-Agent':'NeuroCity-CC0-Audit/1.0 (clucaina/NPL-CANONICAL)'})
     with urlopen(req,timeout=45) as response:
-        if not permitted(response.url) and urlsplit(url).hostname!='api.polyhaven.com':
+        if not (response.url.startswith(BASE+'/files/') or permitted(response.url)):
             raise ValueError('Unapproved response host')
         if response.status!=200:raise RuntimeError('HTTP '+str(response.status))
         raw=response.read(max_bytes+1)
