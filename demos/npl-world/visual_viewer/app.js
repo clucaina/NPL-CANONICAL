@@ -217,6 +217,7 @@ const taskChoices=[
   [["separar_correlacion_causalidad","Explorar hipótesis alternativas"],["atribuir_causa_directa","Afirmar una causa sin contrastar"]],
   [["proponer_intervencion_evaluable","Proponer y evaluar una intervención"],["aplicar_sin_evaluar","Afirmar que funcionará"]]
 ];
+let lastMissionOptionsKey='';
 function refreshNPL(moving=false){
  const flow=$('nplFlow');if(!flow)return;
  const p=cognitivePulse({moving,sourceReady:nplEvidence.usable,mission:nplMission});
@@ -237,8 +238,12 @@ function refreshNPL(moving=false){
  $('nplMissionStage').textContent=nplMission.completed?'Misión completada · reflexión crítica'
   : 'Paso '+(nplMission.stage+1)+' de '+STAGES.length+' · '+STAGES[nplMission.stage];
  $('nplFeedback').textContent=nplMission.insight||'Investiga, contrasta y decide; no confundas percepción y evidencia.';
- const options=$('nplOptions');options.replaceChildren();
- if(!nplMission.completed){
+ const options=$('nplOptions');
+ const optionsKey=nplMission.stage+':'+String(nplMission.completed)+':'+nplMission.mode;
+ if(lastMissionOptionsKey!==optionsKey){
+  lastMissionOptionsKey=optionsKey;
+  options.replaceChildren();
+  if(!nplMission.completed){
    for(const [code,label] of taskChoices[nplMission.stage]){
      const btn=document.createElement('button');btn.type='button';btn.textContent=label;
      btn.addEventListener('click',()=>{nplMission=missionStep(nplMission,code,nplEvidence);refreshNPL(moving);});
@@ -248,6 +253,7 @@ function refreshNPL(moving=false){
    const reset=document.createElement('button');reset.type='button';reset.textContent='↻ Nueva misión de investigación';
    reset.addEventListener('click',()=>{nplMission=missionStart(nplEvidence);refreshNPL(moving);});
    options.appendChild(reset);
+  }
  }
  const summary=$('nplConflictSummary');
  if(!nplEvidence.usable){
