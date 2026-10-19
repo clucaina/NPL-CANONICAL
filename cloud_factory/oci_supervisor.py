@@ -95,6 +95,15 @@ def once(home=HOME,reader=read_direction,model=local_model):
                        "read_error":fetch_error,"direction_source":source_link,
                        "report_sha256":digest,"time":stamp})
     db.commit()
+    # Observe the public neural garden; preserve report locally, no GitHub writes.
+    # Failure to reach evidence APIs does not interrupt the per-root queues.
+    try:
+        from neural_garden import assemble, save
+        layout=Path("/opt/lucia-factory/garden_view.html")
+        if layout.is_file():
+            save(assemble(),home/"garden",layout)
+    except (OSError,ImportError,ValueError) as exc:
+        (home/"garden_last_error.txt").write_text(type(exc).__name__,encoding="utf-8")
     (home/"last_run.json").write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
     db.close()
     return report
