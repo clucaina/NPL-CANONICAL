@@ -19,7 +19,7 @@ import re
 
 PERIOD=re.compile(r"^(?:19|20)\d{2}(?:-(?:Q[1-4]|0[1-9]|1[0-2]))?$")
 GEO=re.compile(r"^ES(?:[0-9]{2})?$")
-SAFE_ID=re.compile(r"^[A-Z0-9_-]{2,110}$")
+SAFE_ID=re.compile(r"^[A-Za-z0-9_-]{2,110}$")
 MAX_BATCH=2_000_000
 def audit_batch(batch,spec,as_of=date.today()):
     errors=Counter()
