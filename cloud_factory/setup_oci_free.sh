@@ -13,7 +13,9 @@ source_dir="$(mktemp -d)"
 trap 'rm -rf "$source_dir"' EXIT
 git clone --depth 1 --branch infra/oci-free-coordinator-20261019 https://github.com/clucaina/NPL-CANONICAL.git "$source_dir/repo"
 install -m 0644 "$source_dir/repo/cloud_factory/oci_supervisor.py" /opt/lucia-factory/oci_supervisor.py
-python3 -m py_compile /opt/lucia-factory/oci_supervisor.py
+install -m 0644 "$source_dir/repo/cloud_factory/neural_garden.py" /opt/lucia-factory/neural_garden.py
+install -m 0644 "$source_dir/repo/cloud_factory/garden_view.html" /opt/lucia-factory/garden_view.html
+python3 -m py_compile /opt/lucia-factory/oci_supervisor.py /opt/lucia-factory/neural_garden.py
 cat >/etc/systemd/system/lucia-factory.service <<'UNIT'
 [Unit]
 Description=Lucia Lab Read-Only Cloud Coordinator (public projects)
@@ -54,5 +56,6 @@ systemctl enable --now lucia-factory.service
 systemctl --no-pager status lucia-factory.service || true
 printf '%s\n' 'Coordinator installed. Runs only PUBLIC project checks. No inbound port opened.' \
  'View logs: sudo journalctl -u lucia-factory -n 30 --no-pager' \
- 'Local state: /var/lib/lucia-factory/last_run.json' \
+ 'Local state: /var/lib/lucia-factory/last_run.json' \\
+ 'Garden preview: /var/lib/lucia-factory/garden/index.html' \
  'Privacy: do not add pericial data or access keys to public issue bodies.'
