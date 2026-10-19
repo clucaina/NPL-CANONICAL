@@ -1,12 +1,19 @@
 name: NPL Alicante 3D - open city on free CPU
 on:
+  schedule:
+    - cron: '23 4 * * 2,5'
   workflow_dispatch:
   push:
     paths:
       - ".github/workflows/npl-alicante-3d.yml"
       - "demos/npl-world/open_city_pipeline/**"
+      - "tools/factory/city_quality.py"
+      - "tools/factory/test_city_quality.py"
 permissions:
   contents: read
+concurrency:
+  group: npl-alicante-3d-source-qa
+  cancel-in-progress: false
 jobs:
   build_city:
     name: OSM + PNOA to real georeferenced GLB (not GTA)
@@ -14,6 +21,8 @@ jobs:
     timeout-minutes: 28
     steps:
       - uses: actions/checkout@v4
+      - name: Test real-geodata quality gate without secrets or internet
+        run: python3 -m unittest discover -s tools/factory -p 'test_*.py' -v
       - name: Install free Blender with CPU rendering
         run: |
           sudo apt-get update -qq
@@ -44,6 +53,14 @@ jobs:
           test -s output/QA_source_report.json
           python3 -m json.tool output/QA_source_report.json
           ls -lh output
+      - name: Validate scene provenance (no false photogrammetry claims)
+        run: |
+          python3 tools/factory/city_quality.py \
+            demos/npl-world/open_city_pipeline/input/alicante.osm \
+            demos/npl-world/open_city_pipeline/input/source_manifest.json \
+            demos/npl-world/open_city_pipeline/output/QA_source_report.json \
+            demos/npl-world/open_city_pipeline/output/Alicante_REAL_OSM_PNOA.glb \
+            demos/npl-world/open_city_pipeline/output/QA_independent_provenance.json
       - uses: actions/upload-artifact@v4
         with:
           name: NPL_Alicante_real_OSM_PNOA_only_NO_FACE
