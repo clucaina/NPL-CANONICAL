@@ -13,6 +13,7 @@ from urllib.request import Request,urlopen
 
 PANORAMAX="https://panoramax.ign.fr/api"
 FEDERATION="https://api.panoramax.xyz/api"
+KARTAVIEW="https://api.openstreetcam.org/2.0/photo/"
 ALICANTE_BBOX=(-0.4862,38.3418,-0.4795,38.3470)
 MAX_JSON=3_000_000
 MAX_ITEMS=100
@@ -109,6 +110,37 @@ def query_live():
             "response_type":str(federated_payload.get("type","missing"))[:55],
             "response_keys":sorted(k for k in federated_payload if isinstance(k,str))[:16],
             "records":None,"records_license_approved_for_reconstruction":0
+        }
+    # Independent, open CC-BY-SA street-level imagery API. This is discovery
+    # only; KartaView records must be checked for license, dates and overlap.
+    kartaview_url=KARTAVIEW+"?"+urlencode({"lat":38.34318,"lng":-0.48326,
+                                            "zoomLevel":16,"join":"sequence"})
+    try:
+        k=load_public_api(kartaview_url,"api.openstreetcam.org")
+        result=k.get("result") if isinstance(k,dict) else None
+        entries=result.get("data") if isinstance(result,dict) else None
+        if isinstance(entries,list):
+            report["kartaview_discovery"]={
+                "status":"PUBLIC_RECORDS_DISCOVERED","record_count":len(entries),
+                "records_approved_for_reconstruction":0,
+                "source":kartaview_url,"license":"CC-BY-SA-4.0"
+            }
+        elif isinstance(entries,dict):
+            report["kartaview_discovery"]={
+                "status":"POSSIBLE_PAGINATED_PUBLIC_RECORDS_NEEDS_SCHEMA_REVIEW",
+                "response_keys":sorted(entries.keys())[:16],
+                "record_count":None,"source":kartaview_url
+            }
+        else:
+            report["kartaview_discovery"]={
+                "status":"UNSUPPORTED_RESPONSE_SHAPE",
+                "response_keys":sorted(k.keys())[:16] if isinstance(k,dict) else [],
+                "record_count":None,"source":kartaview_url
+            }
+    except Exception as exc:
+        report["kartaview_discovery"]={
+            "status":"SOURCE_UNAVAILABLE_NOT_ZERO_COVERAGE",
+            "error_type":type(exc).__name__,"source":kartaview_url
         }
     return report
 
