@@ -1,0 +1,107 @@
+name: NeuroCity · Alicante 3D public playable + Chromium visual QA (NO DEPLOY)
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/neurocity-public-review.yml'
+      - 'demos/npl-world/visual_viewer/**'
+      - 'demos/npl-world/open_city_pipeline/**'
+      - 'tools/factory/**'
+permissions:
+  contents: read
+concurrency:
+  group: neurocity-public-3d-review
+  cancel-in-progress: false
+jobs:
+  playable_review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 42
+    env:
+      LIBGL_ALWAYS_SOFTWARE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Prove public source-quality audit unit tests
+        run: python3 -m unittest discover -s tools/factory -p 'test_*.py' -v
+      - name: Set up open Blender CPU
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq blender python3-numpy python3-pil
+      - name: Download licensed public OSM and IGN PNOA inputs
+        working-directory: demos/npl-world/open_city_pipeline
+        run: |
+          python3 download_city.py
+          python3 download_icv_ortho.py
+          python3 download_ortho_tiles.py
+      - name: Generate real georeferenced city (no avatars, no private materials)
+        working-directory: demos/npl-world/open_city_pipeline
+        run: blender -b --factory-startup -t 2 --python-exit-code 1 -P build_blender.py
+      - name: Gate provenance before shipping public review
+        run: |
+          python3 tools/factory/city_quality.py \
+            demos/npl-world/open_city_pipeline/input/alicante.osm \
+            demos/npl-world/open_city_pipeline/input/source_manifest.json \
+            demos/npl-world/open_city_pipeline/output/QA_source_report.json \
+            demos/npl-world/open_city_pipeline/output/Alicante_REAL_OSM_PNOA.glb \
+            demos/npl-world/open_city_pipeline/output/QA_independent_provenance.json
+      - name: Compile Three.js runtime and isolated navigation tests
+        working-directory: demos/npl-world/visual_viewer
+        run: |
+          npm install --no-audit --no-fund
+          node --test tests/*.test.mjs
+          npm run build
+      - name: Assemble standalone public-only 3D review
+        run: |
+          set -euo pipefail
+          city=demos/npl-world/open_city_pipeline
+          viewer=demos/npl-world/visual_viewer
+          mkdir -p "$viewer/dist/assets"
+          cp "$city/output/Alicante_REAL_OSM_PNOA.glb" "$viewer/dist/assets/alicante.glb"
+          cp "$viewer/index.html" "$viewer/dist/index.html"
+          cp "$city/output/QA_independent_provenance.json" "$viewer/dist/QA_SOURCE.json"
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          d=Path('demos/npl-world/visual_viewer/dist')
+          index=(d/'index.html').read_text(encoding='utf-8')
+          needle='<script src="./game.js"></script>'
+          assert needle in index
+          (d/'index.html').write_text(index.replace(needle,'<script>window.NPL_PUBLIC_REVIEW=true;</script>'+needle),encoding='utf-8')
+          (d/'ATTRIBUTION.txt').write_text(
+            'Geographic source: © OpenStreetMap contributors, ODbL 1.0, https://www.openstreetmap.org/copyright\\n'
+            'Orthophoto (when manifest confirms): © Instituto Geográfico Nacional (IGN), PNOA. https://pnoa.ign.es/\\n'
+            'Model is NOT a photogrammetric reconstruction. Heights mostly estimated. No private avatar or person.\\n',encoding='utf-8')
+          (d/'INICIAR_WINDOWS.bat').write_text(
+            '@echo off\\ncd /d "%~dp0"\\nstart "" "http://127.0.0.1:8766"\\npy -3 -m http.server 8766\\n',
+            encoding='utf-8')
+          (d/'INICIAR_LINUX_MAC.sh').write_text(
+            '#!/bin/sh\\ncd "$(dirname "$0")" || exit 1\\npython3 -m http.server 8766\\n',encoding='utf-8')
+          (d/'LEEME.txt').write_text(
+            'PREVIEW EXPERIMENTAL NEUROCITY: sin IA, sin avatar privado, sin despliegue público.\\n'
+            'En Windows abre INICIAR_WINDOWS.bat; en macOS/Linux: sh INICIAR_LINUX_MAC.sh y entra en http://127.0.0.1:8766\\n'
+            'Necesitas un navegador con WebGL y Python 3. No abras index.html con file:// porque los GLB usan HTTP local.\\n'
+            'No certifica 30 FPS, georreferenciación de todas las fachadas, accesibilidad ni fotorrealismo.\\n',encoding='utf-8')
+          m={'public_viewer':True,'no_personal_avatar':True,'city_glb_sha256':hashlib.sha256((d/'assets/alicante.glb').read_bytes()).hexdigest(),
+             'source_qa':json.loads((d/'QA_SOURCE.json').read_text(encoding='utf-8'))}
+          (d/'PREVIEW_MANIFEST.json').write_text(json.dumps(m,indent=2,ensure_ascii=False),encoding='utf-8')
+          assert not (d/'assets/maya.glb').exists()
+          PY
+      - name: Install temporary browser QA tooling only in runner
+        working-directory: demos/npl-world/visual_viewer
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.56.0
+          npx playwright install chromium
+      - name: Real Chromium WebGL launch and screenshot QA
+        run: |
+          python3 -m http.server 8766 --bind 127.0.0.1 --directory demos/npl-world/visual_viewer/dist > /tmp/neurocity-browser.log 2>&1 &
+          node demos/npl-world/visual_viewer/tests/browser_public_review.mjs
+      - name: Upload private-free playable review and screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEUROCITY_ALICANTE_PUBLIC_REVIEW_NO_PRIVATE_PERSON
+          path: demos/npl-world/visual_viewer/dist/
+          retention-days: 7
+          if-no-files-found: warn
