@@ -11,7 +11,7 @@ install -d -m 0750 -o lucia-factory -g lucia-factory /var/lib/lucia-factory
 install -d -m 0755 /opt/lucia-factory
 source_dir="$(mktemp -d)"
 trap 'rm -rf "$source_dir"' EXIT
-git clone --depth 1 https://github.com/clucaina/NPL-CANONICAL.git "$source_dir/repo"
+git clone --depth 1 --branch infra/oci-free-coordinator-20261019 https://github.com/clucaina/NPL-CANONICAL.git "$source_dir/repo"
 install -m 0644 "$source_dir/repo/cloud_factory/oci_supervisor.py" /opt/lucia-factory/oci_supervisor.py
 python3 -m py_compile /opt/lucia-factory/oci_supervisor.py
 cat >/etc/systemd/system/lucia-factory.service <<'UNIT'
