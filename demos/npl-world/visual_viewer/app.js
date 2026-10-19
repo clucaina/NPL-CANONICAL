@@ -3,6 +3,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { nextCameraMode, canNavigate } from './navigation_policy.mjs';
 import {normalizedStick,combineMovement} from './mobile_navigation.mjs';
 import {buildUrbanKit} from './urban_kit.mjs';
+import {buildHedgeLayer} from './hedge_layer.mjs';
+import {createSurfaceTexture,enhanceMappedOSMRoads} from './road_surfaces.mjs';
 import {inspectDataset,compareObservation,missionStart,missionStep,cognitivePulse,STAGES} from './neuro_mission.mjs';
 
 // NPL WORLD - real GLB integration. No placeholder people, no pay-per-map API.
@@ -59,7 +61,7 @@ promenadeColor.wrapS=THREE.RepeatWrapping;promenadeColor.wrapT=THREE.RepeatWrapp
 promenadeColor.repeat.set(1.0,9);
 promenadeColor.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());
 const matStone=new THREE.MeshStandardMaterial({color:0xcbbda0,roughness:.94});
-const matAsphalt=new THREE.MeshStandardMaterial({color:0x383c42,roughness:.91});
+const matAsphalt=new THREE.MeshStandardMaterial({name:'NEUROCITY_ARTISTIC_ASPHALT',map:createSurfaceTexture('asphalt',256),color:0xffffff,roughness:.97,metalness:0});
 const matMosaic=new THREE.MeshStandardMaterial({map:promenadeColor,roughness:.81});
 function horizontalPlane(w,h,x,z,y,material){
  const o=new THREE.Mesh(new THREE.PlaneGeometry(w,h),material);
@@ -274,18 +276,22 @@ loadNPLOpenData();
 let lastNplDraw=0;
 
 // Public city decor: original CC0 procedural asset library, never a private GLB.
-const urbanKit=publicPreview?buildUrbanKit({tier:window.matchMedia?.('(pointer:coarse)')?.matches?'mobile':'desktop'}):null;
+const visualTier=window.matchMedia?.('(pointer:coarse)')?.matches?'mobile':'desktop';
+const urbanKit=publicPreview?buildUrbanKit({tier:visualTier}):null;
+const hedgeLayer=publicPreview?buildHedgeLayer(visualTier):null;
+let roadStatus=null;
 if(urbanKit){decorGroup.add(urbanKit.group);palmCount=urbanKit.stats.palmCount;}
+if(hedgeLayer)decorGroup.add(hedgeLayer.group);
 function enterPublicCity(){
  $('face').disabled=true;
  $('face').title='Solo disponible cuando exista un avatar privado local';
  mode='first';
  $('cameraMode').textContent='Primera persona · ciudad pública';
  window.NPL_READY={cityMeshes:city?.children?.length||0,cityOnly:true,privateAvatarLoaded:false,
-  explanadaCoords:[38.34318,-0.48326],windows:windowCount,facadeStyle:'artistic_not_surveyed',palms:palmCount,urbanKit:urbanKit?.stats||null,skins:0,clips:[]};
+  explanadaCoords:[38.34318,-0.48326],windows:windowCount,facadeStyle:'artistic_not_surveyed',palms:palmCount,urbanKit:urbanKit?.stats||null,hedges:hedgeLayer?.stats||null,roadSurface:roadStatus,skins:0,clips:[]};
  loading.remove();
  showLoad('Ciudad pública geográfica lista');
- display('Alicante 3D OSM: fachadas y mobiliario mediterráneo 3D ilustrativos (no medidos). Navegación experimental; FPS y fotorrealismo sin certificar.');
+ display('Alicante 3D OSM: asfalto en calles cartografiadas y setos ilustrativos. Fachadas no fotogramétricas; geometría y FPS reales sin certificar.');
 }
 
 async function loadWorld(){
@@ -293,6 +299,8 @@ async function loadWorld(){
  try{
   const data=await model('./assets/alicante.glb');
   city=data.scene;scene.add(city);
+  // The source-matched asphalt texture belongs on OSM highway ribbon meshes, not on invented roads.
+  if(publicPreview)roadStatus=enhanceMappedOSMRoads(city,{mobile:visualTier==='mobile'});
   // Public-only, bounded artistic facade detail on verifiable OSM wall geometry.
   // Never loads the optional private facade GLB.
   if(publicPreview)addFacadeDetail(city,170);
