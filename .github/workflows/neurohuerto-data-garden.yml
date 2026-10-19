@@ -33,7 +33,7 @@ jobs:
           assert d["schema"]=="neurohuerto.data_garden.v1"
           assert d["no_automatic_publication"] is True
           assert d["no_private_sources"] is True
-          assert len(d["candidates"])==2
+          assert len(d["candidates"])==8
           print('Data sources:',[(x["batch_id"],x["status"],x.get("rows")) for x in d["candidates"]])
           PY
       - name: Preserve only data quality metadata and research-stage report
