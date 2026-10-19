@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NeuroCity · Observatorio público NPL + Conflictómetro</title>
+<link rel="stylesheet" href="./observatory.css">
+</head>
+<body>
+<main>
+<iframe id="city" src="./index.html" title="NeuroCity Alicante 3D" allow="fullscreen"></iframe>
+<section id="observatory" aria-label="Observatorio de datos agregados">
+<h1>◌ NeuroCity</h1>
+<p class="subtitle">Alicante 3D · NPL · Conflictómetro</p>
+<p class="note">Importación local de datos públicos agregados. Sin sincronización ni almacenamiento. Los indicadores son contextuales: no representan direcciones ni lugares de sucesos.</p>
+<label for="aggregateFile">Importar un conjunto JSON verificado</label>
+<input id="aggregateFile" type="file" accept=".json,application/json">
+<div class="tabs"><button id="tabNpl" disabled>NPL</button><button id="tabConflict" disabled>Conflictómetro</button></div>
+<p id="status" role="status">Esperando conjuntos públicos verificados.</p>
+<div id="dataView"></div>
+<footer>Fuentes originales intactas · Datos nunca publicados automáticamente</footer>
+</section>
+</main>
+<script type="module" src="./observatory.mjs"></script>
+</body>
+</html>
