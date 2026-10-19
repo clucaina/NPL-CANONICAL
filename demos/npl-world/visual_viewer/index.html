@@ -34,6 +34,13 @@ button:hover{background:#2e6474}button:disabled{opacity:.45;cursor:not-allowed}
 #nplFeedback{min-height:34px;color:#f9e0c4}
 #nplBrainLabel{font-size:11px;color:#ead0c8}
 #neurohud .npl-note{color:#d4b0c3;font-size:11px}
+@media(max-width:680px){
+ #neurohud:not([open]){top:auto;bottom:16px;right:10px;width:168px;max-height:58px}
+ #neurohud:not([open]) summary{padding:9px 11px;min-height:44px;font-size:11px;gap:6px}
+ #neurohud:not([open]) summary em{font-size:10px}
+ #neurohud[open]{right:8px;top:96px;width:min(340px,calc(100vw - 16px));max-height:calc(100vh - 106px)}
+}
+
 
 #walkPad{display:none;touch-action:none;user-select:none;-webkit-user-select:none}
 #walkKnob{width:48px;height:48px;border-radius:50%;background:linear-gradient(140deg,#ebdbc7,#cba88b);border:2px solid #ffefd6;box-shadow:0 4px 18px #0008;pointer-events:none;will-change:transform}
@@ -60,6 +67,10 @@ button:hover{background:#2e6474}button:disabled{opacity:.45;cursor:not-allowed}
 <div id="loading"><h2>Cargando recursos locales 3D</h2><p id="progress">Preparando motor gráfico…</p><p>No se descargan personas ni edificios al abrir. Los modelos ya están en el paquete.</p></div>
 <div id="stat" class="panel">0,0 m</div><div id="info" class="panel"><span id="messageText">W/S avanzar y retroceder · A/D lateral · Mayús correr · ratón cámara</span> · <span id="cameraMode">Tercera persona</span></div>
 <script>
+// Navigation remains usable on phones: a learning panel must not cover the 3D city by default.
+if(window.matchMedia('(pointer:coarse) and (max-width:680px)').matches){
+ document.querySelector('#neurohud').open=false;
+}
 document.querySelector('#face').onclick=()=>{
  for(let i=0;i<3;i++){
   if(document.querySelector('#cameraMode').textContent.includes('Inspección facial'))break;
