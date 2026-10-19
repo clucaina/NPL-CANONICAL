@@ -10,6 +10,7 @@ No accounts created, secrets used, deployments, or AI execution.
 import argparse
 from datetime import datetime, timezone
 import json
+import os
 from pathlib import Path
 import re
 from urllib.request import Request, urlopen
@@ -54,7 +55,10 @@ def transmit(edge,payload):
     return dict(payload)
 def fetch_public_repo(repo,opener=urlopen):
     url="https://api.github.com/repos/"+repo+"/actions/runs?per_page=12"
-    req=Request(url,headers={"User-Agent":"NeuralGarden-EvidenceGate/1","Accept":"application/vnd.github+json"})
+    headers={"User-Agent":"NeuralGarden-EvidenceGate/1","Accept":"application/vnd.github+json"}
+    token=os.getenv("GITHUB_TOKEN","")
+    if token:headers["Authorization"]="Bearer "+token
+    req=Request(url,headers=headers)
     with opener(req,timeout=18) as res:
         obj=json.loads(res.read(130000))
     data=obj.get("workflow_runs",[])
@@ -98,7 +102,7 @@ def assemble(fetcher=fetch_public_repo,previous=None):
         runs=[];error=None
         if root["source"]:
             try:runs=fetcher(root["source"])
-            except Exception as exc:error=type(exc).__name__
+            except Exception as exc:error=type(exc).__name__+((":"+str(exc.code)) if hasattr(exc,"code") else "")
         if not root["source"]:
             status="NEEDS_PRIVATE_CANONICAL_SOURCE" if root["privacy"]=="private" else "NEEDS_PUBLIC_CORPUS"
         elif error:status="SOURCE_UNREACHABLE"
