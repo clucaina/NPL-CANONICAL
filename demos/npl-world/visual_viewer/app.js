@@ -7,7 +7,7 @@ import { nextCameraMode, canNavigate } from './navigation_policy.mjs';
 const $=id=>document.getElementById(id);
 const loading=$('loading'), info=$('info'), stat=$('stat'), progress=$('progress');
 const view=$('game');
-const display=(message,problem=false)=>{info.textContent=message;info.classList.toggle('error',problem)};
+const display=(message,problem=false)=>{$('messageText').textContent=message;info.classList.toggle('error',problem)};
 const renderer=new THREE.WebGLRenderer({canvas:view, antialias:true,alpha:false,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));
 renderer.shadowMap.enabled=true;
@@ -192,6 +192,8 @@ const showLoad=(text)=>{progress.textContent=text;};
 // Do not expose personal/biometric models through a GitHub artifact.
 const publicPreview=window.NPL_PUBLIC_REVIEW===true;
 function enterPublicCity(){
+ $('face').disabled=true;
+ $('face').title='Solo disponible cuando exista un avatar privado local';
  mode='first';
  $('cameraMode').textContent='Primera persona · ciudad pública';
  window.NPL_READY={cityMeshes:city?.children?.length||0,cityOnly:true,privateAvatarLoaded:false,
