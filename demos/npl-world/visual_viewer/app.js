@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { nextCameraMode, canNavigate } from './navigation_policy.mjs';
 import {normalizedStick,combineMovement} from './mobile_navigation.mjs';
 import {buildUrbanKit} from './urban_kit.mjs';
+import {inspectDataset,compareObservation,missionStart,missionStep,cognitivePulse,STAGES} from './neuro_mission.mjs';
 
 // NPL WORLD - real GLB integration. No placeholder people, no pay-per-map API.
 // Local public cartographic geometry + separate PRIVATE human GLB. Offline runtime.
@@ -199,6 +200,79 @@ const showLoad=(text)=>{progress.textContent=text;};
 // Public preview deliberately excludes optional props and private avatars.
 // Do not expose personal/biometric models through a GitHub artifact.
 const publicPreview=window.NPL_PUBLIC_REVIEW===true;
+
+let nplEvidence={usable:false,reason:"no_public_dataset",entries:[]};
+let nplMission=missionStart(nplEvidence);
+const taskChoices=[
+  [["verificar_fuente","Comprobar procedencia, fecha y límites"],["suponer_sin_fuente","Aceptar sin comprobar"]],
+  [["comparar_misma_poblacion","Comparar mismo periodo, unidad y población"],["mezclar_poblaciones","Comparar poblaciones distintas"]],
+  [["separar_correlacion_causalidad","Explorar hipótesis alternativas"],["atribuir_causa_directa","Afirmar una causa sin contrastar"]],
+  [["proponer_intervencion_evaluable","Proponer y evaluar una intervención"],["aplicar_sin_evaluar","Afirmar que funcionará"]]
+];
+function refreshNPL(moving=false){
+ const flow=$('nplFlow');if(!flow)return;
+ const p=cognitivePulse({moving,sourceReady:nplEvidence.usable,mission:nplMission});
+ const operations=[["Entrada sensorial",p.senses],["Atención",p.attention],["Memoria de trabajo",p.memory],["Inferencia",p.inference],["Decisión",p.decision]];
+ // Safe textContent: no raw HTML from data source or player.
+ flow.replaceChildren(...operations.map(([k,v])=>{
+   const d=document.createElement('div');d.className='npl-step';
+   const left=document.createElement('span');left.textContent=k;
+   const right=document.createElement('b');right.textContent=v;
+   d.append(left,right);return d;
+ }));
+ const state=$('nplDataState');state.dataset.ready=String(nplEvidence.usable);
+ state.textContent=nplEvidence.usable
+  ? 'Fuente pública revisada disponible · '+nplEvidence.entries.length+' observaciones'
+  : 'Sin base de datos pública aprobada · entrenamiento metodológico, NO indicador social real';
+ $('nplMode').textContent=nplEvidence.usable?'Evidencia':'Entrenamiento';
+ $('nplBrainLabel').textContent=p.disclaimer;
+ $('nplMissionStage').textContent=nplMission.completed?'Misión completada · reflexión crítica'
+  : 'Paso '+(nplMission.stage+1)+' de '+STAGES.length+' · '+STAGES[nplMission.stage];
+ $('nplFeedback').textContent=nplMission.insight||'Investiga, contrasta y decide; no confundas percepción y evidencia.';
+ const options=$('nplOptions');options.replaceChildren();
+ if(!nplMission.completed){
+   for(const [code,label] of taskChoices[nplMission.stage]){
+     const btn=document.createElement('button');btn.type='button';btn.textContent=label;
+     btn.addEventListener('click',()=>{nplMission=missionStep(nplMission,code,nplEvidence);refreshNPL(moving);});
+     options.appendChild(btn);
+   }
+ }else{
+   const reset=document.createElement('button');reset.type='button';reset.textContent='↻ Nueva misión de investigación';
+   reset.addEventListener('click',()=>{nplMission=missionStart(nplEvidence);refreshNPL(moving);});
+   options.appendChild(reset);
+ }
+ const summary=$('nplConflictSummary');
+ if(!nplEvidence.usable){
+   summary.textContent='Conflictos: no se presentan cifras sin procedencia revisada. NPL puede enseñar metodología mientras faltan datos.';
+ }else{
+   const indicator=nplEvidence.entries.find(x=>x.geo_code!=='ES');
+   const v=indicator&&compareObservation(nplEvidence,indicator.indicator_id,indicator.geo_code);
+   summary.textContent=v?.comparable
+      ? 'Comparación descriptiva '+indicator.geo_code+' frente a España: '+v.difference.toFixed(2)+' '+v.unit+
+        ' ('+v.period+'). No demuestra causalidad.'
+      : 'Fuente revisada, pero faltan comparaciones homologables para este territorio.';
+ }
+ window.NPL_MISSION={
+    mode:nplMission.mode,stage:nplMission.stage,completed:nplMission.completed,
+    publicEvidenceReady:nplEvidence.usable,noTracking:true,noSocialNetworking:true
+ };
+}
+async function loadNPLOpenData(){
+ // The file is optional and must be packaged ONLY after independent provenance review.
+ // Any malformed, missing or unreviewed source keeps the training-only mode.
+ if(!publicPreview){refreshNPL(false);return;}
+ try{
+   const response=await fetch('./assets/conflictometro_public_verified.json',{cache:'no-store'});
+   if(!response.ok)throw new Error('dataset unavailable');
+   nplEvidence=inspectDataset(await response.json());
+ }catch(_){nplEvidence={usable:false,reason:'no_public_dataset',entries:[]};}
+ nplMission=missionStart(nplEvidence);
+ refreshNPL(false);
+}
+refreshNPL(false);
+loadNPLOpenData();
+let lastNplDraw=0;
+
 // Public city decor: original CC0 procedural asset library, never a private GLB.
 const urbanKit=publicPreview?buildUrbanKit({tier:window.matchMedia?.('(pointer:coarse)')?.matches?'mobile':'desktop'}):null;
 if(urbanKit){decorGroup.add(urbanKit.group);palmCount=urbanKit.stats.palmCount;}
@@ -294,6 +368,7 @@ function frame(){
  );
  const {forward,strafe}=input, total=input.magnitude;
  moving=total>0.01 && canNavigate(city);
+ if(clock.elapsedTime-lastNplDraw>=1){lastNplDraw=clock.elapsedTime;refreshNPL(moving);}
  const fast=keys.has('ShiftLeft')||keys.has('ShiftRight');
  if(moving){
   const speed=(fast?6.6:2.6)*dt;
