@@ -188,6 +188,19 @@ let yaw=-.65,pitch=.14,zoom=2.95,mode='back',actorHeading=0,moving=false;
 const loader=new GLTFLoader();
 const model=(url)=>new Promise((resolve,reject)=>loader.load(url,resolve,undefined,reject));
 const showLoad=(text)=>{progress.textContent=text;};
+// Public preview deliberately excludes optional props and private avatars.
+// Do not expose personal/biometric models through a GitHub artifact.
+const publicPreview=window.NPL_PUBLIC_REVIEW===true;
+function enterPublicCity(){
+ mode='first';
+ $('cameraMode').textContent='Primera persona · ciudad pública';
+ window.NPL_READY={cityMeshes:city?.children?.length||0,cityOnly:true,privateAvatarLoaded:false,
+  explanadaCoords:[38.34318,-0.48326],windows:windowCount,palms:palmCount,skins:0,clips:[]};
+ loading.remove();
+ showLoad('Ciudad pública geográfica lista');
+ display('Alicante 3D con edificios cartografiados y alturas parcialmente estimadas. Navegación experimental; realismo y FPS sin certificar.');
+}
+
 async function loadWorld(){
  showLoad('Cargando modelo geográfico real de Alicante…');
  try{
@@ -195,17 +208,18 @@ async function loadWorld(){
   city=data.scene;scene.add(city);
   // v11 architectural detail baked on exactly 150 ACTUAL OSM building-wall edges.
   // Geometry intentionally separate from the PNOA georeferenced base.
-  try {
+  if(!publicPreview) try {
     const decorData=await model('./assets/facades.glb');
     const facades=decorData.scene;
     facades.traverse(n=>{if(n.isMesh){n.castShadow=false;n.receiveShadow=true;}});
     scene.add(facades);
     windowCount=3679;
   }catch(err){display('Los edificios base se han cargado, pero falta el detalle GLB: '+err.message,true);}
-  await addRealPalmObjects();
+  if(!publicPreview) await addRealPalmObjects();
   city.traverse(n=>{if(n.isMesh){n.receiveShadow=true;n.castShadow=true;if(n.material?.name?.includes('NO_photo')) n.material.roughness=.9;}});
   showLoad('Alicante 3D cargada: edificios reales y calle a nivel humano. Cargando cuerpo humano animado…');
  }catch(err){display('No se ha podido cargar la ciudad GLB: '+(err?.message||err),true);showLoad('ERROR: falta assets/alicante.glb');return;}
+ if(publicPreview){enterPublicCity();return;}
  try{
   const data=await model('./assets/maya.glb');
   avatar=data.scene;
@@ -242,13 +256,7 @@ async function loadWorld(){
  }catch(err){
   // PUBLIC, NON-PERSONAL city navigation remains possible without private maya.glb.
   // No invented avatar and no personal mesh is ever pulled into a public artifact.
-  mode='first';
-  $('cameraMode').textContent='Primera persona · ciudad pública';
-  window.NPL_READY={cityMeshes:city?.children?.length||0,cityOnly:true,privateAvatarLoaded:false,
-    explanadaCoords:[38.34318,-0.48326],windows:windowCount,palms:palmCount,skins:0,clips:[]};
-  loading.remove();
-  showLoad('Ciudad geográfica cargada en modo público sin avatar');
-  display('Ciudad 3D navegable sin avatar personal. Fachadas y alturas incompletas; fotorrealismo no validado.');
+  enterPublicCity();
   return;
  }
 }
