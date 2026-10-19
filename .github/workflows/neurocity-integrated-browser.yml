@@ -87,8 +87,9 @@ jobs:
       - name: Test integrated GLB plus educational brain in real Chromium
         run: |
           python3 -m http.server 8766 --bind 127.0.0.1 --directory game_source/demos/npl-world/visual_viewer/dist >/tmp/neurocity-integrated-server.log 2>&1 &
-          node game_source/demos/npl-world/visual_viewer/tests/browser_public_review.mjs
-          node game_source/demos/npl-world/visual_viewer/tests/browser_mobile_review.mjs
+          cd game_source
+          node demos/npl-world/visual_viewer/tests/browser_public_review.mjs
+          node demos/npl-world/visual_viewer/tests/browser_mobile_review.mjs
         # Both tests write screenshot paths relative to repository checkout root.
       - name: Preserve public playable city+brain with provenance
         if: always()
