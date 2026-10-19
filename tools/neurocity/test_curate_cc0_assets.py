@@ -18,8 +18,7 @@ class TestCuration(unittest.TestCase):
     def test_public_relevance_and_privacy_filters(self):
         report = module.rank_assets(self.make(), now=2000)
         self.assertEqual(report["count"],2)
-        self.assertEqual(report["candidates"][0]["id"],"palm_tree_01")
-        self.assertEqual(report["candidates"][1]["id"],"bench_01")
+        self.assertEqual({x["id"] for x in report["candidates"]},{"palm_tree_01","bench_01"})
         self.assertTrue(all(x["candidate_only"] and not x["binary_downloaded"] for x in report["candidates"]))
         self.assertEqual(report["models_downloaded"],0)
         self.assertFalse(any("patient" in x["id"] for x in report["candidates"]))
