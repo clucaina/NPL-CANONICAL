@@ -90,14 +90,26 @@ def query_live():
     # The federated catalog also covers non-IGN sequences worldwide.
     # Its root license is mixed; NEVER treat federated photos as individually cleared.
     federated_url=FEDERATION+"/search?"+urlencode({"bbox":",".join(str(x) for x in ALICANTE_BBOX),"limit":MAX_ITEMS})
-    federation=classify_response(load_public_api(federated_url,"api.panoramax.xyz"),
-        provider="Panoramax Federation",license_hint="PER_IMAGE_LICENSE_REVIEW_REQUIRED")
-    report["federation_discovery"]={
-        "records":federation["image_count"],"sequences":federation["sequence_count"],
-        "records_license_approved_for_reconstruction":0,
-        "source":federated_url,
-        "candidate_sequences":federation["candidate_sequences"]
-    }
+    federated_payload=load_public_api(federated_url,"api.panoramax.xyz")
+    if federated_payload.get("type")=="FeatureCollection":
+        federation=classify_response(federated_payload,
+            provider="Panoramax Federation",license_hint="PER_IMAGE_LICENSE_REVIEW_REQUIRED")
+        report["federation_discovery"]={
+            "status":"STAC_METADATA_DISCOVERED",
+            "records":federation["image_count"],"sequences":federation["sequence_count"],
+            "records_license_approved_for_reconstruction":0,
+            "source":federated_url,
+            "candidate_sequences":federation["candidate_sequences"]
+        }
+    else:
+        # Federated API schema may differ. Record safe structure only; do not fake zero coverage.
+        report["federation_discovery"]={
+            "status":"UNSUPPORTED_RESPONSE_SHAPE_NOT_A_NO_COVERAGE_CLAIM",
+            "source":federated_url,
+            "response_type":str(federated_payload.get("type","missing"))[:55],
+            "response_keys":sorted(k for k in federated_payload if isinstance(k,str))[:16],
+            "records":None,"records_license_approved_for_reconstruction":0
+        }
     return report
 
 def main():
