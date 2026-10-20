@@ -44,6 +44,14 @@ test('real canvas tesserae cover thousands of irregular grout-separated polygons
  assert.ok(shades.size>=10);
  assert.equal(result.surfaceEstimated,true);
  assert.equal(result.photoDerived,false);
+ assert.equal(result.ceramicShapes,'staggered_irregular_hexagonal_fragments');
+ const reliefShades=new Set();
+ const fakeRelief={...fakeCtx,fill(){reliefShades.add(this.fillStyle);}};
+ const resultRelief=paintMosaic(fakeRelief,{tier:'mobile',relief:true});
+ assert.ok(resultRelief.painted>5000);
+ assert.ok(reliefShades.has('#dadada'));
+ assert.ok(!reliefShades.has('#a7604c'));
+ assert.throws(()=>paintMosaic(fakeCtx,{tier:'desktop',relief:'bad'}),TypeError);
 });
 test('NPL responds to REAL local walking, looking, obstacles and methodological choices',()=>{
  let session=startBehaviorSession();
