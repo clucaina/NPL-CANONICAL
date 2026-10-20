@@ -8,6 +8,8 @@ on:
       - 'tools/neurocity/catastro_grid_live.py'
       - 'tools/neurocity/catastro_grid_smoke.py'
       - 'tools/neurocity/test_catastro_grid.py'
+      - 'tools/neurocity/catastro_native_parts.py'
+      - 'tools/neurocity/test_catastro_native_parts.py'
       - 'demos/npl-world/open_city_pipeline/build_blender.py'
 permissions:
   contents: read
@@ -29,6 +31,7 @@ jobs:
         run: |
           python3 -m unittest discover -s tools/neurocity -p 'test_catastro_parts.py' -v
           python3 -m unittest discover -s tools/neurocity -p 'test_catastro_grid.py' -v
+          python3 -m unittest discover -s tools/neurocity -p 'test_catastro_native_parts.py' -v
       - name: Install Blender CPU
         run: |
           sudo apt-get update -qq
@@ -47,6 +50,7 @@ jobs:
           assert q['cadastre_original_osm_footprints_replaced']==1,q
           assert q['cadastre_building_parts_geometry']==1,q
           assert q['cadastre_verified_source_tiles']==9,q
+          assert q['cadastre_native_official_parts_added']==0,q
           assert q['cadastre_coverage_complete'] is True,q
           assert q['cadastre_floor_based_height_not_measured'] is True,q
           assert q['original_osm_file_modified'] is False,q
@@ -72,7 +76,9 @@ jobs:
           if q['actual_city_models_generated']:
               assert q['actual_blender_3d_official_buildings']==q['matched_osm_buildings'],q
               assert q['actual_blender_3d_building_parts']==q['matched_official_parts'],q
-              print('PASS real-world ephemeral 3D Alicante, matched official volumes:',q['matched_official_parts'])
+              assert q['actual_blender_3d_native_parts']==q['native_official_parts_eligible'],q
+              print('PASS real-world ephemeral 3D Alicante, matched official volumes:',q['matched_official_parts'],
+                'independent official volumes:',q['actual_blender_3d_native_parts'])
           else:
               print('SOURCE/EXPORT BLOCKED; published NO model:',q['source_status'],q.get('export_blocker_class'))
           PY

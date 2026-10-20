@@ -18,6 +18,7 @@ from catastro_parts import (
     MAX_PARTS, LICENSE, SOURCE_DOC, load_xml, read_parts, read_osm,
     safe_matches, validate_official_url,
 )
+from catastro_native_parts import collect_native_parts
 
 GRID_ROWS=3
 GRID_COLS=3
@@ -56,7 +57,8 @@ def source_plan(bounds,rows=GRID_ROWS,cols=GRID_COLS,padding=PADDING_METERS):
 
 def compile_grid(*,samples,osm,manifest,expected_ids=None):
     """samples are (grid_id, official WFS URL, local GML path)."""
-    origin=json.loads(Path(manifest).read_text(encoding='utf-8')).get('center_mercator')
+    manifest_data=json.loads(Path(manifest).read_text(encoding='utf-8'))
+    origin=manifest_data.get('center_mercator')
     if (not isinstance(origin,list) or len(origin)!=2 or
         not all(type(x) in (int,float) and math.isfinite(x) for x in origin)):
         raise ValueError('Original Mercator origin must be finite')
@@ -102,6 +104,10 @@ def compile_grid(*,samples,osm,manifest,expected_ids=None):
     parts=list(unique.values())
     buildings=read_osm(osm,origin)
     matched,stats=safe_matches(parts,buildings)
+    # Different, stricter path: geometries verified to be independent of
+    # EVERY existing OSM footprint are added rather than made into false joins.
+    m_bbox=manifest_data.get('bbox')
+    native_parts,native_stats=collect_native_parts(parts,buildings,origin,m_bbox)
     result={
         'schema':'neurocity.catastro-building-grid.v2',
         'source':'DG_CATASTRO_INSPIRE_BU_BUILDINGPART',
@@ -118,7 +124,10 @@ def compile_grid(*,samples,osm,manifest,expected_ids=None):
         'skipped':skipped,'total_osm_buildings':len(buildings),
         'matched_osm_count':len(matched),
         'matched_bu_part_count':sum(len(m['sections']) for m in matched),
-        'matching':stats,'matched':matched
+        'matching':stats,'matched':matched,
+        'independent_official_parts':native_parts,
+        'independent_official_part_count':len(native_parts),
+        'independent_official_selection_qa':native_stats
     }
     if len(json.dumps(result).encode())>4*1024*1024:
         raise ValueError('Public geometric instructions exceed 4 MiB')
