@@ -13,10 +13,17 @@ COLLECTION = "https://api-coverages.idee.es/collections/EL.ElevationGridCoverage
 TILE="r01_c02"
 BBOX=(720700,4247300,721200,4247800)
 MAX_BYTES=20_000_000
-URL=(COLLECTION+"/coverage?bbox="+",".join(map(str,BBOX))+"&bbox-crs=25830&f=COG")
+def request_url(bbox):
+    if (not isinstance(bbox,(tuple,list)) or len(bbox)!=4 or
+        not all(isinstance(x,int) and not isinstance(x,bool) for x in bbox) or
+        bbox[2]-bbox[0]!=500 or bbox[3]-bbox[1]!=500):
+        raise ValueError("500m projected official bbox required")
+    return COLLECTION+"/coverage?bbox="+",".join(map(str,bbox))+"&bbox-crs=25830&f=COG"
+
+URL=request_url(BBOX)
 
 
-def inspect_raster(raw):
+def inspect_raster(raw,bbox=BBOX):
     """Check real GeoTIFF EPSG/bbox/nodata/pixel samples; fail on mislabeled HTML."""
     if not isinstance(raw,bytes) or not (raw[:4] in (b"II*\x00",b"MM\x00*")):
         raise ValueError("Downloaded response is not TIFF")
@@ -41,8 +48,8 @@ def inspect_raster(raw):
                 if not math.isfinite(u) or not math.isfinite(v) or math.hypot(u-x,v-y)>0.1:
                     raise ValueError("COG axis transform is not identity in verified ETRS89/UTM 30N")
 
-            if not (abs(b.left-BBOX[0])<=12 and abs(b.bottom-BBOX[1])<=12 and
-                    abs(b.right-BBOX[2])<=12 and abs(b.top-BBOX[3])<=12):
+            if not (abs(b.left-bbox[0])<=12 and abs(b.bottom-bbox[1])<=12 and
+                    abs(b.right-bbox[2])<=12 and abs(b.top-bbox[3])<=12):
                 raise ValueError("Raster does not represent requested Alicante tile")
             if ds.count<1 or ds.width<20 or ds.height<20 or ds.width*ds.height>2_000_000:
                 raise ValueError("Unexpected raster band/dimensions")
@@ -67,8 +74,8 @@ def inspect_raster(raw):
                     "no_buildings_or_foundations_modified":True}
 
 
-def download_bounded():
-    req=Request(URL,headers={"Accept":"image/tiff,application/octet-stream",
+def download_bounded(url=URL):
+    req=Request(url,headers={"Accept":"image/tiff,application/octet-stream",
                              "User-Agent":"NeuroCity-Official-DEM-Probe/1.0"})
     with urlopen(req,timeout=27) as reply:
         if reply.status!=200:
@@ -85,20 +92,20 @@ def download_bounded():
     return raw
 
 
-def probe(output, fetch=download_bounded, mesh_output_dir=None):
-    result={"schema":"neurocity.ign-real-terrain-probe.v1","tile":TILE,
-            "official_collection":COLLECTION,"bbox_epsg_25830":list(BBOX),
+def probe(output, fetch=download_bounded, mesh_output_dir=None,*,tile_id=TILE,bbox=BBOX):
+    result={"schema":"neurocity.ign-real-terrain-probe.v1","tile":tile_id,
+            "official_collection":COLLECTION,"bbox_epsg_25830":list(bbox),
             "licensed_as":"IGN/CNIG source family CC-BY 4.0; exact tile attribution pending",
             "source_data_archived_publicly":False,
             "game_runtime_modified":False,"liDAR_high_fidelity_claimed":False}
     try:
         raster=fetch()
-        result.update(inspect_raster(raster))
+        result.update(inspect_raster(raster,bbox=bbox))
         result["status"]="OFFICIAL_RASTER_PIXELS_VALIDATED_DATUM_PENDING"
         if mesh_output_dir is not None:
             try:
                 from official_terrain_lod import candidate_lods
-                manifest=candidate_lods(raster,mesh_output_dir,result)
+                manifest=candidate_lods(raster,mesh_output_dir,result,bbox=bbox,tile_id=tile_id)
                 result["mesh_candidate_status"]="PRODUCED_UNAPPROVED"
                 result["mesh_candidate_lod_count"]=len(manifest["lods"])
                 result["mesh_candidates_license"]=manifest["license"]
