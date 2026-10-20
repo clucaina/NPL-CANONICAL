@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {assertTileManifest,planActiveTiles,plannedLayers,tileBounds,safeTilePath} from './city_tiles.mjs';
 import {matrixElementsForTile,VERTICAL_DATUM_VERIFIED,MAX_SAMPLED_TILE_PROJECTION_ERROR_M} from './geo_alignment.mjs';
 import {instantiateMasterPalms,instantiateArchivedStreetlights} from './asset_instancing.mjs';
+import {hideCarbonellG19Duplicate} from './g14_carbonell_dedup.mjs';
 
 /**
  * Optional local GLB recovery layer compatible with Three.js r169.
@@ -108,6 +109,15 @@ export class RecoveredMasterTiles {
          if(!node||signal.cancelled)return;
          node.visible=segment[i].role!=='lod';group.add(node);
          state.loaded++;state.roles.add(segment[i].role);
+         // The G19 architecture already contains BU_244990. Mask it ONLY
+         // after GLTFLoader has verified and loaded the original G14 GLB.
+         // A failed/missing landmark keeps the old complete source as fallback.
+         if(segment[i].role==='landmark'){
+           const report=hideCarbonellG19Duplicate(group,{
+             landmarkPath:segment[i].path,verifiedBytesLoaded:true,tileId:id
+           });
+           if(report.hidden)state.hiddenLegacyCarbonell=report.hidden;
+         }
        });
      }
    };
@@ -161,6 +171,7 @@ export class RecoveredMasterTiles {
      active:this.recoveredVisible,installed:!!this.manifest,profile:this.profile,
      tiles:Array.from(this.states.values()).filter(x=>x.ready).map(x=>x.id),
      assetsLoaded:Array.from(this.states.values()).reduce((n,s)=>n+s.loaded,0),
+     verifiedG14HiddenOldBuildingMeshes:Array.from(this.states.values()).reduce((n,s)=>n+(s.hiddenLegacyCarbonell||0),0),
      errors:this.errors.slice(-12),
      georeferencedTo:'EPSG:3857_per_tile_PROJ_500m',
      maxSampledProjectionResidualM:MAX_SAMPLED_TILE_PROJECTION_ERROR_M,
