@@ -186,12 +186,16 @@ export class RecoveredPhysicalAtlas{
     physicalHeightProvisional:heights[0],tile:samples[0].grid};
  }
  /** A normalized swept capsule root check; both axes can slide if blocked. */
- move(current,dx,dz,{radius=.32}={}){
+ move(current,dx,dz,{radius=.32,fallbackCollision=null}={}){
+  // Optional safety net from source wall segments ALREADY loaded by Gameplay.
+  // This never grants access where signed G13 says the surface is blocked.
+  if(fallbackCollision!==null&&typeof fallbackCollision!=='function')
+    throw TypeError('Fallback collision must be a synchronous wall query');
   if(!current||![current.x,current.z,dx,dz].every(Number.isFinite))
     throw TypeError('Bad movement vector');
   const distance=Math.hypot(dx,dz),n=Math.max(1,Math.ceil(distance/.22));
   const position={x:current.x,z:current.z};
-  let blocked=0,fallback=0;
+  let blocked=0,fallback=0,wallFallbackChecks=0,wallFallbackBlocks=0,unverifiedFallback=0;
   for(let i=0;i<n;i++){
     const x=dx/n,z=dz/n;
     const move=(a,b)=>{
@@ -201,7 +205,19 @@ export class RecoveredPhysicalAtlas{
       const next={x:position.x+a,z:position.z+b};
       const check=this.canOccupy(next.x,next.z,{radius,from:position});
       if(check.allowed===false)return false;
-      if(check.allowed===null)fallback++;
+      if(check.allowed===null){
+        fallback++;
+        if(fallbackCollision){
+          wallFallbackChecks++;
+          const hit=fallbackCollision(position.x,position.z,next.x,next.z);
+          if(typeof hit!=='boolean')throw TypeError('Wall fallback must return a boolean');
+          if(hit){wallFallbackBlocks++;return false;}
+        }else{
+          // Preserve historical movement when no genuine source-wall geometry
+          // exists, but NEVER misreport it as a certified pass.
+          unverifiedFallback++;
+        }
+      }
       position.x=next.x;position.z=next.z;
       return true;
     };
@@ -211,6 +227,8 @@ export class RecoveredPhysicalAtlas{
   }
   return {x:position.x,z:position.z,blockedSubsteps:blocked,
     fallbackSubsteps:fallback,source:PHYSICAL_SOURCE,
+    wallFallbackChecks,wallFallbackBlocks,unverifiedFallbackSubsteps:unverifiedFallback,
+    wallFallbackAvailable:!!fallbackCollision,
     verifiedVerticalDatum:false,swept:true};
  }
  status(){
