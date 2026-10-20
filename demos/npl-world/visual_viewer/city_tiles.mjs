@@ -41,7 +41,14 @@ export function assertTileManifest(m){
           (a.role==='streetlamp'&&a.path!=='assets/prefabs/Farola_Globo_Simple_4m.glb')||
           (a.local===true&&!['terrain','geo','street','beach','coast'].includes(a.role)) ||
           (a.triangle_estimate!==undefined && (!Number.isSafeInteger(a.triangle_estimate)||a.triangle_estimate<1||a.triangle_estimate>4_000_000)) ||
-          (a.embedded_images!==undefined && (!Number.isSafeInteger(a.embedded_images)||a.embedded_images<0||a.embedded_images>1024)))
+          (a.embedded_images!==undefined && (!Number.isSafeInteger(a.embedded_images)||a.embedded_images<0||a.embedded_images>1024)) ||
+          (a.mobile_fallback!==undefined && (a.role!=='mosaic'||
+             !safeTilePath(a.mobile_fallback.path) ||
+             !/^[a-f0-9]{64}$/.test(a.mobile_fallback.sha256||'')||
+             !Number.isSafeInteger(a.mobile_fallback.bytes)||
+             a.mobile_fallback.bytes<=0||a.mobile_fallback.bytes>90_000_000||
+             !Number.isSafeInteger(a.mobile_fallback.triangle_estimate)||
+             a.mobile_fallback.triangle_estimate<1||a.mobile_fallback.triangle_estimate>4_000_000)))
        throw new Error('Unsupported asset source, integrity claim or local-space transform');
     }
   }
@@ -67,8 +74,18 @@ export function plannedLayers(tile,profile='desktop'){
   const candidates=tile.assets.filter(a=>{
     if(profile==='desktop')return !(a.role==='streetlamp'&&hasV50Furniture);
     return !['facade','furniture'].includes(a.role);
-  })
-      .sort((a,b)=>(priority[a.role]??99)-(priority[b.role]??99)||a.path.localeCompare(b.path));
+  }).map(a=>{
+    // Original V50 4cm relief: ~105k triangles on 16m2 patch. Preserve its
+    // authentic 5k-triangle PBR source GLB for mobile instead of loading both.
+    if(profile==='mobile'&&a.role==='mosaic'&&a.mobile_fallback){
+      const fb=a.mobile_fallback;
+      if(!safeTilePath(fb.path)||!/^[a-f0-9]{64}$/.test(fb.sha256||''))
+        throw Error('Untrusted original V50 mobile mosaic');
+      return {...a,...fb,mobileV50Fallback:true,
+        archaeologicalModelSource:'original_V50_PBR_not_procedural'};
+    }
+    return a;
+  }).sort((a,b)=>(priority[a.role]??99)-(priority[b.role]??99)||a.path.localeCompare(b.path));
   // Original 2026 checkpoint: r02_c00 alone has >600k triangles. Loading
   // every old GLB on low-end mobile without LOD is NOT acceptable.
   const cap=profile==='mobile'?290_000:1_500_000;

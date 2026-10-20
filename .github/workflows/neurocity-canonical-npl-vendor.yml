@@ -1,0 +1,47 @@
+name: NeuroCity · dependencias oficiales cerebro canónico NPL (SIN ATLAS PRIVADO)
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/neurocity-canonical-npl-vendor.yml'
+permissions:
+  contents: read
+jobs:
+  vendor:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install EXACT historic NPL canonical runtime packages only
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/neurocity-canonical-vendor
+          cd /tmp/neurocity-canonical-vendor
+          printf '%s\n' '{"name":"neurocity-npl-vendor-only","private":true,"type":"module","version":"0.0.0"}' > package.json
+          npm install --no-audit --no-fund --no-save --ignore-scripts=false --loglevel=error react@18.2.0 react-dom@18.2.0 three@0.167.1 esbuild@0.24.2
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          for (const [name,version] of [['react','18.2.0'],['react-dom','18.2.0'],['three','0.167.1'],['esbuild','0.24.2']]){
+            const p=JSON.parse(fs.readFileSync('node_modules/'+name+'/package.json','utf8'));
+            if(p.version!==version)throw Error(name+' dependency mismatch '+p.version);
+          }
+          for(const p of ['node_modules/three/examples/jsm/libs/draco/gltf/draco_decoder.js','node_modules/three/examples/jsm/libs/draco/gltf/draco_wasm_wrapper.js','node_modules/three/examples/jsm/libs/draco/gltf/draco_decoder.wasm']){
+            if(!fs.existsSync(p))throw Error('NPL Draco r167 required: '+p);
+          }
+          console.log('NPL_DEPENDENCIES_EXACT_3D_PASS');
+          JS
+          tar -czf "$GITHUB_WORKSPACE/npl-canonical-vendor-exact.tgz" node_modules package.json
+      - name: Ensure user atlas binaries absent
+        run: |
+          test ! -e demos/npl-world/visual_viewer/assets/brain/brain.glb
+          test ! -e npl-canonical-vendor-exact/brain.glb
+          echo "NO PRIVATE 437-STRUCTURE BRAIN OR G19 GLBS PUBLISHED"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NEUROCITY_NPL_ORIGINAL_THREE167_DRACO_REACT18_BUILD_TOOLS_ONLY
+          path: npl-canonical-vendor-exact.tgz
+          retention-days: 3
