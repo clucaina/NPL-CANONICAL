@@ -34,7 +34,7 @@ CONTRACTS={
    'loadNPLOpenData','inspectDataset','RecoveredPhysicalAtlas',
    'makeSourceComparisonControl']),
  'no_fake_real_people':('docs/NEUROCITY_RECUPERACION_MUNDO_Y_FABRICA_ESPANA.md',[
-   'interiores reales','consentimiento'])
+   'interiores ficticios','consentimiento'])
 }
 def verify(root:Path)->dict:
     root=root.resolve()
