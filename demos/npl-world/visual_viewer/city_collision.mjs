@@ -107,6 +107,7 @@ export function buildCityWallCollision(root,{cellSize=CELL_SIZE_M,radius=COLLISI
   if(!Number.isInteger(samples)||samples<1||samples>256)
     throw new RangeError('Invalid bounded source-wall audit budget');
   let examined=0,blocked=0,failed=0;
+  const liveMovementCounter=blockedMoves;
   for(const e of edges){
    if(examined>=samples)break;
    const vx=e.bx-e.ax,vz=e.bz-e.az;
@@ -125,6 +126,8 @@ export function buildCityWallCollision(root,{cellSize=CELL_SIZE_M,radius=COLLISI
    if(actual.collided&&capsule>=radius-1e-4)blocked++;
    else failed++;
   }
+  // Audit attempts are not actual user walks: restore gameplay counters.
+  blockedMoves=liveMovementCounter;
   return Object.freeze({
    source:'actual_loaded_blender_wall_geometry',
    sampleBudget:samples,examined,blocked,failed,
