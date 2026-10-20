@@ -61,7 +61,8 @@ try{
   }
   await page.locator('#nplOptions button').filter({hasText:'Nueva misión'}).click();
   if(await page.evaluate(()=>window.NPL_MISSION.stage)!==0)throw new Error('Mission restart failed');
-  const reportCopy={\n    foliageGPU:foliage,
+  const reportCopy={
+    foliageGPU:foliage,
     ...state,mission_start:starting,mission_completed:completed,consoleErrors,failedRequests,
     frame:'REAL_CHROMIUM_SOFTWARE_WEBGL_SCREENSHOT_NOT_PERFORMANCE_BENCHMARK',
     preview_url:'local-only'
