@@ -4,7 +4,8 @@ import * as THREE from 'three';
 import {createHash} from 'node:crypto';
 import {
   masterToViewer,viewerToMaster,matrixElementsForMaster,
-  SOURCE_CRS,VIEWER_CRS,OBSERVED_MAX_AFFINE_RESIDUAL_M
+  SOURCE_CRS,VIEWER_CRS,OBSERVED_MAX_AFFINE_RESIDUAL_M,
+  MAX_SAMPLED_TILE_PROJECTION_ERROR_M,masterTileToViewer,matrixElementsForTile
 } from '../geo_alignment.mjs';
 import {
   assertTileManifest,planActiveTiles,plannedLayers,safeTilePath,tileBounds
@@ -45,6 +46,28 @@ test('ETRS89 UTM30 and Mercator inverse are finite and within documented approxi
  assert.ok(Math.abs(v.x-pt.x)<1e-6&&Math.abs(v.z-pt.z)<1e-6);
  assert.equal(v.y,4);
  assert.throws(()=>viewerToMaster(NaN,0));
+});
+
+test('each source 500m tile now agrees with independent PROJ EPSG:25830 to 3857 anchors',()=>{
+  assert.ok(MAX_SAMPLED_TILE_PROJECTION_ERROR_M<=.010);
+  const measured=[
+   ['r02_c00',250,1250,6.405380803647859,-84.43930313922465],
+   ['r02_c00',0,1000,-303.09485497327114,-412.63815316651016],
+   ['r02_c01',750,1250,642.7368211527064,-66.99506848398596],
+   ['r02_c01',500,1000,333.25817839297815,-395.2117154542357],
+   ['r01_c01',750,750,660.1306329158542,-705.9821038963273],
+   ['r01_c01',500,500,350.6342717272346,-1034.2202693428844],
+   ['r01_c02',1250,750,1296.4975057456613,-688.4945045849308],
+   ['r01_c02',1000,500,987.0227463275587,-1016.7504660394043]
+  ];
+  for(const [tile,x,z,correctX,correctZ] of measured){
+    const p=masterTileToViewer(tile,x,z);
+    const residual=Math.hypot(p.x-correctX,p.z-correctZ);
+    assert.ok(residual<=.012, tile+' PROJ residual '+residual);
+    const v=new THREE.Vector3(x,0,z).applyMatrix4(new THREE.Matrix4().fromArray(matrixElementsForTile(tile)));
+    assert.ok(Math.hypot(v.x-correctX,v.z-correctZ)<=.012);
+  }
+  assert.throws(()=>matrixElementsForTile('unverified'));
 });
 
 test('manifest rejects unsafe assets, invented rights and suspect georeferencing',()=>{
@@ -92,6 +115,11 @@ test('real Three scene uses local GLBs only; native loader and original city fal
    const stats=await streamer.update({x:-10.664,z:113.546});
    assert.equal(stats.active,true);
    assert.ok(stats.tiles.includes('r02_c00'));
+   const node=scene.getObjectByName('WORLDMASTER_r02_c00');
+   assert.ok(node,'Real tile transform node must exist');
+   assert.ok(Math.abs(node.matrix.elements[12]-(-268.379904197))<.000001);
+   assert.ok(stats.maxSampledProjectionResidualM<=.010);
+   assert.equal(stats.sourceGeometryAccuracyNotCertified,true);
    assert.equal(stats.millimetreFidelityCertified,false);
    assert.equal(stats.verticalDatumVerified,false);
    assert.equal(stats.privateAvatarsLoaded,false);
