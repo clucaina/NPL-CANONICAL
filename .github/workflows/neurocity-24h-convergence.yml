@@ -10,6 +10,8 @@ on:
   push:
     paths:
       - '.github/workflows/neurocity-24h-convergence.yml'
+      - 'tools/neurocity/cross_chat_lineage.py'
+      - 'tools/neurocity/test_cross_chat_lineage.py'
 
 permissions:
   contents: read
@@ -25,16 +27,32 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - name: Checkout actual V7 brain and V50 master source (public only)
+      - name: Checkout current V7/G19 Carbonell/swept-wall source (public only)
         uses: actions/checkout@v4
         with:
-          ref: feat/neurocity-restore-real-npl-canonical-brain-v50-20261020
+          ref: fix/neurocity-v7-g19-continuous-wall-sweep-20261020
           path: city-v7
           fetch-depth: 0
           persist-credentials: false
+      - name: Checkout convergence auditor from this workflow revision
+        uses: actions/checkout@v4
+        with:
+          path: orchestrator
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Test cross-chat lineage audit on synthetic git graphs
+        run: python3 -m unittest discover -s orchestrator/tools/neurocity -p 'test_cross_chat_lineage.py' -v
+      - name: Capture current verified source SHAs and overlapping edit paths
+        run: |
+          mkdir -p reports
+          python3 orchestrator/tools/neurocity/cross_chat_lineage.py --repo city-v7 --output-dir reports
+          cat reports/CROSS_CHAT_LINEAGE.md >> "${GITHUB_STEP_SUMMARY}"
       - name: Rehearse independent 3D branches without modifying remote history
         id: integration
         shell: bash
@@ -43,7 +61,7 @@ jobs:
           mkdir -p reports
           printf '# NeuroCity - verified hourly rehearsal\n\n' > reports/REPORT.md
           printf 'Execution UTC: %s\n\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> reports/REPORT.md
-          printf 'Source: original NPL/V50 **V7**, physical collisions, Catastro + sea + Gameplay rehearsal.\n\n' >> reports/REPORT.md
+          printf 'Source: latest reviewed G19/V50 **PR #46**, Catastro/Chromium PR #41, source combination PR #38 and Huerto main.\n\n' >> reports/REPORT.md
           printf '**Important:** an ephemeral merge is NOT a production merge; a passing test is NOT photographic fidelity or a 60-view validation.\n\n' >> reports/REPORT.md
           printf 'Private original GLBs/avatars are NOT downloaded, read or redistributed by this job.\n\n' >> reports/REPORT.md
           cp -a city-v7 city-integrated
@@ -52,7 +70,7 @@ jobs:
           printf 'Base V7 SHA: %s\n\n' "$(git -C city-v7 rev-parse HEAD)" >> reports/REPORT.md
           blocked=0
           for pair in \
-            'collision:feat/neurocity-physical-wall-collision-20261020' \
+            'cadastre-acceptance:feat/neurocity-collision-physical-acceptance-20261020' \
             'integrated-sources:ci/neurocity-multi-source-unification-rehearsal-20261020'; do
             label="${pair%%:*}"
             ref="${pair#*:}"
@@ -90,6 +108,15 @@ jobs:
           fi
           cd ../../../..
           if [ "$blocked" -eq 0 ]; then
+            # Committing code is NOT enough: preserve the full set of original
+            # G19/V50 capabilities after integrating parallel chat branches.
+            python3 city-v7/tools/neurocity/continuity_gate.py               --repo-root city-integrated --output reports/SOURCE_CONTINUITY.json               > reports/continuity-gate.log 2>&1 || {
+                cat reports/continuity-gate.log >> reports/REPORT.md
+                echo FAIL > reports/integrated-result.txt
+                blocked=1
+              }
+          fi
+          if [ "$blocked" -eq 0 ]; then
             cd city-integrated/demos/npl-world/visual_viewer
             if npm install --no-audit --no-fund > ../../../../reports/integrated-install.log 2>&1 &&
                node --test tests/*.test.mjs > ../../../../reports/integrated-tests.log 2>&1 &&
@@ -115,9 +142,25 @@ jobs:
           fi
           cat reports/REPORT.md >> "$GITHUB_STEP_SUMMARY"
       - name: Save actual output, conflict paths and test logs
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: neurocity-v7-hourly-qa-${{ github.run_id }}
           path: reports/
           retention-days: 7
           if-no-files-found: error
+      - name: Reject false-green scheduled runs when integration is blocked
+        if: always()
+        shell: bash
+        run: |
+          if [ ! -s reports/v7-result.txt ] || [ ! -s reports/integrated-result.txt ]; then
+            echo 'ERROR: no complete convergence report was produced.'; exit 2
+          fi
+          if [ "$(cat reports/merge-blocked.txt)" != 0 ] ||
+             [ "$(cat reports/v7-result.txt)" != PASS ] ||
+             [ "$(cat reports/integrated-result.txt)" != PASS ]; then
+            echo 'BLOCKED: one or more chat branches cannot be safely unified. See uploaded reports.'
+            cat reports/REPORT.md
+            exit 1
+          fi
+          echo 'PASS: exact branches merged in ephemeral runner, source contracts and unit/build tests passed. No deployment.'
