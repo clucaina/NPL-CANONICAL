@@ -52,3 +52,36 @@ La ejecución `neurocity-worldmaster-recovery-qa.yml` instala Node y Three.js y 
 **QA separado por naturaleza:** pruebas Python de fuente y pipeline con fixtures; Node+Three comprueba mallas reales sintéticas, poses, budget, proyección y máscaras de material; Chromium de GitHub valida el visor público sin archivos de Drive. Chromium local en este entorno devolvió `net::ERR_BLOCKED_BY_ADMINISTRATOR`, por lo que queda expresamente pendiente validar el conjunto real de 75 GLB en Windows. No atribuir la restricción del navegador al código de NeuroCity.
 
 **Lote v2 local:** regenerado para propietario a partir del mismo ZIP fuente original, incorporando `game.js` compilado por CI, SHA-256 intacto de los 75 GLB, nueva metadata y documentos de QA. No fusionado, no desplegado, no distribuido públicamente por GitHub.
+
+## Consolidación verificable posterior (20/10/2026) · PR #53 → #54
+
+**Autoridad única de código y fuente abierta:** `clucaina/NPL-CANONICAL`. Esta sección ACTUALIZA el avance histórico de 75 GLB: la cadena privada G19/V50 más reciente de PR #51/#52 describe 86 GLB y 88 referencias, sin mover bytes al repositorio; no equiparar números de versiones diferentes. **PR #53** conserva máscaras arquitectónicas por triángulo cargado y evita ocultar OSM por cuadrados enteros de 500 m. **PR #54** añade geodatos reales y licencia (ambas en borrador, sin merge ni deploy).
+
+**Archivo único privado en Drive:** `NeuroCity/CONTROL_CANONICO_GITHUB/` contiene auditorías y candidatos derivados públicos, NO el traslado de toda la carpeta de producción ni avatares privados. Los paquetes propietarios originales permanecen donde estaban; GitHub solo publica fuente y metadatos auditables. Esto evita copiar 100 MB por versión o abrir permisos nuevos.
+
+### Recuperación cruzada sin repeticiones
+- Historial Geo G12 del propio Drive comprobado: `r01_c02`, bbox UTM (720700,4247300,721200,4247800), error anterior `DOWNLOAD_OR_VALIDATION_FAILED`, `NO_RASTERS_READ`. **No era una elevación real**.
+- Geo G19, Gameplay G15.1/G16 y archivo G19/V50 preservados, sin importar ni publicar binarios propietarios.
+- v20 Base + v20 Arquitectura en Drive, CRC intacto; v20 contiene PBR experimental de Explanada y **alzado hipotético** de Casa Carbonell. No equivale a la malla propietaria G14 ni reemplaza PR #45.
+- Catálogo Kenney propietario `CATALOGO_KENNEY_1883_LOCALIZADOS.json`: 1.883 entradas, sin SHA256 de binario. Se conserva como `located_only`, no como 1.883 modelos importados. Mirror GitHub del repositorio declara licencia SPDX `NOASSERTION`; validar derechos de cada archivo antes de usar. Los modelos G19 existentes se reutilizan con prioridad.
+- Huerto `cloud_factory/neurohuerto_architecture.json` solo certifica **15** IDs públicos. No declarar integración automática de las 26 raíces sin inventario contrastable; solo intercambiar metadatos, no clientes ni activos privados.
+- NPL y Conflictómetro permanecen por contratos públicos existentes; ni una base ni un paciente se han copiado a este proceso.
+
+### Terreno oficial Alicante r01_c02 obtenido por fin
+
+Fuente documental original: [IGN/CNIG MDT05](https://api-coverages.idee.es/collections/EL.ElevationGridCoverage_25830_5_PB?f=json), [productos PNOA-LiDAR](https://pnoa.ign.es/pnoa-lidar/productos-a-descarga), reutilización CC BY 4.0 (atribución obligatoria). Esta colección es un **MDT5 de primera cobertura**, NO un LiDAR 2025 de 5 puntos/m2 ni fotogrametría. La fuente devuelve TIFF en `EPSG:3042`, ETRS89/UTM 30 N-E, que se normaliza a `EPSG:25830` E-N sólo tras cinco controles `pyproj.Transformer(..., always_xy=True)` de igualdad X,Y (<0,1m). En la prueba GitHub Actions [39465916862](https://github.com/clucaina/NPL-CANONICAL/actions/runs/39465916862), **SUCCESS** en dos jobs: 12 tests licencia, 7 tests raster y 5 tests GLB; descarga real y 3 LOD.
+
+- Fuente COG `daca80a6b61277e40bfcccadcdd306fa1730b90272ae2fe99f858291af2d82e5` (SHA256), matriz 101×101, 10.000 píxeles válidos (98,03%), elevaciones observadas 0 a 34,016 m.
+- LOD0 (5 m): **10.000 vértices, 19.602 triángulos, 476.772 bytes**; SHA256 `50b008c887a6ee7b12ce5ca5c522276f244d87fb38e018c518bc8d93f79550a4`.
+- LOD1 (10 m): **2.500 vértices, 4.802 triángulos, 119.164 bytes**; SHA256 `2732eb391bcefa6c6c0dbda645e13ca03b51d8a26861ebeffbd6c80dde3e8a4f`.
+- LOD2 (20 m): **625 vértices, 1.152 triángulos, 30.360 bytes**; SHA256 `19817c6d33ef08a1769ce63cbfba1d0392a42dd85f9ce007a58e0be691859585`.
+- Se han verificado CRC ZIP y cabecera GLB 2.0 mediante lectura limpia; los tres están archivados en la carpeta privada de control, bajo atribución: *Obra derivada del MDT05 (primera cobertura LiDAR) - IGN/CNIG, CC-BY 4.0 scne.es*.
+- **NO** se ha aplicado ese relieve al Gameplay: datum vertical local y correspondencia de cotas con G19/V50/edificios/cimientos aún no validados; no es fotorrealismo ni FPS real.
+
+### Recursos abiertos complementarios (sin descarga masiva)
+
+`tools/neurocity/public_free_sources_20261020.json` registra 11 fuentes/tecnologías con herramienta ejecutable `source_admission.py` y pipeline `neurocity-source-admission-qa.yml`. Incluye Kenney CC0 original, Poly Haven CC0 (API tiene ToS separada), IGN/CNIG CC-BY 4.0, glTF-Transform MIT, NASA 3DTilesRendererJS Apache 2.0, QGIS GPL-2.0 (herramienta offline) y PDAL/mirror Kenney sujetos a revisión de licencia. **0 activos nuevos de terceros insertados en mundo G19**: catálogo `located_only` no es geometría real.
+
+### Bloqueos que NO se declaran resueltos
+
+(1) Contrastar cotas MDT05 vs referencia vertical real del sistema G19/V50 y navegación; (2) integración Catastro/agua/G19 PR #49: seis conflictos sin merge, no borrar mejoras anteriores; (3) escenarios LiDAR más recientes y fachadas reales requieren archivos y procedencia precisos; (4) integración controladores/avatares G16 sin duplicar lógica; (5) E2E WebGL privado, FPS GPU y aprobación visual de Alicante. Un artefacto generado exitosamente no equivale a una ciudad jugable terminada.
