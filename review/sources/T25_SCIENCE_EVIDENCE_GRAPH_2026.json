@@ -1,0 +1,18 @@
+{
+  "schema": "neurohuerto.public_source_candidate.v1",
+  "id": "T25_SCIENCE_EVIDENCE_GRAPH_2026",
+  "source_repository": "clucaina/psicologia-politica",
+  "source_ref": "integracion/v78-maestro-sin-despliegue",
+  "source_path": "database/T25_SCIENCE_EVIDENCE_GRAPH_2026.json",
+  "source_blob_sha": "895f4a04c42157d4a9a5cf33b6b585e3f22d99ee",
+  "raw_sha256": "1438d741121c7fd5e8df4ff6c0259941db1100dd1e84b08e68dfc6fdfee5b3b4",
+  "data_quality": "REJECTED_FORMAT",
+  "rows_automatically_examined": 0,
+  "quality_flags": {
+    "invalid_batch": 1
+  },
+  "review_state": "NEEDS_INDEPENDENT_LICENSE_AND_METHOD_REVIEW",
+  "release_gate": "NO_AUTO_IMPORT_NO_AUTO_DEPLOY",
+  "raw_values_copied": false,
+  "source_exists_in_catalog": false
+}
