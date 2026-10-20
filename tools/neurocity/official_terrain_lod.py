@@ -70,7 +70,7 @@ def glb_bytes(vertices,faces,*,origin,source_hash,step):
     return struct.pack("<4sII",b"glTF",2,total)+struct.pack("<I4s",len(raw),b"JSON")+raw+struct.pack("<I4s",len(blob),b"BIN\x00")+blob
 
 
-def candidate_lods(cog_bytes,output_dir,official_report):
+def candidate_lods(cog_bytes,output_dir,official_report,*,bbox=None,tile_id='r01_c02'):
     import rasterio
     from rasterio.io import MemoryFile
     if official_report.get("status")!="OFFICIAL_RASTER_PIXELS_VALIDATED_DATUM_PENDING":
@@ -79,6 +79,13 @@ def candidate_lods(cog_bytes,output_dir,official_report):
     if digest!=official_report.get("source_file_sha256"):
         raise ValueError("Official GeoTIFF SHA mismatch")
     from official_terrain_probe import BBOX
+    if bbox is None: bbox=BBOX
+    if (not isinstance(tile_id,str) or not __import__("re").fullmatch(r"r0[12]_c0[012]",tile_id)
+        or not isinstance(bbox,(list,tuple)) or len(bbox)!=4
+        or bbox[2]-bbox[0]!=500 or bbox[3]-bbox[1]!=500):
+        raise ValueError("Unverified 500m G19 tile")
+    if official_report.get("tile",tile_id)!=tile_id or list(official_report.get("bbox_epsg_25830",bbox))!=list(bbox):
+        raise ValueError("Official source tile identity/bbox mismatch")
     out=pathlib.Path(output_dir)
     out.mkdir(parents=True,exist_ok=True)
     published=[]
@@ -99,7 +106,7 @@ def candidate_lods(cog_bytes,output_dir,official_report):
                             continue
                         E,N=ds.xy(row,col)
                         mapping[ri,ci]=len(verts)
-                        verts.append((float(E-BBOX[0]),float(band[row,col]),float(BBOX[3]-N)))
+                        verts.append((float(E-bbox[0]),float(band[row,col]),float(bbox[3]-N)))
                 faces=[]
                 for ri in range(len(rows)-1):
                     for ci in range(len(cols)-1):
@@ -111,9 +118,9 @@ def candidate_lods(cog_bytes,output_dir,official_report):
                         faces.extend(((a,c,b),(b,c,d)))
                 if len(verts)<40 or len(faces)<30:
                     raise ValueError("Official source too sparse for requested LOD")
-                glb=glb_bytes(verts,faces,origin=(BBOX[0],BBOX[3]),
+                glb=glb_bytes(verts,faces,origin=(bbox[0],bbox[3]),
                               source_hash=digest,step=step)
-                label="MDT05_ALICANTE_r01_c02_LOD"+str({1:0,2:1,4:2}[step])+"_UNAPPROVED.glb"
+                label="MDT05_ALICANTE_"+tile_id+"_LOD"+str({1:0,2:1,4:2}[step])+"_UNAPPROVED.glb"
                 f=out/label
                 f.write_bytes(glb)
                 published.append({"file":label,"file_sha256":hashlib.sha256(glb).hexdigest(),
@@ -122,7 +129,7 @@ def candidate_lods(cog_bytes,output_dir,official_report):
     manifest={"schema":"neurocity.official-500m-terrain-candidates.v1",
               "source":"IGN/CNIG MDT05 via IDEE OGC","source_sha256":digest,
               "license":"CC-BY-4.0","attribution":ATTRIBUTION,
-              "bbox_epsg_25830":list(BBOX),"terrain_elevation_from_real_pixels":True,
+              "tile_id":tile_id,"bbox_epsg_25830":list(bbox),"terrain_elevation_from_real_pixels":True,
               "baseline_G19_ground_alignment_verified":False,
               "G19_horizontal_axis_convention_used":True,
               "source_vertical_datum_local_control_verified":False,
