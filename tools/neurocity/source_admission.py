@@ -13,7 +13,7 @@ SCHEMA = "neurocity.public-source-discovery.v1"
 KINDS = {"geodata", "asset", "tool"}
 LICENSES = {"CC0-1.0", "CC-BY-4.0", "MIT", "Apache-2.0", "GPL-2.0", "UNVERIFIED"}
 HOSTS = {"pnoa.ign.es", "centrodedescargas.cnig.es", "kenney.nl",
-         "polyhaven.com", "github.com"}
+         "polyhaven.com", "github.com", "api-coverages.idee.es"}
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 ID = re.compile(r"^[a-z][a-z0-9_]{2,70}$")
 
