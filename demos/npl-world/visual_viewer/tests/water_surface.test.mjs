@@ -17,6 +17,11 @@ test('Water shader uses two GPU triangles, no external images and no invented co
   assert.equal(sea.userData.waterQA.noPrivateAssets,true);
   assert.equal(sea.material.uniforms.uDetail.value,tier==='desktop'?1:0);
   assert.equal(sea.material.fog,true);
+  // Three r169 WebGLRenderer refreshes these uniform slots for scene.fog.
+  // Missing slots caused a real Chromium startup crash (reading 'value').
+  for(const name of ['fogColor','fogDensity','fogNear','fogFar'])
+    assert.ok(sea.material.uniforms[name] && 'value' in sea.material.uniforms[name],name);
+  assert.ok(sea.material.uniforms.fogColor.value.isColor);
   assert.ok(sea.material.fragmentShader.includes('fog_fragment'));
   assert.ok(sea.material.fragmentShader.includes('colorspace_fragment'));
   assert.ok(sea.material.vertexShader.includes('fog_vertex'));
