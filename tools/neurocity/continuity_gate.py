@@ -42,8 +42,28 @@ CONTRACTS={
    'palm_canopies_','leafletCount','InstancedMesh']),
  'facades_source_stucco':('demos/npl-world/visual_viewer/facade_stucco.mjs',[
    'enhanceMappedBuildingFacades','geometricFootprintsPreserved','shopsFabricated:0']),
- 'functional_interactive_3d_brain':('demos/npl-world/visual_viewer/npl_brain3d.mjs',[
-   'buildBrainModel','mountBrain3D','raycaster','onSelect']),
+ 'canonical_real_437_structure_npl_atlas':('demos/npl-world/visual_viewer/canonical_npl_contract.mjs',[
+   'expectedStructures:437','expectedPrimitives:563','BrainViewer.tsx',
+   'neurocityHasNoProceduralBrain:true','manifestSHA256','glbSHA256']),
+ 'canonical_npl_consumed_not_rebuilt':('demos/npl-world/visual_viewer/app.js',[
+   'attachCanonicalNPLDialog','CANONICAL_NPL','expectedStructures:437',
+   'neverProcedural:true']),
+ 'V8_owner_private_archive_bootstrap':('demos/npl-world/visual_viewer/app.js',[
+   'shouldLoadOwnerArchive(publicPreview,location.search)',
+   'if(ownerWorldRequested)startRecoveredMasterIfRequested()']),
+ 'G13_signed_unknown_cell_physical_fallback':('demos/npl-world/visual_viewer/app.js',[
+   'fallbackCollision:wallFallback','g13G16Priority:true','cityCollision.hitsWall']),
+ 'source_wall_acceptance_48':('demos/npl-world/visual_viewer/app.js',[
+   'auditSourceWallBlocking({samples:48})','NEUROCITY_COLLISION_QA']),
+ 'real_GLB_loaded_mesh_inspection':('demos/npl-world/visual_viewer/app.js',[
+   'inspectPublicCityModel(city)','NEUROCITY_CITY_MODEL_QA']),
+ 'no_gpu_mandatory_layer_overbudget':('demos/npl-world/visual_viewer/city_tiles.mjs',[
+   "if(triangles+cost>cap||images+imageCost>(profile==='mobile'?30:140))continue"]),
+ 'bounded_original_GLBS_with_abort':('demos/npl-world/visual_viewer/world_master_loader.mjs',[
+   'createBoundedAssetQueue','abortController.abort()','SHA256 mismatch',
+   'setLoadPressure','this.assetQueue.close()']),
+ 'adaptive_browser_render_quality':('demos/npl-world/visual_viewer/frame_quality.mjs',[
+   'createFrameGovernor','qualityPlan','rendered','telemetryNetwork:false']),
  'npl_observed_behavior_not_biometric':('demos/npl-world/visual_viewer/npl_behavior.mjs',[
    'sampleBehavior','LOCAL_GAME_ACTIONS_ONLY_NOT_NEURAL_MEASUREMENT','patientData:false']),
  'no_fake_real_people':('docs/NEUROCITY_RECUPERACION_MUNDO_Y_FABRICA_ESPANA.md',[
