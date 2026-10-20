@@ -19,7 +19,11 @@
       "review_state": "NEEDS_INDEPENDENT_LICENSE_AND_METHOD_REVIEW",
       "release_gate": "NO_AUTO_IMPORT_NO_AUTO_DEPLOY",
       "raw_values_copied": false,
-      "source_exists_in_catalog": false
+      "source_exists_in_catalog": false,
+      "cross_review_status": "BLOCK_FORMAT_OR_ID",
+      "independent_source_checked": true,
+      "candidate_type": "PUBLIC_RESEARCH_DOCUMENT_NOT_STATISTICAL_OBSERVATIONS",
+      "routing": "RESEARCH_REVIEW_NOT_DATA_IMPORT"
     },
     {
       "schema": "neurohuerto.public_source_candidate.v1",
@@ -37,7 +41,11 @@
       "review_state": "NEEDS_INDEPENDENT_LICENSE_AND_METHOD_REVIEW",
       "release_gate": "NO_AUTO_IMPORT_NO_AUTO_DEPLOY",
       "raw_values_copied": false,
-      "source_exists_in_catalog": false
+      "source_exists_in_catalog": false,
+      "cross_review_status": "BLOCK_FORMAT_OR_ID",
+      "independent_source_checked": true,
+      "candidate_type": "PUBLIC_RESEARCH_DOCUMENT_NOT_STATISTICAL_OBSERVATIONS",
+      "routing": "RESEARCH_REVIEW_NOT_DATA_IMPORT"
     },
     {
       "schema": "neurohuerto.public_source_candidate.v1",
@@ -55,7 +63,11 @@
       "review_state": "NEEDS_INDEPENDENT_LICENSE_AND_METHOD_REVIEW",
       "release_gate": "NO_AUTO_IMPORT_NO_AUTO_DEPLOY",
       "raw_values_copied": false,
-      "source_exists_in_catalog": false
+      "source_exists_in_catalog": false,
+      "cross_review_status": "BLOCK_FORMAT_OR_ID",
+      "independent_source_checked": true,
+      "candidate_type": "PUBLIC_RESEARCH_DOCUMENT_NOT_STATISTICAL_OBSERVATIONS",
+      "routing": "RESEARCH_REVIEW_NOT_DATA_IMPORT"
     },
     {
       "schema": "neurohuerto.public_source_candidate.v1",
@@ -73,9 +85,86 @@
       "review_state": "NEEDS_INDEPENDENT_LICENSE_AND_METHOD_REVIEW",
       "release_gate": "NO_AUTO_IMPORT_NO_AUTO_DEPLOY",
       "raw_values_copied": false,
+      "source_exists_in_catalog": false,
+      "cross_review_status": "BLOCK_FORMAT_OR_ID",
+      "independent_source_checked": true,
+      "candidate_type": "PUBLIC_RESEARCH_DOCUMENT_NOT_STATISTICAL_OBSERVATIONS",
+      "routing": "RESEARCH_REVIEW_NOT_DATA_IMPORT"
+    },
+    {
+      "schema": "neurohuerto.public_source_candidate.v1",
+      "id": "T35_CANDIDATAS_EDITORIALES_20261008",
+      "source_repository": "clucaina/psicologia-politica",
+      "source_ref": "integracion/v78-maestro-sin-despliegue",
+      "source_path": "database/T35_CANDIDATAS_EDITORIALES_20261008.json",
+      "source_blob_sha": "9462c683f6efde08bada0b6900b52b7ea43bf524",
+      "raw_sha256": "012e34b4f266f6e19fdf3f838ed97a00d81c5e63ef501a85e7b090d9d13c7e53",
+      "data_quality": "REJECTED_FORMAT",
+      "rows_automatically_examined": 0,
+      "quality_flags": {
+        "invalid_batch": 1
+      },
+      "review_state": "NEEDS_INDEPENDENT_LICENSE_AND_METHOD_REVIEW",
+      "release_gate": "NO_AUTO_IMPORT_NO_AUTO_DEPLOY",
+      "raw_values_copied": false,
+      "source_exists_in_catalog": false
+    },
+    {
+      "schema": "neurohuerto.public_source_candidate.v1",
+      "id": "T37_CANDIDATAS_EDITORIALES_20261008",
+      "source_repository": "clucaina/psicologia-politica",
+      "source_ref": "integracion/v78-maestro-sin-despliegue",
+      "source_path": "database/T37_CANDIDATAS_EDITORIALES_20261008.json",
+      "source_blob_sha": "1ec07b7ce2b9161475c03abca90f76cf433a308b",
+      "raw_sha256": "12775b0dc6dd48873a2e6a7c522194e1815ec58f7205cfd9de3851802d2cd15a",
+      "data_quality": "REJECTED_FORMAT",
+      "rows_automatically_examined": 0,
+      "quality_flags": {
+        "invalid_batch": 1
+      },
+      "review_state": "NEEDS_INDEPENDENT_LICENSE_AND_METHOD_REVIEW",
+      "release_gate": "NO_AUTO_IMPORT_NO_AUTO_DEPLOY",
+      "raw_values_copied": false,
+      "source_exists_in_catalog": false
+    },
+    {
+      "schema": "neurohuerto.public_source_candidate.v1",
+      "id": "T38_CANDIDATAS_EDITORIALES_20261008",
+      "source_repository": "clucaina/psicologia-politica",
+      "source_ref": "integracion/v78-maestro-sin-despliegue",
+      "source_path": "database/T38_CANDIDATAS_EDITORIALES_20261008.json",
+      "source_blob_sha": "1cfb70a3754375b10d577e9a12de6091163572b7",
+      "raw_sha256": "3d7b92c3dd64b9d1122571c088dc972d2a98d9caf4b9b3c08fa60972655f8383",
+      "data_quality": "REJECTED_FORMAT",
+      "rows_automatically_examined": 0,
+      "quality_flags": {
+        "invalid_batch": 1
+      },
+      "review_state": "NEEDS_INDEPENDENT_LICENSE_AND_METHOD_REVIEW",
+      "release_gate": "NO_AUTO_IMPORT_NO_AUTO_DEPLOY",
+      "raw_values_copied": false,
+      "source_exists_in_catalog": false
+    },
+    {
+      "schema": "neurohuerto.public_source_candidate.v1",
+      "id": "T39_CANDIDATAS_EDITORIALES_20261008",
+      "source_repository": "clucaina/psicologia-politica",
+      "source_ref": "integracion/v78-maestro-sin-despliegue",
+      "source_path": "database/T39_CANDIDATAS_EDITORIALES_20261008.json",
+      "source_blob_sha": "5ddfadce1dc3d8c1f361f27b06d4a241d53c35be",
+      "raw_sha256": "1d4efda7ba88e7d99911a673e9ab91e73f4c1c7ba61b0bc60e9a745b79e5fd6a",
+      "data_quality": "REJECTED_FORMAT",
+      "rows_automatically_examined": 0,
+      "quality_flags": {
+        "invalid_batch": 1
+      },
+      "review_state": "NEEDS_INDEPENDENT_LICENSE_AND_METHOD_REVIEW",
+      "release_gate": "NO_AUTO_IMPORT_NO_AUTO_DEPLOY",
+      "raw_values_copied": false,
       "source_exists_in_catalog": false
     }
   ],
-  "publication_authorized": false,
-  "candidate_count": 4
+  "candidate_count": 8,
+  "feedback_changed": 4,
+  "publication_authorized": false
 }

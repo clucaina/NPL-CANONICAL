@@ -1,0 +1,18 @@
+{
+  "schema": "neurohuerto.public_source_candidate.v1",
+  "id": "T35_CANDIDATAS_EDITORIALES_20261008",
+  "source_repository": "clucaina/psicologia-politica",
+  "source_ref": "integracion/v78-maestro-sin-despliegue",
+  "source_path": "database/T35_CANDIDATAS_EDITORIALES_20261008.json",
+  "source_blob_sha": "9462c683f6efde08bada0b6900b52b7ea43bf524",
+  "raw_sha256": "012e34b4f266f6e19fdf3f838ed97a00d81c5e63ef501a85e7b090d9d13c7e53",
+  "data_quality": "REJECTED_FORMAT",
+  "rows_automatically_examined": 0,
+  "quality_flags": {
+    "invalid_batch": 1
+  },
+  "review_state": "NEEDS_INDEPENDENT_LICENSE_AND_METHOD_REVIEW",
+  "release_gate": "NO_AUTO_IMPORT_NO_AUTO_DEPLOY",
+  "raw_values_copied": false,
+  "source_exists_in_catalog": false
+}

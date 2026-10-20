@@ -14,5 +14,9 @@
   "review_state": "NEEDS_INDEPENDENT_LICENSE_AND_METHOD_REVIEW",
   "release_gate": "NO_AUTO_IMPORT_NO_AUTO_DEPLOY",
   "raw_values_copied": false,
-  "source_exists_in_catalog": false
+  "source_exists_in_catalog": false,
+  "cross_review_status": "BLOCK_FORMAT_OR_ID",
+  "independent_source_checked": true,
+  "candidate_type": "PUBLIC_RESEARCH_DOCUMENT_NOT_STATISTICAL_OBSERVATIONS",
+  "routing": "RESEARCH_REVIEW_NOT_DATA_IMPORT"
 }
