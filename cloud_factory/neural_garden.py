@@ -56,7 +56,7 @@ def transmit(edge,payload):
     if hashv and not re.fullmatch(r"[a-f0-9]{64}",hashv):raise PermissionError("Invalid digest")
     return dict(payload)
 def fetch_public_repo(repo,opener=urlopen):
-    url="https://api.github.com/repos/"+repo+"/actions/runs?per_page=12"
+    url="https://api.github.com/repos/"+repo+"/actions/runs?per_page=30"
     headers={"User-Agent":"NeuralGarden-EvidenceGate/1","Accept":"application/vnd.github+json"}
     token=os.getenv("GITHUB_TOKEN","")
     if token:headers["Authorization"]="Bearer "+token
@@ -64,7 +64,7 @@ def fetch_public_repo(repo,opener=urlopen):
     # The official GH CLI handles authenticated GitHub Actions APIs reliably.
     # Fixed allowlisted repo names only, never a user-controlled command.
     if os.getenv("GH_TOKEN") and shutil.which("gh"):
-        result=subprocess.run(["gh","api","repos/"+repo+"/actions/runs?per_page=12"],
+        result=subprocess.run(["gh","api","repos/"+repo+"/actions/runs?per_page=30"],
                               capture_output=True,text=True,timeout=24)
         if result.returncode!=0:raise ValueError("GitHub CLI evidence unavailable")
         obj=json.loads(result.stdout)
@@ -74,7 +74,7 @@ def fetch_public_repo(repo,opener=urlopen):
     data=obj.get("workflow_runs",[])
     if not isinstance(data,list):raise ValueError("GitHub runs are malformed")
     runs=[]
-    for t in data[:12]:
+    for t in data[:30]:
         if not isinstance(t,dict):continue
         name=str(t.get("name") or "")[:110]
         if not name:continue
@@ -84,8 +84,31 @@ def fetch_public_repo(repo,opener=urlopen):
                      "conclusion":str(t.get("conclusion") or "pending")[:25],
                      "time":str(t.get("created_at") or "")[:35],
                      "url":str(t.get("html_url") or "")[:210],
-                     "branch":str(t.get("head_branch") or "")[:120]})
+                     "branch":str(t.get("head_branch") or "")[:120],
+                     "sha":str(t.get("head_sha") or "")[:40]})
     return runs
+def classify_ci(runs):
+    """Inspect latest *completed* run per (workflow, branch).
+
+    A successful unrelated workflow cannot clear a failing deployment gate,
+    and an older failed attempt cannot override a later successful attempt
+    of the same check on the same branch. This is CI state, not product proof.
+    """
+    latest={}
+    for run in sorted(runs,key=lambda r:(r.get("time") or "",r.get("url") or ""),reverse=True):
+        if run.get("status")!="completed":
+            continue
+        key=(run.get("name"),run.get("branch"))
+        latest.setdefault(key,run)
+    failures=[r for r in latest.values()
+              if r.get("conclusion") in {"failure","timed_out","action_required"}]
+    failures.sort(key=lambda r:(r.get("time") or "",r.get("url") or ""),reverse=True)
+    if failures:
+        return "CHECKS_FAILED",failures
+    if any(r.get("conclusion")=="success" for r in latest.values()):
+        return "CI_PRESENT_NOT_PRODUCT_VALIDATION",[]
+    return "IN_PROGRESS_UNVERIFIED",[]
+
 def choose_turns(states,budget=3,previous=None):
     """Finite-resource priority, safety-before-novelty, fair across eligible roots."""
     prev=previous or {}
@@ -113,16 +136,16 @@ def assemble(fetcher=fetch_public_repo,previous=None):
         if root["source"]:
             try:runs=fetcher(root["source"])
             except Exception as exc:error=type(exc).__name__+((":"+str(exc.code)) if hasattr(exc,"code") else "")
+        failures=[]
         if not root["source"]:
             status="NEEDS_PRIVATE_CANONICAL_SOURCE" if root["privacy"]=="private" else "NEEDS_PUBLIC_CORPUS"
         elif error:status="SOURCE_UNREACHABLE"
         elif not runs:status="NO_RECENT_CI_OBSERVED"
-        elif any(run["conclusion"]=="failure" for run in runs if run["status"]=="completed"):status="CHECKS_FAILED"
-        elif any(run["conclusion"]=="success" for run in runs if run["status"]=="completed"):status="CI_PRESENT_NOT_PRODUCT_VALIDATION"
-        else:status="IN_PROGRESS_UNVERIFIED"
+        else:status,failures=classify_ci(runs)
         state[root["id"]]={"status":status}
         outputs.append({**root,"status":status,"verification_error":error,
-                        "recent_runs":runs[:5],"last_seen":runs[0]["time"] if runs else None,
+                        "recent_runs":runs[:5],"failure_evidence":failures[:8],
+                        "last_seen":runs[0]["time"] if runs else None,
                         "achievements_verified":False,
                         "note":"Passing a CI job is NOT evidence of scientific, functional or visual quality"})
     turns=choose_turns(state,previous=previous)
