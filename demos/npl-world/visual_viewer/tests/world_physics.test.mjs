@@ -109,7 +109,10 @@ test('swept collision prevents entering source building and slides along origina
  const location=atlas.sampleViewer(output.x,output.z);
  assert.ok(location,'still in known physical grid');
  assert.notEqual(location.code,7);
- assert.ok(output.blockedSubsteps>0);
+ // Sliding beside a diagonal wall is legal: zero fully blocked steps does not
+ // mean the intended destination was reached. The wall must stop forward transit.
+ assert.ok(Math.hypot(output.x-finish.x,output.z-finish.z)>2,
+   'Solid wall must prevent reaching target across the source footprint');
  assert.equal(output.verifiedVerticalDatum,false);
  assert.equal(output.swept,true);
 });
