@@ -368,6 +368,22 @@ updateBrainPanel();
 const urbanKit=publicPreview?buildUrbanKit({tier:visualTier}):null;
 const hedgeLayer=publicPreview?buildHedgeLayer(visualTier):null;
 let roadStatus=null,coastalWater=null,stuccoStatus=null;let wallMicroreliefStatus=null;
+const pbrSwitch=$('pbrMicrorelief');
+if(pbrSwitch){
+  pbrSwitch.hidden=!publicPreview;
+  pbrSwitch.disabled=true;
+  pbrSwitch.addEventListener('click',()=>{
+    if(!wallMicroreliefStatus?.enhancedMaterials)return;
+    const enabled=wallMicroreliefStatus.setEnabled(!wallMicroreliefStatus.isEnabled());
+    pbrSwitch.setAttribute('aria-pressed',String(enabled));
+    pbrSwitch.textContent=enabled?'◌ Revoco PBR':'◌ Original';
+    window.NEUROCITY_MATERIAL_QA={
+      ...window.NEUROCITY_MATERIAL_QA,microreliefEnabled:enabled,
+      compareMode:'SAME_SOURCE_GEOMETRY_ARTISTIC_MATERIAL_ONLY',
+      captureComparisonRequired:true
+    };
+  });
+}
 if(urbanKit){decorGroup.add(urbanKit.group);palmCount=urbanKit.stats.palmCount;}
 if(hedgeLayer)decorGroup.add(hedgeLayer.group);
 
@@ -492,6 +508,10 @@ async function loadWorld(){
   // Add physically lit original plaster micro-relief on SOURCE OSM geometry.
   // The later G19 architecture mask keeps precedence and is never bypassed.
   if(publicPreview)wallMicroreliefStatus=enhanceRealOSMWallMicrorelief(city,{tier:visualTier});
+  if(publicPreview&&pbrSwitch){
+    pbrSwitch.disabled=!wallMicroreliefStatus?.enhancedMaterials;
+    pbrSwitch.setAttribute('aria-pressed','true');
+  }
   if(publicPreview)window.NEUROCITY_MATERIAL_QA={
     ...(wallMicroreliefStatus||{}),
     geometryStillCanonical:true,artisticNotSurveyed:true,
