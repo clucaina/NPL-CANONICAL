@@ -101,6 +101,9 @@ jobs:
               assert q['private_webgl_triangles']>1000,q
               assert q['private_webgl_collision_segments']>100,q
               assert q['private_webgl_collision_cells']>10,q
+              assert q['private_webgl_physical_samples']>=16,q
+              assert q['private_webgl_physical_blocked']==q['private_webgl_physical_samples'],q
+              assert q['private_webgl_physical_failures']==0,q
               assert q['private_webgl_npl_mission'] is True,q
               assert q['private_webgl_official_building_parts']==q['matched_official_parts']+q['native_official_parts_eligible'],q
               assert q['actual_blender_3d_official_buildings']==q['matched_osm_buildings'],q
