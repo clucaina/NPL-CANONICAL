@@ -103,6 +103,8 @@ def run():
           'total_osm_buildings':overlay['total_osm_buildings'],
           'matched_osm_buildings':overlay['matched_osm_count'],
           'matched_official_parts':overlay['matched_bu_part_count'],
+          'native_official_parts_eligible':overlay['independent_official_part_count'],
+          'native_official_exclusion_reasons':overlay['independent_official_selection_qa'],
           'ambiguous_osm_matches_rejected':overlay['matching']['ambiguous'],
           'source_metadata':[
              {'tile':x['tile_id'],'sha256':x['sha256'],
@@ -134,6 +136,7 @@ def run():
             glb=work/'output/Alicante_REAL_OSM_PNOA.glb'
             if (scene_qa['cadastre_original_osm_footprints_replaced']!=overlay['matched_osm_count']
                 or scene_qa['cadastre_building_parts_geometry']!=overlay['matched_bu_part_count']
+                or scene_qa['cadastre_native_official_parts_added']!=overlay['independent_official_part_count']
                 or scene_qa['cadastre_verified_source_tiles']!=overlay['verified_tile_count']
                 or scene_qa['cadastre_coverage_complete']!=overlay['coverage_complete']
                 or not glb.is_file() or glb.stat().st_size<1000):
@@ -142,6 +145,7 @@ def run():
                 'actual_city_models_generated':1,
                 'actual_blender_3d_official_buildings':scene_qa['cadastre_original_osm_footprints_replaced'],
                 'actual_blender_3d_building_parts':scene_qa['cadastre_building_parts_geometry'],
+                'actual_blender_3d_native_parts':scene_qa['cadastre_native_official_parts_added'],
                 'ephemeral_glb_bytes':glb.stat().st_size,
                 'ephemeral_glb_sha256':hashlib.sha256(glb.read_bytes()).hexdigest(),
                 'original_osm_modified':hashlib.sha256(osm.read_bytes()).hexdigest()!=initial_osm_sha
