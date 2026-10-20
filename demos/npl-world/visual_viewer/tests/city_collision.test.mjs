@@ -50,3 +50,23 @@ test('empty source falls back safely and unsafe nonlocal jumps fail',()=>{
  assert.throws(()=>buildCityWallCollision(wall(),{radius:25}),RangeError);
  assert.throws(()=>c.move(NaN,0,0,0),RangeError);
 });
+
+test('real wall self-audit executes movement collision and reports only aggregate physical proofs',()=>{
+ const c=buildCityWallCollision(wall());
+ const before=c.stats().blockedMoves;
+ const audit=c.auditSourceWallBlocking({samples:10});
+ assert.deepEqual({examined:audit.examined,blocked:audit.blocked,failed:audit.failed},
+  {examined:1,blocked:1,failed:0});
+ assert.equal(audit.allSampledBlocked,true);
+ assert.equal(audit.source,'actual_loaded_blender_wall_geometry');
+ assert.equal(audit.simulatedNotPhysicalHardware,true);
+ assert.equal(c.stats().blockedMoves,before,'probe must not falsify user movement telemetry');
+ for(const bad of [0,-1,257,Infinity,NaN,1.25])
+  assert.throws(()=>c.auditSourceWallBlocking({samples:bad}),RangeError);
+});
+test('empty city cannot claim blocked walking or valid material walls',()=>{
+ const empty=buildCityWallCollision(new THREE.Group());
+ const a=empty.auditSourceWallBlocking();
+ assert.equal(a.examined,0);
+ assert.equal(a.allSampledBlocked,false);
+});
