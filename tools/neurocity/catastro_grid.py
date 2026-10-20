@@ -57,7 +57,8 @@ def source_plan(bounds,rows=GRID_ROWS,cols=GRID_COLS,padding=PADDING_METERS):
 
 def compile_grid(*,samples,osm,manifest,expected_ids=None):
     """samples are (grid_id, official WFS URL, local GML path)."""
-    origin=json.loads(Path(manifest).read_text(encoding='utf-8')).get('center_mercator')
+    manifest_data=json.loads(Path(manifest).read_text(encoding='utf-8'))
+    origin=manifest_data.get('center_mercator')
     if (not isinstance(origin,list) or len(origin)!=2 or
         not all(type(x) in (int,float) and math.isfinite(x) for x in origin)):
         raise ValueError('Original Mercator origin must be finite')
@@ -105,7 +106,7 @@ def compile_grid(*,samples,osm,manifest,expected_ids=None):
     matched,stats=safe_matches(parts,buildings)
     # Different, stricter path: geometries verified to be independent of
     # EVERY existing OSM footprint are added rather than made into false joins.
-    m_bbox=m.get('bbox')
+    m_bbox=manifest_data.get('bbox')
     native_parts,native_stats=collect_native_parts(parts,buildings,origin,m_bbox)
     result={
         'schema':'neurocity.catastro-building-grid.v2',
