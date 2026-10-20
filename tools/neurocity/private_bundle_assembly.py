@@ -58,13 +58,28 @@ def assemble(base,compiled,dest,manifest_name='INTEGRACION_WEBGL_V7_REVISABLE.js
                 ('JS: brain NPL',b'NPL' in newjs or b'npl' in newjs),
                 ('JS: coastline graphics',b'WATER' in newjs or b'water' in newjs)]
         if not all(k for _,k in checks):raise ValueError('Compiled module misses minimum features')
-        before={n:SHA(original.read(n)) for n in basepaths if n not in changed}
+        safe_launchers={}
+        # Legacy start scripts without --bind expose the PRIVATE GLBs to the LAN.
+        # Repair only the two unsafe entry points; keep bytes of all other assets.
+        for name in ['INICIAR_WINDOWS.bat','INICIAR_LINUX_MAC.sh']:
+            if name in basepaths:
+                source=original.read(name)
+                if b'--bind 127.0.0.1' not in source:
+                    replacement=source.replace(b'python3 -m http.server 8766',b'python3 -m http.server 8766 --bind 127.0.0.1')
+                    replacement=replacement.replace(b'py -3 -m http.server 8766',b'py -3 -m http.server 8766 --bind 127.0.0.1')
+                    if replacement==source or b'--bind 127.0.0.1' not in replacement:
+                        raise ValueError('Cannot safely confine private launcher '+name)
+                    safe_launchers[name]=replacement
+        preserved_except=changed|set(safe_launchers)
+        before={n:SHA(original.read(n)) for n in basepaths if n not in preserved_except}
         audit={'schema':'neurocity.private-world-runtime-assembly.v1','status':'ASSEMBLED_NOT_WEBGL_APPROVED',
          'date':'2026-10-20','source_archive_sha256':SHA(base.read_bytes()),'compiled_artifact_sha256':SHA(compiled.read_bytes()),
          'compiled_bundle_sha256':SHA(newjs),'compiled_html_sha256':SHA(patch.read('index.html')),
          'compiled_ci_run':compiled_ci_run,
          'base_private_entry_count':len(basepaths),'original_glb_count':len(all_glb),'manifest_model_records_verified':len(audited),
-         'original_bytes_preserved_except_game_js_index_html':True,
+         'original_bytes_preserved_except_allowlisted_runtime_and_launchers':True,
+         'security_fixed_local_only_launchers':sorted(safe_launchers),
+         'original_unsafe_launcher_sha256':{n:SHA(original.read(n)) for n in sorted(safe_launchers)},
          'source_manifest_sha256':SHA(original.read('world-master/manifest.json')),
          'original_3d_assets_sha256':{n:before[n] for n in sorted(before) if n.endswith('.glb')},
          'runtime_compatibility_verified_in_browser':False, 'visual_match_to_real_Alicante_approved':False,
@@ -74,7 +89,7 @@ def assemble(base,compiled,dest,manifest_name='INTEGRACION_WEBGL_V7_REVISABLE.js
         tmp=dest.with_suffix('.tmp');tmp.parent.mkdir(parents=True,exist_ok=True)
         with zipfile.ZipFile(tmp,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=6,allowZip64=True) as out:
             for info in original.infolist():
-                payload=patch.read(info.filename) if info.filename in changed else original.read(info.filename)
+                payload=patch.read(info.filename) if info.filename in changed else safe_launchers.get(info.filename,original.read(info.filename))
                 out.writestr(info,payload)
             stable=zipfile.ZipInfo(manifest_name,date_time=(2026,10,20,0,0,0))
             stable.compress_type=zipfile.ZIP_DEFLATED
@@ -85,8 +100,10 @@ def assemble(base,compiled,dest,manifest_name='INTEGRACION_WEBGL_V7_REVISABLE.js
         if joined.testzip() is not None:raise ValueError('Output CRC invalid')
         if SHA(joined.read('game.js'))!=SHA(newjs):raise ValueError('Compiled runtime overwritten')
         for p in basepaths:
-            if p not in changed and SHA(joined.read(p))!=SHA(original.read(p)):
+            if p not in preserved_except and SHA(joined.read(p))!=SHA(original.read(p)):
                 raise ValueError('Preservation fail '+p)
+            if p in safe_launchers and joined.read(p)!=safe_launchers[p]:
+                raise ValueError('Private local-only launcher regressed: '+p)
         if len(joined.namelist())!=len(basepaths)+1:raise ValueError('Unexpected output entries')
     return {'zip':str(dest),'bytes':dest.stat().st_size,'sha256':SHA(dest.read_bytes()),'audit':audit}
 
