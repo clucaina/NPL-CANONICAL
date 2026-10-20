@@ -25,9 +25,22 @@ def inspect_raster(raw):
     with MemoryFile(raw) as source:
         with source.open() as ds:
             epsg=ds.crs.to_epsg() if ds.crs else None
-            if epsg!=25830:
+            if epsg not in (25830,3042):
                 raise ValueError("Unexpected CRS: "+str(ds.crs)+"; bounds="+str(tuple(round(v,2) for v in (ds.bounds.left,ds.bounds.bottom,ds.bounds.right,ds.bounds.top)))+"; shape="+str((ds.height,ds.width)))
+            # EPSG:3042 is officially ETRS89/UTM 30N with N,E axis metadata,
+            # while EPSG:25830 uses preferred E,N ordering. GDAL raster affine
+            # fields are X/Y. Do NOT relabel blindly: prove a stable coordinate
+            # transform for five corners/centre with pyproj always_xy.
+            from pyproj import Transformer
+            transform=Transformer.from_crs(ds.crs,"EPSG:25830",always_xy=True)
             b=ds.bounds
+            samples=((b.left,b.bottom),(b.left,b.top),(b.right,b.bottom),
+                     (b.right,b.top),((b.left+b.right)/2,(b.bottom+b.top)/2))
+            for x,y in samples:
+                u,v=transform.transform(x,y)
+                if not math.isfinite(u) or not math.isfinite(v) or math.hypot(u-x,v-y)>0.1:
+                    raise ValueError("COG axis transform is not identity in verified ETRS89/UTM 30N")
+
             if not (abs(b.left-BBOX[0])<=12 and abs(b.bottom-BBOX[1])<=12 and
                     abs(b.right-BBOX[2])<=12 and abs(b.top-BBOX[3])<=12):
                 raise ValueError("Raster does not represent requested Alicante tile")
@@ -43,7 +56,7 @@ def inspect_raster(raw):
             lo=float(valid.min());hi=float(valid.max())
             if not math.isfinite(lo) or not math.isfinite(hi) or lo < -100 or hi > 3500:
                 raise ValueError("Altitude values out of plausible Spanish mainland range")
-            return {"epsg":epsg,"bounds_m":list(map(float,(b.left,b.bottom,b.right,b.top))),
+            return {"epsg":25830,"source_epsg":epsg,\n                    "utm_axis_mapping_verified":True,"bounds_m":list(map(float,(b.left,b.bottom,b.right,b.top))),
                     "pixel_size_m":list(resolution),"raster_shape":[ds.height,ds.width],
                     "measured_valid_pixels":len(valid),"valid_fraction":round(len(valid)/data.size,4),
                     "elevation_min_m_ortho_candidate":round(lo,3),
