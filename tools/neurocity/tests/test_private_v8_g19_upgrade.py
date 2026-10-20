@@ -47,7 +47,7 @@ class V8SourceUpgradeTests(unittest.TestCase):
   with self.assertRaisesRegex(ValueError,'predecessor'):self.verify()
  def test_reject_source_artifact_with_model(self):
   self.ci_build({'private.glb':b'glTF'})
-  with self.assertRaisesRegex(ValueError,'noncode'):self.verify()
+  with self.assertRaisesRegex(ValueError,'polluted with models'):self.verify()
  def test_reject_non_sweep_runtime_even_with_signed_hash(self):
   self.script=b'world-master collision NPL water'+b' '*220000
   self.ci_build()
