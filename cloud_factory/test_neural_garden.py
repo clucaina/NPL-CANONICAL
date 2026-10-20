@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from neural_garden import ROOTS, EDGES, transmit, choose_turns, assemble, save
+from neural_garden import ROOTS, EDGES, transmit, choose_turns, assemble, save, classify_ci
 
 class NeuralGardenTests(unittest.TestCase):
     def test_roots_isolated_and_npl_conflictometro_inside_neurocity(self):
@@ -56,6 +56,35 @@ class NeuralGardenTests(unittest.TestCase):
         self.assertEqual(turn[0]["id"],"psicologia_politica")
         self.assertEqual(turn[0]["turn"],"VERIFY_FAILURE")
         self.assertEqual(len({x["id"] for x in turn}),2)
+    def test_new_success_clears_prior_failure_same_branch_and_workflow(self):
+        failed={"name":"NeuroCity QA","branch":"feat/city","status":"completed",
+                "conclusion":"failure","time":"2026-10-20T08:00:00Z","url":"https://github.com/x/actions/runs/1"}
+        passed={**failed,"conclusion":"success","time":"2026-10-20T09:00:00Z",
+                "url":"https://github.com/x/actions/runs/2"}
+        state,failures=classify_ci([failed,passed])
+        self.assertEqual(state,"CI_PRESENT_NOT_PRODUCT_VALIDATION")
+        self.assertEqual(failures,[])
+
+    def test_unrelated_green_check_cannot_hide_failing_gate(self):
+        gate={"name":"PP V78 safe gate","branch":"integracion/v78","status":"completed",
+              "conclusion":"failure","time":"2026-10-19T19:00:00Z",
+              "url":"https://github.com/clucaina/psicologia-politica/actions/runs/39308686000"}
+        green={**gate,"name":"Other QA","conclusion":"success",
+               "time":"2026-10-20T09:00:00Z","url":"https://github.com/x/actions/runs/9"}
+        state,failures=classify_ci([green,gate])
+        self.assertEqual(state,"CHECKS_FAILED")
+        self.assertEqual([x["url"] for x in failures],[gate["url"]])
+
+    def test_running_job_does_not_erase_previous_terminal_result(self):
+        failed={"name":"Publish validation","branch":"production","status":"completed",
+                "conclusion":"timed_out","time":"2026-10-20T07:00:00Z",
+                "url":"https://github.com/x/actions/runs/3"}
+        running={**failed,"status":"in_progress","conclusion":"pending",
+                 "time":"2026-10-20T09:00:00Z","url":"https://github.com/x/actions/runs/4"}
+        state,failures=classify_ci([running,failed])
+        self.assertEqual(state,"CHECKS_FAILED")
+        self.assertEqual(len(failures),1)
+
     def test_export_is_standalone_and_escapes_html_data(self):
         report=assemble(fetcher=lambda _:[])
         report["roots"][0]["title"]='</script><img src=x onerror=alert(1)>'
