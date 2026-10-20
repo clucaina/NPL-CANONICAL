@@ -11,7 +11,7 @@ import {createSurfaceTexture,enhanceMappedOSMRoads} from './road_surfaces.mjs';
 import {enhanceSourceMappedWater} from './water_surface.mjs';
 import {createExplanadaMosaic} from './explanada_mosaic.mjs';
 import {enhanceMappedBuildingFacades} from './facade_stucco.mjs';
-import {mountBrain3D} from './npl_brain3d.mjs';
+import {attachCanonicalNPLDialog,CANONICAL_NPL} from './canonical_npl_contract.mjs';
 import {startBehaviorSession,selectProcess,sampleBehavior,publicBehaviorSnapshot,NPL_PROCESS_IDS} from './npl_behavior.mjs';
 import {inspectDataset,compareObservation,missionStart,missionStep,cognitivePulse,STAGES} from './neuro_mission.mjs';
 
@@ -212,7 +212,7 @@ const showLoad=(text)=>{progress.textContent=text;};
 
 let nplEvidence={usable:false,reason:"no_public_dataset",entries:[]};
 let behaviorSession=startBehaviorSession();
-let brainRenderer=null,brainInspectPending=false,brainDecisionCount=0;
+let brainInspectPending=false,brainDecisionCount=0;
 function updateBrainPanel(){
  const snapshot=publicBehaviorSnapshot(behaviorSession);
  const title=$('nplActiveTitle'),description=$('nplActiveDescription'),metrics=$('nplLiveMetrics');
@@ -222,16 +222,13 @@ function updateBrainPanel(){
    'Cámara '+snapshot.steeringRadians.toFixed(1)+' rad · Decisiones '+snapshot.choices;
  for(const button of document.querySelectorAll('#nplBrainProcesses [data-brain-process]'))
    button.setAttribute('aria-pressed',String(button.dataset.brainProcess===snapshot.selected));
- if(brainRenderer?.available)brainRenderer.update(snapshot.scores,snapshot.selected);
- window.NPL_BRAIN3D={
-   mode:brainRenderer?.available?'REAL_INTERACTIVE_THREEJS':'ACCESSIBLE_FALLBACK',
-   ...snapshot,brainActivityMeasured:false,
-   onlyLocalObservedGameActions:true
- };
+ window.NPL_GAME_BEHAVIOR={...snapshot,
+   source:'LOCAL_GAME_ACTIONS_NO_ANATOMY_INFERENCE',brainActivityMeasured:false,
+   onlyLocalObservedGameActions:true};
 }
 function chooseBrainProcess(id){
  behaviorSession=selectProcess(behaviorSession,id);
- brainRenderer?.select?.(id);brainInspectPending=true;updateBrainPanel();
+ brainInspectPending=true;updateBrainPanel();
 }
 let nplMission=missionStart(nplEvidence);
 let lastMissionButtonsKey=null;
@@ -315,17 +312,18 @@ let lastNplDraw=0;
 
 // Public city decor: original CC0 procedural asset library, never a private GLB.
 const visualTier=window.matchMedia?.('(pointer:coarse)')?.matches?'mobile':'desktop';
-brainRenderer=mountBrain3D({
- canvas:$('nplBrainCanvas'),details:$('neurohud'),
- tier:visualTier,
- reducedMotion:window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches===true,
- onSelect:chooseBrainProcess
+// Do NOT create another Three.js brain renderer. NPL is the sole owner of
+// the original anatomical BrainViewer.tsx and its protected 437-node GLB.
+// Only mount after local SHA-256 integrity gate passes on user interaction.
+const canonicalBrain=attachCanonicalNPLDialog({
+ openButton:$('nplCanonicalOpen'),closeButton:$('nplCanonicalClose'),
+ dialog:$('nplCanonicalDialog'),frame:$('nplCanonicalFrame'),
+ status:$('nplCanonicalStatus')
 });
-for(const button of document.querySelectorAll('#nplBrainProcesses [data-brain-process]')){
- button.addEventListener('click',()=>chooseBrainProcess(button.dataset.brainProcess));
-}
-if($('nplBrainStatus'))$('nplBrainStatus').textContent=brainRenderer.available?
- 'Gira y selecciona regiones · analogía funcional':'Vista 3D no disponible · controles accesibles activos';
+window.NPL_CANONICAL_STATUS={
+ state:'NOT_REQUESTED',expectedStructures:CANONICAL_NPL.expectedStructures,
+ source:CANONICAL_NPL.source,modelIsOriginal:true,privateAssetsNotPublic:true
+};
 updateBrainPanel();
 const urbanKit=publicPreview?buildUrbanKit({tier:visualTier}):null;
 const hedgeLayer=publicPreview?buildHedgeLayer(visualTier):null;
@@ -404,7 +402,8 @@ function enterPublicCity(){
  window.NPL_READY={cityMeshes:city?.children?.length||0,cityOnly:true,privateAvatarLoaded:false,
   explanadaCoords:[38.34318,-0.48326],windows:windowCount,facadeStyle:'artistic_not_surveyed',palms:palmCount,urbanKit:urbanKit?.stats||null,hedges:hedgeLayer?.stats||null,roadSurface:roadStatus,facadeMaterial:stuccoStatus?{
    source:stuccoStatus.source,meshCount:stuccoStatus.meshCount,
-   photoMatched:stuccoStatus.photoMatched}:null,mosaic:mosaicKit.report,brain3D:{available:!!brainRenderer?.available,modelIsMetaphor:true},water:coastalWater?{
+   photoMatched:stuccoStatus.photoMatched}:null,mosaic:mosaicKit.report,brain3D:{available:false,source:CANONICAL_NPL.source,
+  expectedStructures:437,lazyOriginalViewer:true,neverProcedural:true},water:coastalWater?{
    waterMeshes:coastalWater.waterMeshes,addedSeaPlanes:coastalWater.addedSeaPlanes,
    sourceGeometryReplaced:coastalWater.sourceGeometryReplaced,
    reducedMotion:coastalWater.reducedMotion}:null,skins:0,clips:[]};
@@ -572,7 +571,6 @@ function frame(){
  sun.target.updateMatrixWorld();
  if(coastalWater)coastalWater.advance(clock.elapsedTime);
  renderer.render(scene,camera);
- brainRenderer?.tick(clock.elapsedTime);
  if(Math.floor(clock.elapsedTime*3)!==Math.floor((clock.elapsedTime-dt)*3)){
    stat.textContent='x '+player.position.x.toFixed(0)+' m · z '+player.position.z.toFixed(0)+' m · '+mode;
  }
