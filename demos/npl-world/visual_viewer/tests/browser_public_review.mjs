@@ -103,6 +103,23 @@ try{
   reportCopy.adaptive_quality={start:perfAtStart.mode,detail:detail.plan,
     economy:low.plan,restored:restored.mode,geometryProtected:true};
   await page.screenshot({path:'demos/npl-world/visual_viewer/dist/QA_BROWSER_REAL_CHROME.png',fullPage:true});
+  // Not four invented photos: four actual WebGL camera frames at one source
+  // starting point, to make facade/coast rendering regressions reviewable.
+  const cameraBox=await page.locator('#game').boundingBox();
+  if(!cameraBox)throw Error('No 3D canvas to inspect from multiple headings');
+  const cx=cameraBox.x+cameraBox.width/2,cy=cameraBox.y+cameraBox.height/2;
+  const views=[['RIGHT',170,0],['LEFT',-340,0],['UP',170,-90]];
+  const captures=[];
+  for(const [name,dx,dy] of views){
+    await page.mouse.move(cx,cy);
+    await page.mouse.down();
+    await page.mouse.move(cx+dx,cy+dy,{steps:12});
+    await page.mouse.up();
+    await page.waitForTimeout(180);
+    await page.screenshot({path:'demos/npl-world/visual_viewer/dist/QA_CAMERA_'+name+'.png',fullPage:true});
+    captures.push({name,dragPixels:[dx,dy],type:'REAL_WEBGL_NO_PHOTOGRAMMETRIC_VERIFICATION'});
+  }
+  reportCopy.cameraCaptures=captures;
   report={status:consoleErrors.length?'BROWSER_READY_WITH_SCRIPT_ERRORS':'BROWSER_READY',...reportCopy};
   if(consoleErrors.length) throw new Error('JavaScript console errors detected');
 } catch(error) {
