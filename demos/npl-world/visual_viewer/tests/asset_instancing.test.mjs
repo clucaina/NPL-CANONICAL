@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import {instantiateMasterPalms} from '../asset_instancing.mjs';
+import {instantiateMasterPalms,instantiateArchivedStreetlights} from '../asset_instancing.mjs';
 
 function sourcePhoenix(){
  const scene=new THREE.Group();scene.name='real-archival-fixture';
@@ -48,4 +48,23 @@ test('reject impossible fake palm locations and animated rigs',()=>{
  assert.throws(()=>instantiateMasterPalms(sourcePhoenix(),[{x:0,y:0,z:0,rotation:0,scale:0}]),RangeError);
  assert.throws(()=>instantiateMasterPalms(sourcePhoenix(),Array(161).fill(poses[0])),TypeError);
  const empty=new THREE.Group();assert.throws(()=>instantiateMasterPalms(empty,poses));
+});
+
+test('original Z-up 4m globe lamp becomes upright Y-up with its historical ground anchor',()=>{
+ const source=new THREE.Group();
+ const part=new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,4,9),new THREE.MeshStandardMaterial());
+ // Simulate original archived GLB with Z as up: local geometry needs X-axis rotation.
+ part.rotation.x=Math.PI/2;source.add(part);
+ const pose={x:280.202,y:2.089,z:1405.983,rotation:0,scale:1};
+ const {group,report}=instantiateArchivedStreetlights(source,[pose]);
+ assert.equal(report.modelClass,'archived_globe_lamp');
+ assert.equal(report.sourceAxis,'Z_UP_TO_Y_UP');
+ assert.equal(group.children.length,1);
+ const matrix=new THREE.Matrix4();
+ group.children[0].getMatrixAt(0,matrix);
+ const ground=new THREE.Vector3(0,0,0).applyMatrix4(matrix);
+ assert.ok(Math.abs(ground.x-pose.x)<.0001);
+ assert.ok(Math.abs(ground.y-pose.y)<.0001);
+ assert.ok(Math.abs(ground.z-pose.z)<.0001);
+ assert.equal(report.locationSurveyed,false);
 });
