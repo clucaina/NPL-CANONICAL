@@ -30,6 +30,20 @@ try{
       !starting.summary.includes('ES30') ){
     throw new Error('NPL/source binding failed: '+JSON.stringify(starting));
   }
+  const brainStatus=await page.evaluate(()=>window.NPL_BRAIN3D);
+  if(brainStatus?.mode!=='REAL_INTERACTIVE_THREEJS'||brainStatus?.brainActivityMeasured!==false ||
+     !brainStatus?.onlyLocalObservedGameActions||brainStatus?.patientData!==false){
+     throw new Error('3D NPL brain not live or methodologically safe: '+JSON.stringify(brainStatus));
+  }
+  await page.locator('#nplBrainProcesses [data-brain-process="attention"]').click();
+  await page.waitForFunction(()=>window.NPL_BRAIN3D?.selected==='attention',null,{timeout:6000});
+  const surface=await page.locator('#nplBrainCanvas').boundingBox();
+  if(!surface||surface.width<220||surface.height<150)
+    throw Error('NPL 3D scene is too small to interact with');
+  // Detailed evidence mission is deliberately collapsed behind 3D brain UI.
+  if(await page.locator('#nplMethods').evaluate(el=>el.open))
+    throw Error('Old textual mission is still the primary right-side UI');
+  await page.locator('#nplMethods summary').click();
   const missionChoices=['Comprobar procedencia','Comparar mismo periodo','Explorar hipótesis','Proponer y evaluar'];
   for(const choice of missionChoices){
     await page.locator('#nplOptions button').filter({hasText:choice}).click();
@@ -49,8 +63,11 @@ try{
   if(state.ready?.privateAvatarLoaded!==false || state.loadingVisible ||
      !state.webglCanvas || state.ready?.cityMeshes<1 ||
      state.ready?.windows<500 || state.ready?.facadeStyle!=='artistic_not_surveyed' ||
-     state.ready?.urbanKit?.meshGroups!==9 || state.ready?.urbanKit?.palmCount<20 ||
+     state.ready?.urbanKit?.meshGroups!==11 || state.ready?.urbanKit?.palmCount<20 ||
      state.ready?.urbanKit?.scope!=='illustrative_placement_not_surveyed' ||
+     state.ready?.urbanKit?.palmSilhouettes!==3 ||
+     state.ready?.mosaic?.estimatedPieces<5000 ||
+     state.ready?.brain3D?.available!==true ||
      state.ready?.hedges?.count<190 || state.ready?.hedges?.meshGroups!==5 ||
      !state.ready?.roadSurface?.asphaltMaterialApplied ||
      state.ready?.roadSurface?.source!=='OSM_centerline_width_estimated_not_surveyed' ||
