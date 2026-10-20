@@ -297,6 +297,32 @@ if(hedgeLayer)decorGroup.add(hedgeLayer.group);
 
 // Loading older Drive GEO is strictly LOCAL and opt-in; public artifacts NEVER
 // fetch/copy privately-held geometry or replace native game actors/controllers.
+let showingArchivedMaster=true;
+function makeSourceComparisonControl(){
+ let button=document.getElementById('ncCompareOriginalSources');
+ if(button)return button;
+ button=document.createElement('button');
+ button.type='button';button.id='ncCompareOriginalSources';
+ button.setAttribute('aria-label','Alternar entre la ciudad OSM PNOA y el mundo maestro 3D recuperado');
+ button.style.cssText='position:fixed;right:16px;bottom:82px;z-index:45;background:#4d192a;color:#fff9ef;border:1px solid #f3dfcc;border-radius:12px;padding:12px 16px;font:600 12px system-ui;max-width:270px;box-shadow:0 10px 28px #0006;cursor:pointer;';
+ const redraw=()=>{
+   const ready=!!recoveredMaster?.status().active;
+   if(recoveredMaster)recoveredMaster.root.visible=showingArchivedMaster;
+   decorGroup.visible=!(ready&&showingArchivedMaster);
+   osmCover?.update(ready&&showingArchivedMaster?recoveredMaster.status().tiles:[]);
+   button.textContent=showingArchivedMaster?'Vista: mundo original G19 / V50  ·  Cambiar a OSM':'Vista: OSM / PNOA  ·  Cambiar a G19 / V50';
+   button.setAttribute('aria-pressed',String(showingArchivedMaster));
+   window.NPL_COMPARISON={originalMaster:showingArchivedMaster,
+     fallbackGeography:true,privateImageryPublished:false};
+ };
+ button.addEventListener('click',()=>{
+   showingArchivedMaster=!showingArchivedMaster;
+   redraw();
+ });
+ document.body.appendChild(button);
+ redraw();
+ return button;
+}
 function startRecoveredMasterIfRequested(){
  if(!publicPreview || new URLSearchParams(location.search).get('worldmaster')!=='1')return;
  recoveredMaster=new RecoveredMasterTiles({
@@ -304,11 +330,12 @@ function startRecoveredMasterIfRequested(){
    onVisibility:(active)=>{
      // Never hide ALL Alicante because only one of four original tiles arrived.
      // PNOA ground and mapped asphalt remain visible; clip only covered walls.
-     decorGroup.visible=!active;
+     decorGroup.visible=!(active&&showingArchivedMaster);
    },
-   onCoverage:(tileIds)=>{osmCover?.update(tileIds);}
+   onCoverage:(tileIds)=>{osmCover?.update(showingArchivedMaster?tileIds:[]);}
  });
  recoveredMaster.initialize().then(()=>recoveredMaster.update(player.position)).then(()=>{
+   makeSourceComparisonControl();
    window.NPL_RECOVERED_GEO=recoveredMaster.status();
    if(recoveredMaster.status().active)
       display('Mundo maestro Drive recuperado: mosaico V50, fachada y vegetación original por teselas. Alturas y licencias pendientes de aprobación pública.');
