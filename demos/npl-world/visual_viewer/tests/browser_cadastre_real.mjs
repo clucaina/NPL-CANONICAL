@@ -31,6 +31,7 @@ try{
  await page.waitForFunction(()=>window.NEUROCITY_WATER_QA?.programCount>=1,null,{timeout:15000});
  const initial=await page.evaluate(()=>({
   model:window.NEUROCITY_CITY_MODEL_QA,
+  collision:window.NEUROCITY_COLLISION_QA,
   ready:window.NPL_READY,
   sea:window.NEUROCITY_WATER_QA,
   quality:window.NEUROCITY_RENDER_QUALITY,
@@ -40,6 +41,10 @@ try{
  if(initial.model.meshCount<3||initial.model.triangleCount<1000||
     initial.model.wallTriangles<250||initial.model.roofTriangles<250)
     throw Error('Real cadastral+OSM GLB has insufficient valid wall/roof geometry '+JSON.stringify(initial.model));
+ if(initial.collision?.wallSegments<100||initial.collision?.inventedBarriers!==0||
+    initial.collision?.spatialCells<10||
+    initial.collision?.source!=='Blender_real_OSM_and_official_Catastro_wall_mesh')
+    throw Error('Real building wall collisions missing: '+JSON.stringify(initial.collision));
  if(!initial.ready.cityOnly||initial.ready.privateAvatarLoaded!==false||
      initial.model.privateAvatarObjects!==0||initial.model.invalidGeometry!==0)
     throw Error('Private avatar or invalid mesh material in public scene');
@@ -71,7 +76,8 @@ try{
    status:'PASS',glbSha256:downloadedSHA,
    officialPartsRendered:serverQA.matched_official_parts+serverQA.native_official_parts,
    completeSourceTiles:serverQA.verified_source_tiles,
-   model:initial.model,sea:{source:initial.sea.source,programCount:initial.sea.programCount},
+   model:initial.model,collision:initial.collision,
+   sea:{source:initial.sea.source,programCount:initial.sea.programCount},
    qualityAtDpr1:after.quality,nplMissionVerified:true,
    syntheticNplDataOnly:true,device:'Chromium_headless_SwiftShader',
    realGpuFpsCertified:false,privateAvatarIncluded:false,
