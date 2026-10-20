@@ -22,8 +22,9 @@ def glb_bytes(vertices,faces,*,origin,source_hash,step):
         raise ValueError("Nonfinite source terrain vertex")
     if any(len(f)!=3 or len(set(f))<3 or min(f)<0 or max(f)>=len(vertices) for f in faces):
         raise ValueError("Invalid source raster face")
-    # Three.js is Y-up: local X=easting, local Z=northing, local Y=orthometric sample;
-    # the Gameplay vertical datum is NOT presumed aligned.
+    # Three.js is Y-up; G19 master tile is X east-positive and Z SOUTH-positive.
+    # Dataset northing MUST be flipped to match G19's z=4248300-N.
+    # The Gameplay vertical datum is NOT presumed aligned.
     normals=[[0.0,0.0,0.0] for _ in vertices]
     for a,b,c in faces:
         u=[vertices[b][i]-vertices[a][i] for i in range(3)]
@@ -59,7 +60,7 @@ def glb_bytes(vertices,faces,*,origin,source_hash,step):
                        {"bufferView":1,"componentType":5126,"count":len(vertices),"type":"VEC3"},
                        {"bufferView":2,"componentType":5125,"count":3*len(faces),"type":"SCALAR"}],
           "extras":{"source_file_sha256":source_hash,"source_crs_normalized":"EPSG:25830",
-                    "local_origin_projected_m":list(origin),"step_source_pixels":step,
+                    "local_origin_projected_m":[origin[0],origin[1]],"local_axes":"x=easting-minE; y=height; z=maxN-northing; G19 south-positive","step_source_pixels":step,
                     "vertical_datum_tie_to_G19_verified":False,
                     "architecture_source_unchanged":True,"public_source_attribution":ATTRIBUTION}}
     raw=json.dumps(gltf,separators=(",",":"),ensure_ascii=False).encode()
@@ -98,7 +99,7 @@ def candidate_lods(cog_bytes,output_dir,official_report):
                             continue
                         E,N=ds.xy(row,col)
                         mapping[ri,ci]=len(verts)
-                        verts.append((float(E-BBOX[0]),float(band[row,col]),float(N-BBOX[1])))
+                        verts.append((float(E-BBOX[0]),float(band[row,col]),float(BBOX[3]-N)))
                 faces=[]
                 for ri in range(len(rows)-1):
                     for ci in range(len(cols)-1):
@@ -106,11 +107,11 @@ def candidate_lods(cog_bytes,output_dir,official_report):
                              mapping.get((ri+1,ci)),mapping.get((ri+1,ci+1))]
                         if any(q is None for q in pts):continue
                         a,b,c,d=pts
-                        # +X and -Z produce +Y upward; reject inverted normals.
-                        faces.extend(((a,b,c),(b,d,c)))
+                        # +X then +Z has -Y normal; reverse winding for true +Y.
+                        faces.extend(((a,c,b),(b,c,d)))
                 if len(verts)<40 or len(faces)<30:
                     raise ValueError("Official source too sparse for requested LOD")
-                glb=glb_bytes(verts,faces,origin=(BBOX[0],BBOX[1]),
+                glb=glb_bytes(verts,faces,origin=(BBOX[0],BBOX[3]),
                               source_hash=digest,step=step)
                 label="MDT05_ALICANTE_r01_c02_LOD"+str({1:0,2:1,4:2}[step])+"_UNAPPROVED.glb"
                 f=out/label
@@ -123,6 +124,7 @@ def candidate_lods(cog_bytes,output_dir,official_report):
               "license":"CC-BY-4.0","attribution":ATTRIBUTION,
               "bbox_epsg_25830":list(BBOX),"terrain_elevation_from_real_pixels":True,
               "baseline_G19_ground_alignment_verified":False,
+              "G19_horizontal_axis_convention_used":True,
               "source_vertical_datum_local_control_verified":False,
               "private_G19_assets_included":False,"built_from_open_source_only":True,
               "not_live_in_game":True,"not_deployed":True,"lods":published}
