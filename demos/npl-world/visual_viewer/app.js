@@ -4,6 +4,7 @@ import { nextCameraMode, canNavigate } from './navigation_policy.mjs';
 import {normalizedStick,combineMovement} from './mobile_navigation.mjs';
 import {buildUrbanKit} from './urban_kit.mjs';
 import {RecoveredMasterTiles} from './world_master_loader.mjs';
+import {installCoveredOSMMask} from './osm_building_mask.mjs';
 import {buildHedgeLayer} from './hedge_layer.mjs';
 import {createSurfaceTexture,enhanceMappedOSMRoads} from './road_surfaces.mjs';
 import {inspectDataset,compareObservation,missionStart,missionStep,cognitivePulse,STAGES} from './neuro_mission.mjs';
@@ -194,6 +195,7 @@ scene.add(decorGroup);
 const player=new THREE.Group();scene.add(player);
 player.position.set(-10.664,0,113.546);
 let avatar=null, city=null,mixer=null,animations={},current=null;
+let osmCover=null;
 let recoveredMaster=null,masterNextUpdate=0,masterBusy=false;
 const keys=new Set();
 const touchStick={forward:0,strafe:0};
@@ -300,9 +302,11 @@ function startRecoveredMasterIfRequested(){
  recoveredMaster=new RecoveredMasterTiles({
    scene,loader:new GLTFLoader(),profile:visualTier,
    onVisibility:(active)=>{
-     if(city)city.visible=!active;
+     // Never hide ALL Alicante because only one of four original tiles arrived.
+     // PNOA ground and mapped asphalt remain visible; clip only covered walls.
      decorGroup.visible=!active;
-   }
+   },
+   onCoverage:(tileIds)=>{osmCover?.update(tileIds);}
  });
  recoveredMaster.initialize().then(()=>recoveredMaster.update(player.position)).then(()=>{
    window.NPL_RECOVERED_GEO=recoveredMaster.status();
@@ -311,6 +315,7 @@ function startRecoveredMasterIfRequested(){
  }).catch(err=>{
    window.NPL_RECOVERED_GEO={installed:false,error:String(err?.message||err).slice(0,160)};
    if(city)city.visible=true;decorGroup.visible=true;
+   osmCover?.update([]);
    display('Mundo Drive opcional no instalado o no validado. Continúa Alicante OSM: '+String(err?.message||err).slice(0,110));
  });
 }
@@ -331,6 +336,7 @@ async function loadWorld(){
  try{
   const data=await model('./assets/alicante.glb');
   city=data.scene;scene.add(city);
+  if(publicPreview)osmCover=installCoveredOSMMask(city);
   // The source-matched asphalt texture belongs on OSM highway ribbon meshes, not on invented roads.
   if(publicPreview)roadStatus=enhanceMappedOSMRoads(city,{mobile:visualTier==='mobile'});
   // Public-only, bounded artistic facade detail on verifiable OSM wall geometry.
