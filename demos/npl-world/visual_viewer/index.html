@@ -8,7 +8,7 @@ header{top:15px;left:15px;max-width:410px}header strong{font-size:22px;letter-sp
 #loading h2{margin:4px 0;font-size:18px}#loading p{font-size:13px;color:#a6ccdb}
 #panelControls{right:12px;top:14px;display:flex;gap:8px;align-items:center}
 button{border:1px solid #688a97;background:#173747;color:#f4f5f4;border-radius:10px;padding:9px 12px;cursor:pointer}
-button:hover{background:#2e6474}
+button:hover{background:#2e6474}button:disabled{opacity:.45;cursor:not-allowed}
 #info{bottom:15px;left:50%;transform:translateX(-50%);max-width:85vw;text-align:center;font-size:12px}
 #info.error{border-color:#df7f77;color:#ffd0c5}
 #stat{left:15px;bottom:15px}#cameraMode{color:#ffd790}
@@ -18,7 +18,7 @@ button:hover{background:#2e6474}
 <header class="panel"><strong>N✦ NPL WORLD</strong><p>Explanada de Alicante · Edificios OSM y escena 3D con vestuario y paisaje mediterráneo.<br><small>Ciudad y semejanza facial aún no fotogramétricas.</small></p></header>
 <div id="panelControls" class="panel"><button id="cam">◉ Cámara (C)</button><button id="face">◎ Ver rostro</button><button id="fidelity">◈ Calidad</button><button id="reset">↻ Centrar</button></div>
 <div id="loading"><h2>Cargando recursos locales 3D</h2><p id="progress">Preparando motor gráfico…</p><p>No se descargan personas ni edificios al abrir. Los modelos ya están en el paquete.</p></div>
-<div id="stat" class="panel">0,0 m</div><div id="info" class="panel">W/S avanzar y retroceder · A/D lateral · Mayús correr · ratón cámara · <span id="cameraMode">Tercera persona</span></div>
+<div id="stat" class="panel">0,0 m</div><div id="info" class="panel"><span id="messageText">W/S avanzar y retroceder · A/D lateral · Mayús correr · ratón cámara</span> · <span id="cameraMode">Tercera persona</span></div>
 <script>
 document.querySelector('#face').onclick=()=>{
  for(let i=0;i<3;i++){
