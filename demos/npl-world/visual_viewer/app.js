@@ -537,11 +537,21 @@ function frame(){
   const dz=Math.cos(yaw)*forward+Math.sin(yaw)*strafe;
   const deltaX=dx*speed,deltaZ=dz*speed;
   if(showingArchivedMaster && physicalAtlas?.index){
-    const moved=physicalAtlas.move(player.position,deltaX,deltaZ);
+    // G13/G16 remains authoritative where signed. Missing grid coverage
+    // checks the loaded GLB-derived wall sweep before any fallback movement.
+    const wallFallback=cityCollision?.stats().wallSegments>0
+      ?(x,z,toX,toZ)=>cityCollision.hitsWall(x,z,toX,toZ):null;
+    const moved=physicalAtlas.move(player.position,deltaX,deltaZ,{
+      fallbackCollision:wallFallback
+    });
     player.position.x=Math.max(-318,Math.min(402,moved.x));
     player.position.z=Math.max(-411,Math.min(304,moved.z));
     window.NPL_LAST_PHYSICS_MOVE={blockedSubsteps:moved.blockedSubsteps,
-      fallbackSubsteps:moved.fallbackSubsteps,verticalDatumVerified:false};
+      fallbackSubsteps:moved.fallbackSubsteps,
+      wallFallbackChecks:moved.wallFallbackChecks,
+      wallFallbackBlocks:moved.wallFallbackBlocks,
+      unverifiedFallbackSubsteps:moved.unverifiedFallbackSubsteps,
+      g13G16Priority:true,verticalDatumVerified:false};
   }else if(cityCollision?.stats().wallSegments>0){
     // OSM source wall collisions when signed G13 grid is not authoritative.
     const next=cityCollision.move(player.position.x,player.position.z,deltaX,deltaZ);

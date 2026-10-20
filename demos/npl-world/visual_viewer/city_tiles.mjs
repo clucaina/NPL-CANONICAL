@@ -98,7 +98,11 @@ export function plannedLayers(tile,profile='desktop'){
     const imageCost=asset.embedded_images ?? 1;
     const mustKeep=['terrain','geo','urban','architecture','mosaic'].includes(asset.role);
     if(profile==='mobile' && ['environment','driving','lod'].includes(asset.role))continue;
-    if(!mustKeep&&(triangles+cost>cap||images+imageCost>(profile==='mobile'?30:140)))continue;
+    // Port the already-reviewed PR #35 safeguard into V7: compulsory layers
+    // cannot silently exceed the mobile estimate cap. A missing tile will
+    // remain unavailable, with the existing geographical fallback retained.
+    if(profile==='mobile'&&(triangles+cost>cap||images+imageCost>30))continue;
+    if(!mustKeep&&(triangles+cost>cap||images+imageCost>140))continue;
     selected.push(asset);triangles+=cost;images+=imageCost;
   }
   return selected;
