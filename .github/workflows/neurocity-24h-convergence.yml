@@ -1,0 +1,123 @@
+name: NeuroCity 24h - convergence, build and regressions (NO DEPLOY)
+
+# A scheduled workflow is only active on GitHub's default branch. All tests
+# below use owner-controlled public branches; private WorldMaster/Brain GLBs
+# and patient files must NEVER be put on this repository.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '19 * * * *'
+  push:
+    paths:
+      - '.github/workflows/neurocity-24h-convergence.yml'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: neurocity-24h-convergence
+  cancel-in-progress: true
+
+jobs:
+  converge:
+    name: Integrate candidate copies; run real Node tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout actual V7 brain and V50 master source (public only)
+        uses: actions/checkout@v4
+        with:
+          ref: feat/neurocity-restore-real-npl-canonical-brain-v50-20261020
+          path: city-v7
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Rehearse independent 3D branches without modifying remote history
+        id: integration
+        shell: bash
+        run: |
+          set -u
+          mkdir -p reports
+          printf '# NeuroCity - verified hourly rehearsal\n\n' > reports/REPORT.md
+          printf 'Execution UTC: %s\n\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> reports/REPORT.md
+          printf 'Source: original NPL/V50 **V7**, physical collisions, Catastro + sea + Gameplay rehearsal.\n\n' >> reports/REPORT.md
+          printf '**Important:** an ephemeral merge is NOT a production merge; a passing test is NOT photographic fidelity or a 60-view validation.\n\n' >> reports/REPORT.md
+          printf 'Private original GLBs/avatars are NOT downloaded, read or redistributed by this job.\n\n' >> reports/REPORT.md
+          cp -a city-v7 city-integrated
+          git -C city-integrated config user.email 'neurocity-ci@users.noreply.github.com'
+          git -C city-integrated config user.name 'NeuroCity CI (temporary)'
+          printf 'Base V7 SHA: %s\n\n' "$(git -C city-v7 rev-parse HEAD)" >> reports/REPORT.md
+          blocked=0
+          for pair in \
+            'collision:feat/neurocity-physical-wall-collision-20261020' \
+            'integrated-sources:ci/neurocity-multi-source-unification-rehearsal-20261020'; do
+            label="${pair%%:*}"
+            ref="${pair#*:}"
+            printf '## %s\n\n' "$label" >> reports/REPORT.md
+            if ! git -C city-integrated fetch --no-tags origin \
+                 "$ref:refs/remotes/origin/ci-$label" > "reports/fetch-$label.log" 2>&1; then
+              printf 'BLOCKED: remote branch unavailable. See fetch log.\n\n' >> reports/REPORT.md
+              blocked=1
+              continue
+            fi
+            if git -C city-integrated merge --no-ff --no-edit \
+                 "refs/remotes/origin/ci-$label" > "reports/merge-$label.log" 2>&1; then
+              printf 'CLEAN ephemeral merge; SHA %s\n\n' "$(git -C city-integrated rev-parse HEAD)" >> reports/REPORT.md
+            else
+              printf 'BLOCKED: actual source merge conflicts (not silently resolved):\n\n' >> reports/REPORT.md
+              git -C city-integrated diff --name-only --diff-filter=U > "reports/conflicts-$label.txt"
+              sed 's/^/- /' "reports/conflicts-$label.txt" >> reports/REPORT.md
+              printf '\n' >> reports/REPORT.md
+              git -C city-integrated merge --abort || true
+              blocked=1
+            fi
+          done
+          echo "$blocked" > reports/merge-blocked.txt
+          printf '## Source-only regression tests\n\n' >> reports/REPORT.md
+          # The V7 tests always run even when the integration is blocked.
+          cd city-v7/demos/npl-world/visual_viewer
+          if npm install --no-audit --no-fund > ../../../../reports/v7-install.log 2>&1 &&
+             node --test tests/*.test.mjs > ../../../../reports/v7-tests.log 2>&1 &&
+             npm run build > ../../../../reports/v7-build.log 2>&1; then
+            printf 'V7 source tests + game bundle: PASS.\n\n' >> ../../../../reports/REPORT.md
+            echo PASS > ../../../../reports/v7-result.txt
+          else
+            printf 'V7 source tests or build: FAIL; inspect saved logs.\n\n' >> ../../../../reports/REPORT.md
+            echo FAIL > ../../../../reports/v7-result.txt
+          fi
+          cd ../../../..
+          if [ "$blocked" -eq 0 ]; then
+            cd city-integrated/demos/npl-world/visual_viewer
+            if npm install --no-audit --no-fund > ../../../../reports/integrated-install.log 2>&1 &&
+               node --test tests/*.test.mjs > ../../../../reports/integrated-tests.log 2>&1 &&
+               npm run build > ../../../../reports/integrated-build.log 2>&1; then
+              printf 'Multi-branch integrated tests + game bundle: PASS.\n\n' >> ../../../../reports/REPORT.md
+              echo PASS > ../../../../reports/integrated-result.txt
+            else
+              printf 'Multi-branch integrated tests or build: FAIL; inspect saved logs.\n\n' >> ../../../../reports/REPORT.md
+              echo FAIL > ../../../../reports/integrated-result.txt
+            fi
+            cd ../../../..
+          else
+            printf 'Multi-branch bundle: NOT TESTED - merge was blocked. No fabricated PASS.\n\n' >> reports/REPORT.md
+            echo BLOCKED > reports/integrated-result.txt
+          fi
+          printf '## Next verified action\n\n' >> reports/REPORT.md
+          if [ "$(cat reports/merge-blocked.txt)" != 0 ]; then
+            printf 'Resolve listed conflicts in a **new draft integration branch**, preserve source GLB integrity, rerun the browser/physical checks. Do not deploy.\n' >> reports/REPORT.md
+          elif [ "$(cat reports/integrated-result.txt)" != PASS ]; then
+            printf 'Fix the exact failing tests in an isolated draft PR; do not deploy.\n' >> reports/REPORT.md
+          else
+            printf 'Proceed to 60 geolocated photo-to-view comparisons and local private WorldMaster integration; no deploy until manual acceptance.\n' >> reports/REPORT.md
+          fi
+          cat reports/REPORT.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Save actual output, conflict paths and test logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: neurocity-v7-hourly-qa-${{ github.run_id }}
+          path: reports/
+          retention-days: 7
+          if-no-files-found: error
