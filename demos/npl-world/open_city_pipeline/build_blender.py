@@ -67,6 +67,9 @@ for way in doc.findall("way"):
 def add(name,verts,faces,mat):
     if not faces:return
     mesh=bpy.data.meshes.new(name);mesh.from_pydata(verts,[],faces);mesh.update()
+    if name in ("OSM_REAL_tree_locations_canopy_illustrative",
+                "OSM_REAL_scrub_polygon_bush_cluster_illustrative"):
+        for polygon in mesh.polygons:polygon.use_smooth=True
     o=bpy.data.objects.new(name,mesh);s.collection.objects.link(o);mesh.materials.append(mat)
 add("OSM_Real_Building_Walls_UNTEXTURED",wallvs,wallfs,wall)
 add("OSM_Real_Building_Roofs",roofvs,rooff,roof)
