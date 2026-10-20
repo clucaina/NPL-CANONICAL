@@ -5,6 +5,9 @@ No credentials, no Google Drive, no patient or private avatar data.
 """
 import json
 import math
+import hashlib
+import shutil
+import subprocess
 import tempfile
 from pathlib import Path
 from urllib.parse import urlencode,urlsplit
@@ -77,7 +80,48 @@ def probe():
           'height_method':review['height_method'],
           'skipped':review['skipped'],
           'matching':review['matching']})
-        # The original private/public source files remain in /tmp and are
+        # Full real-world Blender 3D export, but ONLY into a temporary folder.
+        # Never publish the government-provided GML or this unreleased GLB.
+        if report['matched_osm_count']>0:
+            work=p/'scene'
+            scene_input=work/'input'
+            scene_input.mkdir(parents=True)
+            (work/'output').mkdir()
+            shutil.copyfile(p/'city.osm',scene_input/'alicante.osm')
+            shutil.copyfile(p/'part.gml',scene_input/'catastro_building_parts.gml')
+            (scene_input/'catastro_building_parts.json').write_text(json.dumps(review))
+            west,south,east,north=BBOX_OSM
+            def web_xy(lon,lat):
+                return R*math.radians(lon),R*math.log(math.tan(math.pi/4+math.radians(lat)/2))
+            minx,miny=web_xy(west,south);maxx,maxy=web_xy(east,north)
+            (scene_input/'source_manifest.json').write_text(json.dumps({
+                'center_mercator':origin,'bbox_local_m':[
+                    minx-origin[0],miny-origin[1],maxx-origin[0],maxy-origin[1]
+                ],'real_orthophoto':False
+            }))
+            script=Path(__file__).resolve().parents[2]/'demos/npl-world/open_city_pipeline/build_blender.py'
+            try:
+                subprocess.run(['blender','-b','--factory-startup','-t','2',
+                    '--python-exit-code','1','-P',str(script)],
+                    cwd=work,timeout=180,check=True,capture_output=True)
+                qa=json.loads((work/'output/QA_source_report.json').read_text())
+                glb=work/'output/Alicante_REAL_OSM_PNOA.glb'
+                if (qa.get('cadastre_original_osm_footprints_replaced')!=review['matched_osm_count']
+                    or qa.get('cadastre_building_parts_geometry')!=review['matched_bu_part_count']
+                    or not glb.exists() or glb.stat().st_size<1000):
+                    raise ValueError('Blender real-world source-volume contract failed')
+                result.update({
+                    'actual_city_models_generated':1,
+                    'real_official_buildings_replaced_in_temporary_3d':qa['cadastre_original_osm_footprints_replaced'],
+                    'real_official_building_parts_rendered':qa['cadastre_building_parts_geometry'],
+                    'temporary_unreleased_glb_sha256':hashlib.sha256(glb.read_bytes()).hexdigest(),
+                    'temporary_3d_export_size_bytes':glb.stat().st_size,
+                    'original_source_redistributed':False
+                })
+            except Exception as exc:
+                result['probe_status']='BLOCKED_ACTUAL_3D_EXPORT'
+                result['export_blocker_class']=type(exc).__name__
+        # The original public source files remain in /tmp and are
         # deleted automatically, never committed or uploaded.
     return result
 
