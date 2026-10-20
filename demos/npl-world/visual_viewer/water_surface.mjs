@@ -59,7 +59,15 @@ export function createWaterSurface({tier='desktop',reducedMotion=false}={}){
  if(typeof reducedMotion!=='boolean')throw new TypeError('Invalid motion preference');
  const geometry=new THREE.PlaneGeometry(750,1050,1,1);
  const material=new THREE.ShaderMaterial({
-  name:'NEUROCITY_PROCEDURAL_SEA',uniforms:{uTime:{value:0},uDetail:{value:tier==='desktop'?1:0}},
+  name:'NEUROCITY_PROCEDURAL_SEA',
+  // Actual Chromium WebGL bug isolated in peer PR #38:
+  // ShaderMaterial with fog:true must carry Three r169 fog uniform slots.
+  // Without fogColor / fogDensity / fogNear / fogFar WebGLUniforms can read
+  // undefined.value during the render loop. Geometry remains unchanged.
+  uniforms:THREE.UniformsUtils.merge([
+    THREE.UniformsLib.fog,
+    {uTime:{value:0},uDetail:{value:tier==='desktop'?1:0}}
+  ]),
   vertexShader,fragmentShader,fog:true,depthWrite:true,transparent:false
  });
  const mesh=new THREE.Mesh(geometry,material);
