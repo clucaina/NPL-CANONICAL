@@ -65,6 +65,22 @@ def compile_manifest(archive:Path):
                 assets.append(register("assets/selected/Explanada_v50_PBR_1024.glb","mosaic"))
                 assets.append(register("assets/selected/MASTER_EXPLANADA_FURNITURE_V50.glb","furniture"))
                 assets.append(register("assets/selected/MASTER_BANCOS_G131_V50.glb","furniture"))
+            if tile=="r02_c00":
+                # Genuine source prefab + provisional authored positions. Existing
+                # MASTER_EXPLANADA_FURNITURE_V50 contains its own lamps on desktop.
+                # The low-poly prefab is a MOBILE replacement, not a second layer.
+                pref="assets/prefabs/Farola_Globo_Simple_4m.glb"
+                fixture="geo/CONTRATO/G16_PHYSICAL_FIXTURES.json"
+                if ROOT+pref in z.namelist() and ROOT+fixture in z.namelist():
+                    entries=json.loads(z.read(ROOT+fixture)).get("fixtures",[])
+                    lamps=[e for e in entries if isinstance(e,dict) and
+                           str(e.get("id","")).startswith("G16_lamp_")]
+                    if not 1<=len(lamps)<=24:raise ValueError("Unsafe number of provisional lamps")
+                    poses=[{"x":e["ground"]["x"],"y":e["ground"]["y"],
+                            "z":e["ground"]["z"],"scale":1.0,
+                            "rotation":e.get("yaw",0.0)}
+                           for e in lamps]
+                    assets.append(register(pref,"streetlamp",placements=poses))
             if tile=="r02_c01":
                 assets.append(register("assets/selected/r02_c01_G19_PUERTA_STONE_STREET.glb","street",local=True))
             if tile in ("r01_c01","r01_c02"):
