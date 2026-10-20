@@ -7,7 +7,7 @@ const browser=await chromium.launch({
 });
 const page=await browser.newPage({viewport:{width:1440,height:900},deviceScaleFactor:1});
 const consoleErrors=[],failedRequests=[],shaderErrors=[];
-page.on('pageerror',error=>consoleErrors.push(error.message));
+page.on('pageerror',error=>consoleErrors.push(String(error.stack||error.message).slice(0,1100)));
 page.on('console',message=>{
  if(message.type()==='error' && /WebGLProgram|shader.{0,35}(error|compile)|VALIDATE_STATUS/i.test(message.text()))
    shaderErrors.push(message.text().slice(0,300));
@@ -16,7 +16,11 @@ page.on('requestfailed',request=>failedRequests.push(request.url()));
 let report={};
 try{
   await page.goto(url,{waitUntil:'domcontentloaded',timeout:40000});
-  await page.waitForFunction(()=>window.NPL_READY?.cityOnly===true,null,{timeout:60000});
+  try {
+    await page.waitForFunction(()=>window.NPL_READY?.cityOnly===true,null,{timeout:30000});
+  } catch(error) {
+    throw new Error('City startup blocked: '+String(error)+'; first runtime exceptions='+JSON.stringify(consoleErrors.slice(0,3)));
+  }
   await page.waitForTimeout(1200);
   await page.waitForFunction(()=>window.NEUROCITY_WATER_QA?.programCount>0,null,{timeout:15000});
   const waterBefore=await page.evaluate(()=>window.NEUROCITY_WATER_QA);
