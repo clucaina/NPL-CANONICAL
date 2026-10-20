@@ -12,7 +12,9 @@ on:
       - 'tools/neurocity/test_catastro_native_parts.py'
       - 'tools/neurocity/private_playable_review.py'
       - 'demos/npl-world/visual_viewer/city_geometry_qa.mjs'
+      - 'demos/npl-world/visual_viewer/city_collision.mjs'
       - 'demos/npl-world/visual_viewer/tests/city_geometry_qa.test.mjs'
+      - 'demos/npl-world/visual_viewer/tests/city_collision.test.mjs'
       - 'demos/npl-world/visual_viewer/tests/browser_cadastre_real.mjs'
       - 'demos/npl-world/visual_viewer/app.js'
       - 'demos/npl-world/open_city_pipeline/build_blender.py'
@@ -70,6 +72,7 @@ jobs:
         run: |
           npm install --no-audit --no-fund
           node --test tests/city_geometry_qa.test.mjs
+          node --test tests/city_collision.test.mjs
           npm run build
           npm install --no-save --no-audit --no-fund playwright@1.56.0
           npx playwright install chromium
@@ -96,6 +99,8 @@ jobs:
               assert q['private_webgl_qa']=='PASS',q
               assert q['private_webgl_meshes']>=3,q
               assert q['private_webgl_triangles']>1000,q
+              assert q['private_webgl_collision_segments']>100,q
+              assert q['private_webgl_collision_cells']>10,q
               assert q['private_webgl_npl_mission'] is True,q
               assert q['private_webgl_official_building_parts']==q['matched_official_parts']+q['native_official_parts_eligible'],q
               assert q['actual_blender_3d_official_buildings']==q['matched_osm_buildings'],q

@@ -10,6 +10,7 @@ import {installCoveredOSMMask} from './osm_building_mask.mjs';
 import {buildHedgeLayer} from './hedge_layer.mjs';
 import {createSurfaceTexture,enhanceMappedOSMRoads} from './road_surfaces.mjs';
 import {inspectPublicCityModel} from './city_geometry_qa.mjs';
+import {buildCityWallCollision} from './city_collision.mjs';
 import {inspectDataset,compareObservation,missionStart,missionStep,cognitivePulse,STAGES} from './neuro_mission.mjs';
 
 // NPL WORLD - real GLB integration. No placeholder people, no pay-per-map API.
@@ -211,6 +212,7 @@ scene.add(sea);
 const player=new THREE.Group();scene.add(player);
 player.position.set(-10.664,0,113.546);
 let avatar=null, city=null,mixer=null,animations={},current=null;
+let cityCollision=null;
 let osmCover=null;
 let recoveredMaster=null,masterNextUpdate=0,masterBusy=false;
 const keys=new Set();
@@ -380,7 +382,18 @@ async function loadWorld(){
   city=data.scene;scene.add(city);
   // The QA bridge observes the actual GLB loaded and rendered by Three.js,
   // rather than trusting exported metadata alone. Public-only builds only.
-  if(publicPreview)window.NEUROCITY_CITY_MODEL_QA=inspectPublicCityModel(city);
+  if(publicPreview){
+    window.NEUROCITY_CITY_MODEL_QA=inspectPublicCityModel(city);
+    try{
+      cityCollision=buildCityWallCollision(city);
+      window.NEUROCITY_COLLISION_QA=cityCollision.stats();
+    }catch(error){
+      // Preserve navigation on malformed source, but make the failure visible
+      // to browser QA. Never fabricate collision geometry.
+      window.NEUROCITY_COLLISION_QA={error:String(error?.message||error),
+        wallSegments:0,inventedBarriers:0};
+    }
+  }
   if(publicPreview)osmCover=installCoveredOSMMask(city);
   // The source-matched asphalt texture belongs on OSM highway ribbon meshes, not on invented roads.
   if(publicPreview)roadStatus=enhanceMappedOSMRoads(city,{mobile:visualTier==='mobile'});
@@ -473,8 +486,16 @@ function frame(){
   const speed=(fast?6.6:2.6)*dt;
   const dx=Math.sin(yaw)*forward-Math.cos(yaw)*strafe;
   const dz=Math.cos(yaw)*forward+Math.sin(yaw)*strafe;
-  player.position.x=Math.max(-318,Math.min(402,player.position.x+dx*speed));
-  player.position.z=Math.max(-411,Math.min(304,player.position.z+dz*speed));
+  const targetX=Math.max(-318,Math.min(402,player.position.x+dx*speed));
+  const targetZ=Math.max(-411,Math.min(304,player.position.z+dz*speed));
+  if(cityCollision){
+    const next=cityCollision.move(player.position.x,player.position.z,
+      targetX-player.position.x,targetZ-player.position.z);
+    player.position.x=next.x;player.position.z=next.z;
+    if(next.collided)window.NEUROCITY_COLLISION_QA=cityCollision.stats();
+  }else{
+    player.position.x=targetX;player.position.z=targetZ;
+  }
   actorHeading=Math.atan2(Math.sin(yaw)*Math.sign(forward),Math.cos(yaw)*Math.sign(forward));
   if(avatar&&Math.abs(forward)>.05){const headingDelta=Math.atan2(Math.sin(actorHeading-avatar.rotation.y),Math.cos(actorHeading-avatar.rotation.y));
     avatar.rotation.y+=headingDelta*Math.min(1,dt*7);}
