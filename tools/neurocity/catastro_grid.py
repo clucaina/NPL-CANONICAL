@@ -18,6 +18,7 @@ from catastro_parts import (
     MAX_PARTS, LICENSE, SOURCE_DOC, load_xml, read_parts, read_osm,
     safe_matches, validate_official_url,
 )
+from catastro_native_parts import collect_native_parts
 
 GRID_ROWS=3
 GRID_COLS=3
@@ -102,6 +103,10 @@ def compile_grid(*,samples,osm,manifest,expected_ids=None):
     parts=list(unique.values())
     buildings=read_osm(osm,origin)
     matched,stats=safe_matches(parts,buildings)
+    # Different, stricter path: geometries verified to be independent of
+    # EVERY existing OSM footprint are added rather than made into false joins.
+    m_bbox=m.get('bbox')
+    native_parts,native_stats=collect_native_parts(parts,buildings,origin,m_bbox)
     result={
         'schema':'neurocity.catastro-building-grid.v2',
         'source':'DG_CATASTRO_INSPIRE_BU_BUILDINGPART',
@@ -118,7 +123,10 @@ def compile_grid(*,samples,osm,manifest,expected_ids=None):
         'skipped':skipped,'total_osm_buildings':len(buildings),
         'matched_osm_count':len(matched),
         'matched_bu_part_count':sum(len(m['sections']) for m in matched),
-        'matching':stats,'matched':matched
+        'matching':stats,'matched':matched,
+        'independent_official_parts':native_parts,
+        'independent_official_part_count':len(native_parts),
+        'independent_official_selection_qa':native_stats
     }
     if len(json.dumps(result).encode())>4*1024*1024:
         raise ValueError('Public geometric instructions exceed 4 MiB')
