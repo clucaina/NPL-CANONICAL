@@ -155,3 +155,26 @@ test('partial failed master tiles do not hide official OSM baseline',async()=>{
    engine.dispose();
  }finally{globalThis.fetch=oldFetch;globalThis.document=oldDoc;globalThis.location=oldLoc;}
 });
+
+test('recover REAL V50 source-mapped 4cm ceramic model for desktop without ruining mobile performance',()=>{
+ const full={...asset('Explanada_V50_Surgical_4cm_STONES_PRIVATE','mosaic'),
+   path:'assets/selected/Explanada_V50_Surgical_4cm_STONES_PRIVATE.glb',
+   triangle_estimate:105345,bytes:11176704,embedded_images:2,
+   experimental_candidate:true,
+   mobile_fallback:{path:'assets/selected/Explanada_v50_PBR_1024.glb',
+      sha256:'02b44285e3bc478310e3b86d939b45e90ff80359ddfc57a759bf72803556a710',
+      bytes:3568880,triangle_estimate:5225,embedded_images:2}};
+ const m=fixture();m.tiles[0].assets.push(full);
+ assertTileManifest(m);
+ const desktop=plannedLayers(m.tiles[0],'desktop').find(a=>a.role==='mosaic');
+ const mobile=plannedLayers(m.tiles[0],'mobile').find(a=>a.role==='mosaic');
+ assert.equal(desktop.path,full.path);
+ assert.equal(desktop.triangle_estimate,105345);
+ assert.equal(mobile.path,full.mobile_fallback.path);
+ assert.equal(mobile.triangle_estimate,5225);
+ assert.equal(mobile.mobileV50Fallback,true);
+ assert.equal(mobile.archaeologicalModelSource,'original_V50_PBR_not_procedural');
+ assert.equal(full.path,'assets/selected/Explanada_V50_Surgical_4cm_STONES_PRIVATE.glb');
+ const malicious=structuredClone(m);malicious.tiles[0].assets[2].mobile_fallback.path='../patients.glb';
+ assert.throws(()=>assertTileManifest(malicious),/Unsupported asset/);
+});
