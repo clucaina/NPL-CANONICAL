@@ -11,14 +11,18 @@ OLD_SHA='ceb9728f29ebe402ae1a4c7dda63790f67ab2985d6df7837bf31146caa8c5ece'
 NEW='assets/selected/G14_CASA_CARBONELL_SOURCE_PRESERVED_L2_PRIVATE.glb'
 NEW_SHA='ac82b798d5bc9cc0680f25d4325e94f65622bd8d0989a809dc7474c43931c678'
 MANIFEST='world-master/manifest.json'
+BUNDLE_SHA='e64f9f9a403f30c6fb1c9717ff2ef961ba2844ed30806d599a16bfae1b63d1ad'
 def sha(data): return hashlib.sha256(data).hexdigest()
 
-def apply(v7,detail,output):
+def apply(v7,detail,output,bundle=None):
     v7,detail,output=map(Path,(v7,detail,output))
     if v7.resolve()==output.resolve(): raise ValueError('Never overwrite original V7')
     if sha(v7.read_bytes())!=V7: raise ValueError('Source owner ZIP digest mismatch')
     model=detail.read_bytes()
     if sha(model)!=NEW_SHA: raise ValueError('Private G14 L2 digest mismatch')
+    compiled=Path(bundle).read_bytes() if bundle is not None else None
+    if compiled is not None and sha(compiled)!=BUNDLE_SHA:
+        raise ValueError('CI compiled gameplay bundle digest mismatch')
     with zipfile.ZipFile(v7) as original:
         if original.testzip() is not None: raise ValueError('Original archive CRC failure')
         paths=set(original.namelist())
@@ -44,16 +48,19 @@ def apply(v7,detail,output):
         with zipfile.ZipFile(output,'w') as candidate:
             for entry in original.infolist():
                 candidate.writestr(copy.copy(entry),
-                    manifest_bytes if entry.filename==MANIFEST else original.read(entry))
+                    manifest_bytes if entry.filename==MANIFEST else (
+                    compiled if entry.filename=='game.js' and compiled is not None else original.read(entry)))
             candidate.writestr('world-master/'+NEW,model,
                                compress_type=zipfile.ZIP_DEFLATED,compresslevel=6)
         with zipfile.ZipFile(output) as candidate:
             if candidate.testzip() is not None:raise ValueError('Candidate ZIP CRC failure')
             if set(candidate.namelist())!=paths|{'world-master/'+NEW}:
                 raise ValueError('Unexpected output assets')
-            for path in paths-{MANIFEST}:
+            for path in paths-({MANIFEST,'game.js'} if compiled is not None else {MANIFEST}):
                 if sha(original.read(path))!=sha(candidate.read(path)):
                     raise ValueError('Owner-original file altered: '+path)
+            if compiled is not None and candidate.read('game.js')!=compiled:
+                raise ValueError('Compiled gameplay runtime changed during overlay')
             current=json.loads(candidate.read(MANIFEST))
             active=[a for t in current['tiles'] for a in t['assets']
                     if a['path'] in (OLD,NEW)]
@@ -62,11 +69,15 @@ def apply(v7,detail,output):
             if sha(candidate.read('world-master/'+NEW))!=NEW_SHA:
                 raise ValueError('New asset corrupted')
         return {'status':'PASS_LOCAL_OWNER_ONLY','archive_sha256':sha(output.read_bytes()),
-                'originals_preserved':len(paths)-1,'new_asset_count':1,
+                'originals_preserved':len(paths)-(2 if compiled is not None else 1),
+                'source_only_game_bundle_signed':bool(compiled),
+                'game_bundle_sha256':BUNDLE_SHA if compiled is not None else None,
+                'new_asset_count':1,
                 'duplicate_landmark':False,'certified_real_world_faithfulness':False,
                 'vertical_datum_verified':False,'webgl_gameplay_acceptance':False}
 
 if __name__=='__main__':
-    if len(sys.argv)!=4:
-        raise SystemExit('Usage: python apply_carbonell_l2_owner.py OWNER_V7.zip G14_L2_PRIVATE.glb DEST.zip')
-    print(json.dumps(apply(*sys.argv[1:]),ensure_ascii=False,indent=2))
+    if len(sys.argv) not in (4,5):
+        raise SystemExit('Usage: python apply_carbonell_l2_owner.py OWNER_V7.zip G14_L2_PRIVATE.glb DEST.zip [CI_PR45_game.js]')
+    a=sys.argv[1:]
+    print(json.dumps(apply(a[0],a[1],a[2],a[3] if len(a)==4 else None),ensure_ascii=False,indent=2))
