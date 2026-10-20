@@ -153,6 +153,21 @@
       "spatial_placement_verified": false,
       "binary_imported": false,
       "vertical_datum": "NOT_APPLICABLE"
+    },
+    {
+      "id": "idee_mdt05_ogc_alicante_g12",
+      "kind": "geodata",
+      "license": "CC-BY-4.0",
+      "source_url": "https://api-coverages.idee.es/collections/EL.ElevationGridCoverage_25830_5_PB",
+      "license_evidence_url": "https://centrodedescargas.cnig.es/CentroDescargas/home",
+      "notes": "G12 owner archive r01_c02 official 5m DTM OGC: G12 originally failed DNS. CI real pixels proof required, no downloaded raster yet",
+      "license_scope": "data",
+      "license_evidence_verified": true,
+      "attribution": "Source: IGN/CNIG MDT05; CC-BY 4.0, exact file ID/year pending",
+      "artifact_sha256": null,
+      "spatial_placement_verified": false,
+      "binary_imported": false,
+      "vertical_datum": "ORTHOMETRIC_PRODUCT_FAMILY_FILE_NOT_SELECTED"
     }
   ]
 }
