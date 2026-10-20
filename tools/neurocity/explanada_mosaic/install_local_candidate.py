@@ -71,12 +71,18 @@ def build(basezip, asset, resultzip, patch_audit):
         }
         resultzip.parent.mkdir(parents=True,exist_ok=True)
         with zipfile.ZipFile(resultzip,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=6,allowZip64=True) as target:
+            def put(name,content):
+                # Stable ZIP dates prevent fake new versions on repeated builds.
+                meta=zipfile.ZipInfo(name,date_time=(2026,10,20,0,0,0))
+                meta.compress_type=zipfile.ZIP_DEFLATED
+                meta.external_attr=(0o644 << 16)
+                target.writestr(meta,content,compress_type=zipfile.ZIP_DEFLATED,compresslevel=6)
             for item in source.infolist():
-                # original binary contents are unmodified; only main manifest changes
-                target.writestr(item.filename,serialized if item.filename==MANIFEST else source.read(item.filename))
-            target.writestr(NEW,data)
-            target.writestr('world-master/manifest_V50_before_surgical_candidate.json',source.read(MANIFEST))
-            target.writestr('CANDIDATE_V6_AUDIT.json',json.dumps(record,indent=2).encode('utf8'))
+                # Original contents are unmodified; only main manifest changes.
+                put(item.filename,serialized if item.filename==MANIFEST else source.read(item.filename))
+            put(NEW,data)
+            put('world-master/manifest_V50_before_surgical_candidate.json',source.read(MANIFEST))
+            put('CANDIDATE_V6_AUDIT.json',json.dumps(record,indent=2).encode('utf8'))
     with zipfile.ZipFile(resultzip,'r') as zz,zipfile.ZipFile(basezip,'r') as ss:
         if zz.testzip() is not None:raise AssertionError('CRC failure')
         candidate=json.loads(zz.read(MANIFEST));orig=json.loads(ss.read(MANIFEST))
