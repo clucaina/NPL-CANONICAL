@@ -384,7 +384,9 @@ function makeSourceComparisonControl(){
    const ready=!!recoveredMaster?.status().active;
    if(recoveredMaster)recoveredMaster.root.visible=showingArchivedMaster;
    decorGroup.visible=!(ready&&showingArchivedMaster);
-   osmCover?.update(ready&&showingArchivedMaster?recoveredMaster.status().tiles:[]);
+   // Visible G19 architecture only: never hide unrepresented OSM buildings.
+   const covers=ready&&showingArchivedMaster?recoveredMaster.architectureCoverage():[];
+   osmCover?.update(covers.map(c=>c.tileId),covers);
    button.textContent=showingArchivedMaster?'Vista: mundo original G19 / V50  ·  Cambiar a OSM':'Vista: OSM / PNOA  ·  Cambiar a G19 / V50';
    button.setAttribute('aria-pressed',String(showingArchivedMaster));
    window.NPL_COMPARISON={originalMaster:showingArchivedMaster,
@@ -407,7 +409,10 @@ function startRecoveredMasterIfRequested(){
      // PNOA ground and mapped asphalt remain visible; clip only covered walls.
      decorGroup.visible=!(active&&showingArchivedMaster);
    },
-   onCoverage:(tileIds)=>{osmCover?.update(showingArchivedMaster?tileIds:[]);}
+   onCoverage:(_tileIds,covers)=>{
+     const selected=showingArchivedMaster?covers:[];
+     osmCover?.update(selected.map(c=>c.tileId),selected);
+   }
  });
  recoveredMaster.setLoadPressure(qualityGovernor.snapshot().tier);
  recoveredMaster.initialize().then(()=>recoveredMaster.update(player.position)).then(()=>{
