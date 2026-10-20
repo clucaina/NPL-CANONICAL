@@ -46,6 +46,7 @@ overlay_file=D/"catastro_building_parts.json"
 # JSON geometry file without its exact original official WFS bytes.
 cadastre_source_count=0
 cadastre_coverage_complete=False
+cadastre_native_parts=[]
 if overlay_file.exists():
     source=json.loads(overlay_file.read_text(encoding="utf-8"))
     if (source.get("source")!="DG_CATASTRO_INSPIRE_BU_BUILDINGPART" or
@@ -102,6 +103,23 @@ if overlay_file.exists():
                 raise RuntimeError("Unsafe or unverified Catastro ring/height")
             prepared.append(([(float(a),float(b)) for a,b in pts],height))
         cadastre_matches[name]=prepared
+    if source.get("schema")=="neurocity.catastro-building-grid.v2":
+        native=source.get("independent_official_parts",[])
+        qa=source.get("independent_official_selection_qa",{})
+        if (not isinstance(native,list) or len(native)>350 or
+            not isinstance(qa,dict) or qa.get("accepted_native_parts")!=len(native)
+            or qa.get("metric_height_verified") is not False):
+            raise RuntimeError("Unverified standalone source budget or reported height")
+        for section in native:
+            floors=section.get("floors");h=section.get("height_estimated_m")
+            pts=section.get("ring")
+            if (type(floors) is not int or not 1<=floors<=30 or
+                h!=floors*3.0 or not isinstance(pts,list) or not 3<=len(pts)<=160 or
+                any(not isinstance(pt,list) or len(pt)!=2 or
+                    not all(type(v) in (int,float) and math.isfinite(v) for v in pt) or
+                    not (x1+1<=pt[0]<=x2-1 and y1+1<=pt[1]<=y2-1) for pt in pts)):
+                raise RuntimeError("Invalid safe standalone official volume")
+            cadastre_native_parts.append(([(float(a),float(b)) for a,b in pts],h))
 
 def append_building(pts,h):
     # Keep authentic source footprint vertices. Non-convex OSM and Catastro
@@ -152,6 +170,11 @@ for way in doc.findall("way"):
         h,realheight=height(tags);measured+=int(realheight)
         append_building(pts,h)
     total+=1
+# Standalone official sections have NO overlap with or proximity to ANY
+# mapped OSM footprint (verified in the source compiler before Blender).
+# They supplement missing streetscape rather than erasing its baseline.
+for ring,h_estimated in cadastre_native_parts:
+    append_building(ring,h_estimated)
 def add(name,verts,faces,mat):
     if not faces:return
     mesh=bpy.data.meshes.new(name);mesh.from_pydata(verts,[],faces);mesh.update()
@@ -221,6 +244,8 @@ result={"real_osm_buildings":total,"heights_directly_measured":measured,"omitted
 "private_avatar_included":False,"blender_version":list(bpy.app.version),
 "cadastre_building_parts_geometry":catastro_parts_drawn,
 "cadastre_original_osm_footprints_replaced":catastro_replaced_osm,
+"cadastre_native_official_parts_added":len(cadastre_native_parts),
+"cadastre_total_official_parts_rendered":catastro_parts_drawn+len(cadastre_native_parts),
 "cadastre_source_gml_sha256":catastro_sha,
 "cadastre_verified_source_tiles":cadastre_source_count,
 "cadastre_coverage_complete":cadastre_coverage_complete,
