@@ -540,6 +540,7 @@ function animateState(key){
  current=next;
 }
 const clock=new THREE.Clock();
+let nextPerformanceReportSec=0,nextPositionHudSec=0;
 function frame(){
  requestAnimationFrame(frame);
  const rawDt=clock.getDelta();
@@ -637,7 +638,8 @@ function frame(){
  sun.target.updateMatrixWorld();
  if(coastalWater)coastalWater.advance(clock.elapsedTime);
  renderer.render(scene,camera);
- if(Math.floor(clock.elapsedTime)!==Math.floor(clock.elapsedTime-dt)){
+ if(clock.elapsedTime>=nextPerformanceReportSec){
+   nextPerformanceReportSec=clock.elapsedTime+1;
    const state=qualityGovernor.snapshot();
    window.NEUROCITY_PERFORMANCE_QA={
      ...state,rendererDrawingBudgetApplied:true,webglContextLost:false,
@@ -652,7 +654,8 @@ function frame(){
        state.observedFrameRateApprox+' FPS estimados')+
      '. Mallas 3D intactas. Pulsa: Auto → Detalle → Ahorro.';
  }
- if(Math.floor(clock.elapsedTime*3)!==Math.floor((clock.elapsedTime-dt)*3)){
+ if(clock.elapsedTime>=nextPositionHudSec){
+   nextPositionHudSec=clock.elapsedTime+1/3;
    stat.textContent='x '+player.position.x.toFixed(0)+' m · z '+player.position.z.toFixed(0)+' m · '+mode;
  }
 }
