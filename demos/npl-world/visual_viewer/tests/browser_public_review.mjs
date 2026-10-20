@@ -80,6 +80,35 @@ try{
   if(await page.locator('#nplBrainCanvas').count())
     throw Error('Fake brain canvas regressed into canonical NeuroCity');
   await page.waitForTimeout(300);
+  // MATERIAL COMPARISON: two screenshots of actual Three.js city from the
+  // SAME camera pose/geometry, changing only a PBR shader uniform. Neither
+  // snapshot proves surveyed facade texture, a real person, or G19 deployment.
+  const materialStart=await page.evaluate(()=>window.NEUROCITY_MATERIAL_QA);
+  const pbrControl=page.locator('#pbrMicrorelief');
+  if(materialStart?.source!=='OSM_ACTUAL_WALLS_PROCEDURAL_PBR_DETAIL_NOT_SURVEYED'||
+     materialStart?.enhancedMaterials<1||materialStart?.worldmasterGeometryModified!==false||
+     materialStart?.textureDownloads!==0||
+     await pbrControl.isHidden()||await pbrControl.isDisabled()){
+    throw Error('Cannot compare PBR on actual existing OSM 3D walls: '+JSON.stringify(materialStart));
+  }
+  await pbrControl.click();
+  await page.waitForTimeout(250);
+  const original=await page.evaluate(()=>window.NEUROCITY_MATERIAL_QA);
+  if(original?.microreliefEnabled!==false||await pbrControl.getAttribute('aria-pressed')!=='false')
+    throw Error('Original real source geometry not reachable by live material switch');
+  await page.locator('#game').screenshot({path:'demos/npl-world/visual_viewer/dist/QA_FACADE_ORIGINAL_SAME_CAMERA.png'});
+  await pbrControl.click();
+  await page.waitForTimeout(250);
+  const pbr=await page.evaluate(()=>window.NEUROCITY_MATERIAL_QA);
+  if(pbr?.microreliefEnabled!==true||await pbrControl.getAttribute('aria-pressed')!=='true'||
+     pbr?.compareMode!=='SAME_SOURCE_GEOMETRY_ARTISTIC_MATERIAL_ONLY'){
+    throw Error('PBR material switch failed to return without G19 geometry changes');
+  }
+  await page.locator('#game').screenshot({path:'demos/npl-world/visual_viewer/dist/QA_FACADE_PBR_SAME_CAMERA.png'});
+  reportCopy.wallMicrorelief={source:pbr.source,enhancedMaterials:pbr.enhancedMaterials,
+    geometryUntouched:pbr.worldmasterGeometryModified===false,
+    noImportedTextures:pbr.textureDownloads===0,toggleRestored:true,
+    visualScreenshots:'Two real WebGL frames, visual improvement not independently certified'};
   // Actual Three.js canvas remains interactive while users cycle the
   // session-only dynamic rendering budget: no GLB/model geometry is replaced.
   reportCopy.errorsBeforeQualityToggle=consoleErrors.slice();

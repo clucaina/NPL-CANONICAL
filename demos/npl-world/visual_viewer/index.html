@@ -113,7 +113,7 @@ button:hover{background:#2e6474}button:disabled{opacity:.45;cursor:not-allowed}
 </style></head><body>
 <canvas id="game"></canvas>
 <header class="panel"><strong>N✦ NPL WORLD</strong><p>Explanada de Alicante · Edificios OSM y escena 3D con vestuario y paisaje mediterráneo.<br><small>Ciudad y semejanza facial aún no fotogramétricas.</small></p></header>
-<div id="panelControls" class="panel"><button id="cam">◉ Cámara (C)</button><button id="face">◎ Ver rostro</button><button id="fidelity">◈ Calidad</button><button id="nplCanonicalOpen" type="button" aria-haspopup="dialog" aria-expanded="false">◉ NPL · Atlas 3D real</button><button id="reset">↻ Centrar</button></div>
+<div id="panelControls" class="panel"><button id="cam">◉ Cámara (C)</button><button id="face">◎ Ver rostro</button><button id="fidelity">◈ Calidad</button><button id="pbrMicrorelief" type="button" hidden disabled aria-pressed="true" title="Comparar revoco PBR original con microrelieve procedural; sin cambiar geometría">◌ Revoco PBR</button><button id="nplCanonicalOpen" type="button" aria-haspopup="dialog" aria-expanded="false">◉ NPL · Atlas 3D real</button><button id="reset">↻ Centrar</button></div>
 <div id="nplCanonicalDialog" hidden role="dialog" aria-modal="true" aria-labelledby="nplCanonicalHeading">
 <header class="npl-canonical-header"><div><h2 id="nplCanonicalHeading">NPL · Atlas anatómico canónico</h2><p>437 estructuras originales · fuente NPL C14-R3 · navegación anatómica auténtica</p></div><button id="nplCanonicalClose" type="button" aria-label="Cerrar atlas NPL y volver a Alicante">✕ Volver a Alicante</button></header>
 <div id="nplCanonicalStatus" role="status" aria-live="polite">Atlas original pendiente de carga.</div>
@@ -131,9 +131,25 @@ button:hover{background:#2e6474}button:disabled{opacity:.45;cursor:not-allowed}
 <div id="loading"><h2>Cargando recursos locales 3D</h2><p id="progress">Preparando motor gráfico…</p><p>No se descargan personas ni edificios al abrir. Los modelos ya están en el paquete.</p></div>
 <div id="stat" class="panel">0,0 m</div><div id="info" class="panel"><span id="messageText">W/S avanzar y retroceder · A/D lateral · Mayús correr · ratón cámara</span> · <span id="cameraMode">Tercera persona</span></div>
 <script>
+// Measure actual wrapping controls instead of assuming their old height.
+ // The sixth PBR button must never cover the page title on touch screens.
+ const topControls=document.getElementById('panelControls');
+ const mobileHeader=document.querySelector('header.panel');
+ const syncHeaderSpace=()=>{
+   if(!topControls||!mobileHeader)return;
+   if(!window.matchMedia('(max-width:680px)').matches){
+     mobileHeader.style.removeProperty('top');return;
+   }
+   mobileHeader.style.top=Math.ceil(topControls.getBoundingClientRect().bottom+10)+'px';
+ };
+ if(topControls&&mobileHeader){
+   if(typeof ResizeObserver==='function')new ResizeObserver(syncHeaderSpace).observe(topControls);
+   window.addEventListener('resize',syncHeaderSpace);
+   requestAnimationFrame(syncHeaderSpace);
+ }
 // Compact labels keep all five tools on one phone row without hiding the title.
 if(window.matchMedia?.('(max-width:680px)')?.matches){
- const compact={cam:'◉ Cámara',face:'◎ Rostro',nplCanonicalOpen:'◎ Atlas',reset:'↻ Centro'};
+ const compact={cam:'◉ Cámara',face:'◎ Rostro',nplCanonicalOpen:'◎ Atlas',pbrMicrorelief:'◌ Revoco',reset:'↻ Centro'};
  for(const [id,label] of Object.entries(compact)){
    const button=document.getElementById(id);
    if(button){button.setAttribute('aria-label',button.textContent.trim());button.textContent=label;}
