@@ -494,7 +494,7 @@ async function loadWorld(){
   showLoad('Alicante 3D cargada: edificios reales y calle a nivel humano. Cargando cuerpo humano animado…');
  }catch(err){display('No se ha podido cargar la ciudad GLB: '+(err?.message||err),true);showLoad('ERROR: falta assets/alicante.glb');return;}
  if(publicPreview){enterPublicCity();startRecoveredMasterIfRequested();return;}
- // Owner-only V8 original 86 GLB source archive is opt-in, not a public download.
+ // Previously private avatar mode returned without ever loading the 86 owner GLBs.
  if(ownerWorldRequested)startRecoveredMasterIfRequested();
  try{
   const data=await model('./assets/maya.glb');
