@@ -4,6 +4,7 @@ import {matrixElementsForTile,VERTICAL_DATUM_VERIFIED,MAX_SAMPLED_TILE_PROJECTIO
 import {instantiateMasterPalms,instantiateArchivedStreetlights} from './asset_instancing.mjs';
 import {hideCarbonellG19Duplicate} from './g14_carbonell_dedup.mjs';
 import {createBoundedAssetQueue} from './bounded_loading.mjs';
+import {architectureMaskFromLoadedGLB} from './g19_architecture_coverage.mjs';
 
 /**
  * Optional local GLB recovery layer compatible with Three.js r169.
@@ -181,17 +182,38 @@ export class RecoveredMasterTiles {
    await Promise.all(desired.map(id=>this._ensureTile(id)));
    const covered=Array.from(this.states.values()).filter(s=>s.ready&&s.loaded>0).map(s=>s.id);
    const active=covered.length>0;
-   this.onCoverage(Array.from(this.states.values()).filter(s=>s.ready&&s.roles.has('architecture')&&s.errors===0).map(s=>s.id));
+   const architecture=this.architectureCoverage();
+   this.onCoverage(architecture.map(a=>a.tileId),architecture);
    if(active!==this.recoveredVisible){
      this.recoveredVisible=active;this.onVisibility(active);
    }
    return this.status();
+ }
+ architectureCoverage(){
+   const covers=[];
+   for(const state of this.states.values()){
+     if(!state.ready||!state.roles.has('architecture'))continue;
+     if(state.architectureCoverage===undefined){
+       try{
+         const m=architectureMaskFromLoadedGLB(state.group,state.id);
+         // Fail closed: no real triangles or no actual occupied cells -> no OSM masking.
+         state.architectureCoverage=m.sourceMeshes>0&&m.coveredCells>0?m:null;
+       }catch(e){
+         state.architectureCoverage=null;
+         this.errors.push({tile:state.id,role:'architecture_coverage',reason:String(e?.message||e).slice(0,160)});
+       }
+     }
+     if(state.architectureCoverage)covers.push(state.architectureCoverage);
+   }
+   return covers;
  }
  status(){
    return {
      active:this.recoveredVisible,installed:!!this.manifest,profile:this.profile,
      tiles:Array.from(this.states.values()).filter(x=>x.ready).map(x=>x.id),
      assetsLoaded:Array.from(this.states.values()).reduce((n,s)=>n+s.loaded,0),
+     architectureCoverageTiles:this.architectureCoverage().map(c=>c.tileId),
+     architectureMaskedPixels:this.architectureCoverage().reduce((n,c)=>n+c.coveredCells,0),
      verifiedG14HiddenOldBuildingMeshes:Array.from(this.states.values()).reduce((n,s)=>n+(s.hiddenLegacyCarbonell||0),0),
      errors:this.errors.slice(-12),assetQueue:this.assetQueue.stats(),
      georeferencedTo:'EPSG:3857_per_tile_PROJ_500m',
