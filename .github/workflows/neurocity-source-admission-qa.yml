@@ -1,0 +1,43 @@
+name: "NeuroCity · free-source provenance and altitude gate (NO DEPLOY)"
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'tools/neurocity/public_free_sources_20261020.json'
+      - 'tools/neurocity/source_admission.py'
+      - 'tools/neurocity/test_source_admission.py'
+      - '.github/workflows/neurocity-source-admission-qa.yml'
+permissions:
+  contents: read
+concurrency:
+  group: neurocity-source-admission-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  provenance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Enforce provenance, datum, public metadata and LICENSE security
+        run: python3 -m unittest discover -s tools/neurocity -p 'test_source_admission.py' -v
+      - name: Write a zero-binary source decision report
+        run: |
+          python3 tools/neurocity/source_admission.py --output _neurocity_source_qa/report.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('_neurocity_source_qa/report.json'))
+          assert p['schema']=='neurocity.public-source-admission-report.v1'
+          assert p['discovered']==10 and p['admitted']==0
+          assert p['generated_world_glbs']==0 and p['not_in_city'] is True
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NEUROCITY_SOURCE_PROVENANCE_QA_METADATA_ONLY
+          path: _neurocity_source_qa/report.json
+          retention-days: 7
+          if-no-files-found: error
