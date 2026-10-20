@@ -29,6 +29,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Preflight JavaScript syntax before downloading historical 3D artifact
+        run: |
+          node --check demos/npl-world/visual_viewer/tests/browser_public_review.mjs
+          node --check demos/npl-world/visual_viewer/tests/browser_mobile_review.mjs
+          node --check demos/npl-world/visual_viewer/app.js
       - name: Reuse ONLY previously source-verified PUBLIC Alicante geometry, never private G19
         env:
           GH_TOKEN: ${{ github.token }}
