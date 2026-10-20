@@ -25,11 +25,34 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - name: Checkout actual V7 brain and V50 master source (public only)
+      - name: Identify latest owner-only NeuroCity V7 review branch
+        id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Read ONLY PR metadata; never checkout pull requests from external forks.
+          ref=$(gh api "repos/${REPO}/pulls?state=open&per_page=100" |
+            jq -r --arg repo "$REPO" '[.[] |
+              select(.head.repo.full_name==$repo) |
+              select(.head.ref | test("^(feat|fix)/neurocity-(v7|restore-real-npl)")) |
+              select(.draft==true) ] |
+              sort_by(.number) | last | .head.ref // empty')
+          if [ -z "$ref" ]; then
+            ref='feat/neurocity-restore-real-npl-canonical-brain-v50-20261020'
+          fi
+          # Git checkout accepts only repository-owner branches from this allowlist.
+          if ! [[ "$ref" =~ ^(feat|fix)/neurocity-[a-zA-Z0-9_/-]+$ ]]; then
+            echo "Ref rejected by owner-only allowlist"; exit 3
+          fi
+          printf 'ref=%s\n' "$ref" >> "$GITHUB_OUTPUT"
+      - name: Checkout current reviewed V7 descendant (public code only)
         uses: actions/checkout@v4
         with:
-          ref: feat/neurocity-restore-real-npl-canonical-brain-v50-20261020
-          path: city-v7
+          ref: ${{ steps.candidate.outputs.ref }}
+          path: city-current
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -43,17 +66,18 @@ jobs:
           mkdir -p reports
           printf '# NeuroCity - verified hourly rehearsal\n\n' > reports/REPORT.md
           printf 'Execution UTC: %s\n\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> reports/REPORT.md
-          printf 'Source: original NPL/V50 **V7**, physical collisions, Catastro + sea + Gameplay rehearsal.\n\n' >> reports/REPORT.md
+          printf 'Source: newest owner-only review branch descending from NPL/V50 **V7**, plus independent private assembler, Catastro, coastline and gameplay audits.\n\n' >> reports/REPORT.md
           printf '**Important:** an ephemeral merge is NOT a production merge; a passing test is NOT photographic fidelity or a 60-view validation.\n\n' >> reports/REPORT.md
           printf 'Private original GLBs/avatars are NOT downloaded, read or redistributed by this job.\n\n' >> reports/REPORT.md
-          cp -a city-v7 city-integrated
+          cp -a city-current city-integrated
           git -C city-integrated config user.email 'neurocity-ci@users.noreply.github.com'
           git -C city-integrated config user.name 'NeuroCity CI (temporary)'
-          printf 'Base V7 SHA: %s\n\n' "$(git -C city-v7 rev-parse HEAD)" >> reports/REPORT.md
+          printf 'Reviewed owner branch: %s; SHA: %s\n\n' "${{ steps.candidate.outputs.ref }}" "$(git -C city-current rev-parse HEAD)" >> reports/REPORT.md
           blocked=0
           for pair in \
-            'collision:feat/neurocity-physical-wall-collision-20261020' \
-            'integrated-sources:ci/neurocity-multi-source-unification-rehearsal-20261020'; do
+            'private-assembler:tools/neurocity-private-world-reproducible-assembler-20261020' \
+            'integration-geo:ci/neurocity-multi-source-unification-rehearsal-20261020' \
+            'cadastre-browser:feat/neurocity-real-cadastre-playable-webgl-20261020'; do
             label="${pair%%:*}"
             ref="${pair#*:}"
             printf '## %s\n\n' "$label" >> reports/REPORT.md
@@ -77,15 +101,15 @@ jobs:
           done
           echo "$blocked" > reports/merge-blocked.txt
           printf '## Source-only regression tests\n\n' >> reports/REPORT.md
-          # The V7 tests always run even when the integration is blocked.
-          cd city-v7/demos/npl-world/visual_viewer
+          # Current real code tests always run even when peer integration is blocked.
+          cd city-current/demos/npl-world/visual_viewer
           if npm install --no-audit --no-fund > ../../../../reports/v7-install.log 2>&1 &&
              node --test tests/*.test.mjs > ../../../../reports/v7-tests.log 2>&1 &&
              npm run build > ../../../../reports/v7-build.log 2>&1; then
-            printf 'V7 source tests + game bundle: PASS.\n\n' >> ../../../../reports/REPORT.md
+            printf 'Current V7 descendant source tests + game bundle: PASS.\n\n' >> ../../../../reports/REPORT.md
             echo PASS > ../../../../reports/v7-result.txt
           else
-            printf 'V7 source tests or build: FAIL; inspect saved logs.\n\n' >> ../../../../reports/REPORT.md
+            printf 'Current V7 descendant source tests or build: FAIL; inspect saved logs.\n\n' >> ../../../../reports/REPORT.md
             echo FAIL > ../../../../reports/v7-result.txt
           fi
           cd ../../../..
