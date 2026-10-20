@@ -67,6 +67,7 @@ test('close cancels all queued glTF requests while allowing running step to fini
  assert.equal(await queued,null);
  assert.equal(q.stats().skipped,1);
  unlock('done');assert.equal(await p,'done');
+ await tick(); // The queue decrements running during the microtask finally stage.
  assert.equal(q.stats().running,0);
  assert.throws(()=>createBoundedAssetQueue({concurrency:0}),RangeError);
 });
