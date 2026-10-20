@@ -7,7 +7,11 @@ class ContinuityTests(unittest.TestCase):
  def make(self,root):
   for rel,needles in mod.CONTRACTS.values():
    p=root/rel;p.parent.mkdir(parents=True,exist_ok=True)
-   p.write_text('\n'.join(needles)+'\n',encoding='utf8')
+   # Multiple independent V8 capabilities may be checked in the same source
+   # file; construct the test fixture as a UNION, not overwrite the previous
+   # synthetic contract when a second capability names app.js.
+   prior=p.read_text(encoding='utf8') if p.exists() else ''
+   p.write_text(prior+'\n'.join(needles)+'\n',encoding='utf8')
  def test_unchanged_cross_chat_source_contracts_pass(self):
   with tempfile.TemporaryDirectory() as t:
    p=Path(t);self.make(p)
