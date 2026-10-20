@@ -117,6 +117,7 @@ test('real Three scene uses local GLBs only; native loader and original city fal
    assert.ok(stats.tiles.includes('r02_c00'));
    const node=scene.getObjectByName('WORLDMASTER_r02_c00');
    assert.ok(node,'Real tile transform node must exist');
+   assert.equal(node.visible,true,'Ready original geometry must be renderable');
    assert.ok(Math.abs(node.matrix.elements[12]-(-268.379904197))<.000001);
    assert.ok(stats.maxSampledProjectionResidualM<=.010);
    assert.equal(stats.sourceGeometryAccuracyNotCertified,true);
@@ -151,6 +152,8 @@ test('partial failed master tiles do not hide official OSM baseline',async()=>{
    await engine.initialize();await engine.update({x:-10.664,z:113.546});
    assert.equal(hidden,false);
    assert.equal(engine.status().active,false);
+   assert.equal(scene.getObjectByName('WORLDMASTER_r02_c00')?.visible,false,
+     'Partially decoded original tile must never paint over the OSM fallback');
    assert.ok(engine.status().errors.length>=1);
    engine.dispose();
  }finally{globalThis.fetch=oldFetch;globalThis.document=oldDoc;globalThis.location=oldLoc;}

@@ -1,4 +1,5 @@
 import {viewerToMaster} from './geo_alignment.mjs';
+import {selectTileAssetsWithinBudget} from './tile_budget_policy.mjs';
 
 export const TILEPACK_SCHEMA='neurocity.local-worldmaster-tiles.v1';
 export const TILE_SPAN_M=500;
@@ -66,23 +67,12 @@ export function plannedLayers(tile,profile='desktop'){
   const hasV50Furniture=tile.assets.some(a=>a.role==='furniture');
   const candidates=tile.assets.filter(a=>{
     if(profile==='desktop')return !(a.role==='streetlamp'&&hasV50Furniture);
-    return !['facade','furniture'].includes(a.role);
+    return !['facade','furniture','environment','driving','lod'].includes(a.role);
   })
       .sort((a,b)=>(priority[a.role]??99)-(priority[b.role]??99)||a.path.localeCompare(b.path));
   // Original 2026 checkpoint: r02_c00 alone has >600k triangles. Loading
   // every old GLB on low-end mobile without LOD is NOT acceptable.
-  const cap=profile==='mobile'?290_000:1_500_000;
-  let triangles=0,images=0;
-  const selected=[];
-  for(const asset of candidates){
-    // Conservative proxy for backward-compatible manifests with no audited
-    // geometry metadata; regeneration populates the actual GLB counts.
-    const cost=asset.triangle_estimate ?? Math.ceil(asset.bytes/20);
-    const imageCost=asset.embedded_images ?? 1;
-    const mustKeep=['terrain','geo','urban','architecture','mosaic'].includes(asset.role);
-    if(profile==='mobile' && ['environment','driving','lod'].includes(asset.role))continue;
-    if(!mustKeep&&(triangles+cost>cap||images+imageCost>(profile==='mobile'?30:140)))continue;
-    selected.push(asset);triangles+=cost;images+=imageCost;
-  }
-  return selected;
+  // All GLBs, including terrain and architecture, must fit an estimated budget.
+  // Missing required geometry leaves the existing OSM baseline as the fallback.
+  return selectTileAssetsWithinBudget(candidates,profile);
 }
