@@ -195,6 +195,9 @@ export class RecoveredPhysicalAtlas{
   for(let i=0;i<n;i++){
     const x=dx/n,z=dz/n;
     const move=(a,b)=>{
+      // Zero-vector cannot count as successful obstacle sliding: otherwise
+      // frontal collision is silently reported as movement along the wall.
+      if(Math.abs(a)+Math.abs(b)<1e-10)return false;
       const next={x:position.x+a,z:position.z+b};
       const check=this.canOccupy(next.x,next.z,{radius,from:position});
       if(check.allowed===false)return false;
