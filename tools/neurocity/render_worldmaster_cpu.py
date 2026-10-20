@@ -25,8 +25,6 @@ def select_qa_assets(manifest,sector="r02_c00"):
         raise ValueError("Refuse pack with unverified publication rights")
     tile=next((t for t in manifest.get("tiles",[]) if t.get("id")==sector),None)
     if tile is None:raise ValueError("Recovered 500m sector absent")
-    picked=[a for a in tile["assets"] if a.get("role") in SAFE_ROLES and
-            a.get("role")!="landmark" or False]
     # Restore exactly three source-identified landmarks and the original
     # source six Phoenix geometries, never inferred 3D staff or private avatars.
     picked=[a for a in tile["assets"] if a.get("role") in SAFE_ROLES]
