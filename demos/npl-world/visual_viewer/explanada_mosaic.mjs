@@ -42,7 +42,7 @@ export function mosaicDesign(tier='desktop'){
   source:MOSAIC_SOURCE,tier,width,height,tile,
   estimatedPieces:Math.ceil(width/tile)*Math.ceil(height/tile),
   colors:['slate','cream','terracotta'],
-  irregularGrout:true,surfaceEstimated:true,photoDerived:false,
+  irregularGrout:true,ceramicShapes:'staggered_irregular_hexagonal_fragments',surfaceEstimated:true,photoDerived:false,
   geographicFootprintSurveyed:false,
   historicalV50PreferredWhenAvailable:true
  });
@@ -58,22 +58,27 @@ export function paintMosaic(ctx,{tier='desktop'}={}){
    const color=waveBand(x+spec.tile*.5,y+spec.tile*.5,spec.width,spec.height);
    const colors=MOSAIC_PALETTE[color];
    const shade=Math.min(colors.length-1,Math.floor(tileVariation(col,row,2)*colors.length));
-   const s=spec.tile,j=.6,margin=.9;
-   const corners=[
-      [x+margin+tileVariation(col,row,3)*j,y+margin+tileVariation(col,row,4)*j],
-      [x+s-margin-tileVariation(col,row,5)*j,y+margin+tileVariation(col,row,6)*j],
-      [x+s-margin-tileVariation(col,row,7)*j,y+s-margin-tileVariation(col,row,8)*j],
-      [x+margin+tileVariation(col,row,9)*j,y+s-margin-tileVariation(col,row,10)*j]
-   ];
+   // Staggered six-sided broken ceramic tesserae. A regular square grid
+   // recreated the old "LEGO" look even with better colors; asymmetric
+   // facets and changing grout joints break that artificial alignment.
+   const s=spec.tile,cx=x+s*(.49+(row%2)*.45),cy=y+s*.51;
+   const corners=[];
+   for(let k=0;k<6;k++){
+     const ang=(Math.PI/3)*k+Math.PI/6+
+       (tileVariation(col,row,11+k)-.5)*.17;
+     const radial=s*(.465+.08*(tileVariation(col,row,18+k)-.5));
+     corners.push([cx+Math.cos(ang)*radial,cy+Math.sin(ang)*radial]);
+   }
    ctx.beginPath();
-   ctx.moveTo(...corners[0]);ctx.lineTo(...corners[1]);
-   ctx.lineTo(...corners[2]);ctx.lineTo(...corners[3]);ctx.closePath();
+   ctx.moveTo(...corners[0]);
+   for(const corner of corners.slice(1))ctx.lineTo(...corner);
+   ctx.closePath();
    ctx.fillStyle=colors[shade];ctx.fill();painted++;
    // Tiny glazed ridge, not fake deep tile bevels.
    if(spec.tier==='desktop'){
      ctx.strokeStyle='rgba(255,246,229,.13)';ctx.lineWidth=.42;
-     ctx.beginPath();ctx.moveTo(...corners[3]);ctx.lineTo(...corners[0]);
-     ctx.lineTo(...corners[1]);ctx.stroke();
+     ctx.beginPath();ctx.moveTo(...corners[4]);ctx.lineTo(...corners[5]);
+     ctx.lineTo(...corners[0]);ctx.stroke();
    }
   }
  }
