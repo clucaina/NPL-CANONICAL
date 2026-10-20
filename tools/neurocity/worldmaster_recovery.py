@@ -18,7 +18,7 @@ MAX_ENTRIES=1200
 MAX_ENTRY=90_000_000
 MAX_TOTAL=550_000_000
 HEX=re.compile(r"^[0-9a-f]{64}$")
-SAFE_ASSET=re.compile(r"^(assets/(?:source/ASSETS/(?:tiles|G14|G15|G17)|selected|prefabs)/[a-zA-Z0-9_./-]+|geo/data/[a-zA-Z0-9_./-]+)$")
+SAFE_ASSET=re.compile(r"^(assets/(?:source/ASSETS/(?:tiles|G14|G15|G17)|selected|prefabs)/[a-zA-Z0-9_./-]+|geo/(?:data|CONTRATO|PHYSICS)/[a-zA-Z0-9_./-]+)$")
 REJECT_PUBLIC=("person","patient","avatar","lucia","face","biometric","medical","fufu","rocketbox","private")
 
 def glb_structural_qa(raw:bytes)->dict:
