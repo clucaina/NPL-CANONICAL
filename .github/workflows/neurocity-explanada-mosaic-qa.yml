@@ -1,0 +1,45 @@
+name: NeuroCity Explanada physical mosaic QA (NO DEPLOY)
+on:
+  pull_request:
+    paths:
+      - 'tools/neurocity/explanada_mosaic/**'
+      - '.github/workflows/neurocity-explanada-mosaic-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: mosaic-qa-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  make-verify-model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: tools/neurocity/explanada_mosaic
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install open-source build dependencies (no GPU or paid service)
+        run: python -m pip install --disable-pip-version-check numpy==2.3.5 pillow==12.3.0 trimesh==4.11.1
+      - name: Generate actual near 3D mesh and textured distant glTF locally
+        run: python build_mosaic.py --out asset --texture-pixels 2400
+      - name: Validate glTF2 contents, triangle counts, textures, SHA and seed
+        run: python -m unittest discover -s . -p 'test_mosaic.py' -v
+      - name: Confirm optional loader cannot silently change G19 physics
+        run: node test_mosaic_lod.mjs
+      - name: Assert classification remains a CANDIDATE, not a completed game
+        run: |
+          python - <<'PY'
+          import json
+          m=json.load(open('asset/mosaic_manifest.json',encoding='utf8'))
+          assert m['publish_allowed'] is False
+          assert m['visual_fidelity_approved'] is False
+          assert m['world_master_georeference_verified'] is False
+          assert m['vertical_datum_verified'] is False
+          assert m['near']['tesserae']==10000
+          assert m['near']['marble_triangles']==100000
+          assert m['far']['far_triangles']==2
+          PY
