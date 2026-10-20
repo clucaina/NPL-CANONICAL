@@ -1,0 +1,73 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createBoundedAssetQueue} from '../bounded_loading.mjs';
+const tick=()=>new Promise(resolve=>setImmediate(resolve));
+test('loading 9 original GLB requests never exceeds shared concurrency budget',async()=>{
+ const q=createBoundedAssetQueue({concurrency:2});
+ let active=0,peak=0,done=[];
+ const tasks=Array.from({length:9},(_,index)=>q.schedule(async()=>{
+   active++;peak=Math.max(active,peak);
+   await tick();await tick();
+   active--;done.push(index);return index;
+ }));
+ assert.deepEqual(await Promise.all(tasks),[0,1,2,3,4,5,6,7,8]);
+ assert.equal(peak,2);
+ assert.equal(q.stats().maxObserved,2);
+ assert.equal(q.stats().completed,9);
+ assert.equal(q.stats().queued,0);
+ assert.equal(q.stats().remoteTelemetry,false);
+ q.close();
+});
+test('evicting a tile removes pending work without starting GLB parses',async()=>{
+ const q=createBoundedAssetQueue({concurrency:1});
+ let done;
+ const blocker=new Promise(resolve=>{done=resolve;});
+ const first=q.schedule(()=>blocker);
+ let invalidated=false,called=0;
+ const next=q.schedule(()=>{called++;return 7;},{cancelled:()=>invalidated});
+ invalidated=true;
+ assert.equal(q.discardCancelled(),1);
+ assert.equal(await next,null);
+ done('loaded');assert.equal(await first,'loaded');
+ assert.equal(called,0);
+ assert.equal(q.stats().skipped,1);
+ q.close();
+});
+test('mobile queues do not exceed one in-flight request, runtime change is bounded',async()=>{
+ const q=createBoundedAssetQueue({concurrency:1});
+ let unlock,started=0;
+ const gate=new Promise(resolve=>{unlock=resolve;});
+ const slow=q.schedule(async()=>{started++;await gate;return 1;});
+ const next=q.schedule(async()=>{started++;return 2;});
+ await tick();assert.equal(started,1);
+ assert.equal(q.stats().running,1);
+ q.setConcurrency(2);
+ await tick();assert.equal(started,2);
+ assert.equal(await next,2);
+ unlock();assert.equal(await slow,1);
+ assert.throws(()=>q.setConcurrency(20),RangeError);
+ q.close();assert.equal(q.stats().closed,true);
+ await assert.rejects(()=>q.schedule(()=>1),/closed/);
+});
+test('a task failure is counted and a later request still executes',async()=>{
+ const q=createBoundedAssetQueue({concurrency:1});
+ const bad=q.schedule(async()=>{throw Error('SHA256 mismatch')});
+ await assert.rejects(bad,/SHA256 mismatch/);
+ assert.equal(await q.schedule(()=>42),42);
+ assert.equal(q.stats().failed,1);
+ q.close();
+});
+test('close cancels all queued glTF requests while allowing running step to finish',async()=>{
+ const q=createBoundedAssetQueue({concurrency:1});
+ let unlock;
+ const p=q.schedule(()=>new Promise(resolve=>{unlock=resolve;}));
+ await tick();
+ const queued=q.schedule(()=>99);
+ q.close();
+ assert.equal(await queued,null);
+ assert.equal(q.stats().skipped,1);
+ unlock('done');assert.equal(await p,'done');
+ await tick(); // The queue decrements running during the microtask finally stage.
+ assert.equal(q.stats().running,0);
+ assert.throws(()=>createBoundedAssetQueue({concurrency:0}),RangeError);
+});
