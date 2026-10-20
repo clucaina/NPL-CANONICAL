@@ -31,13 +31,22 @@ jobs:
           python tools/neurocity/integration_rehearsal.py --repo . --report /tmp/neurocity-integration.json
           rc=$?
           echo "merge_ok=$([[ $rc -eq 0 ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=Path('/tmp/neurocity-integration.json')
+          ok=p.exists() and json.loads(p.read_text()).get('ready_for_build') is True
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f:
+              f.write('build_ok='+('true' if ok else 'false')+'\n')
+          print('Build compatible subset:',ok)
+          PY
           exit 0
       - uses: actions/setup-node@v4
-        if: steps.merge.outputs.merge_ok == 'true'
+        if: steps.merge.outputs.build_ok == 'true'
         with:
           node-version: 22
       - name: Run integrated game module tests and produce compiled WebGL bundle
-        if: steps.merge.outputs.merge_ok == 'true'
+        if: steps.merge.outputs.build_ok == 'true'
         working-directory: demos/npl-world/visual_viewer
         run: |
           npm ci --no-audit --no-fund
