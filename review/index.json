@@ -162,9 +162,29 @@
       "release_gate": "NO_AUTO_IMPORT_NO_AUTO_DEPLOY",
       "raw_values_copied": false,
       "source_exists_in_catalog": false
+    },
+    {
+      "schema": "neurohuerto.public_source_candidate.v1",
+      "id": "T40_FUENTES_CIS_REVISION_20261008",
+      "source_repository": "clucaina/psicologia-politica",
+      "source_ref": "integracion/v78-maestro-sin-despliegue",
+      "source_path": "database/T40_FUENTES_CIS_REVISION_20261008.json",
+      "source_blob_sha": "22f1c282dd9ba9d93fe4240e8c0d98650c187ed7",
+      "raw_sha256": "4d258a0fae834cfd9b6af82ccd940febe1f97a44fad3c2f6de0620aed872b601",
+      "data_quality": "REJECTED_FORMAT",
+      "candidate_kind": "DOCUMENT_ONLY",
+      "independent_statistical_review_allowed": false,
+      "rows_automatically_examined": 0,
+      "quality_flags": {
+        "invalid_batch": 1
+      },
+      "review_state": "NEEDS_INDEPENDENT_LICENSE_AND_METHOD_REVIEW",
+      "release_gate": "NO_AUTO_IMPORT_NO_AUTO_DEPLOY",
+      "raw_values_copied": false,
+      "source_exists_in_catalog": false
     }
   ],
-  "candidate_count": 8,
-  "feedback_changed": 4,
+  "candidate_count": 9,
+  "feedback_changed": 0,
   "publication_authorized": false
 }
