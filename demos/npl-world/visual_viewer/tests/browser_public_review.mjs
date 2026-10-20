@@ -7,7 +7,7 @@ const browser=await chromium.launch({
 });
 const page=await browser.newPage({viewport:{width:1440,height:900},deviceScaleFactor:1});
 const consoleErrors=[],failedRequests=[];
-page.on('pageerror',error=>consoleErrors.push(error.message));
+page.on('pageerror',error=>consoleErrors.push(String(error.stack||error.message).slice(0,2400)));
 page.on('requestfailed',request=>failedRequests.push(request.url()));
 let report={};
 try{
@@ -82,6 +82,7 @@ try{
   await page.waitForTimeout(300);
   // Actual Three.js canvas remains interactive while users cycle the
   // session-only dynamic rendering budget: no GLB/model geometry is replaced.
+  reportCopy.errorsBeforeQualityToggle=consoleErrors.slice();
   const perfAtStart=await page.evaluate(()=>window.NEUROCITY_PERFORMANCE_QA);
   if(perfAtStart?.mode!=='auto'||perfAtStart?.plan?.geometryUnchanged!==true||
      perfAtStart?.privateModelInfoExcluded!==true||
