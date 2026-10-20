@@ -59,6 +59,38 @@ class OfficialTerrainLodTests(unittest.TestCase):
             audit=json.loads((Path(d)/"SOURCE_LICENSE_QA.json").read_text())
             self.assertEqual(audit["license"],"CC-BY-4.0")
 
+    def test_04_real_mdt_uses_g19_south_positive_z_and_upward_faces(self):
+        import struct
+        raw=self.real_geotiff_fixture()
+        q={"status":"OFFICIAL_RASTER_PIXELS_VALIDATED_DATUM_PENDING",
+           "source_file_sha256":hashlib.sha256(raw).hexdigest()}
+        with tempfile.TemporaryDirectory() as tmp:
+            audit=candidate_lods(raw,tmp,q)
+            self.assertTrue(audit["G19_horizontal_axis_convention_used"])
+            glb=(Path(tmp)/audit["lods"][0]["file"]).read_bytes()
+            jlen,tag=struct.unpack_from("<I4s",glb,12)
+            self.assertEqual(tag,b"JSON")
+            document=json.loads(glb[20:20+jlen])
+            binary_start=20+jlen+8
+            view=document["bufferViews"][0]
+            positions=[
+                struct.unpack_from("<3f",glb,binary_start+view["byteOffset"]+i*12)
+                for i in range(document["accessors"][0]["count"])
+            ]
+            self.assertEqual(document["extras"]["local_axes"],
+                             "x=easting-minE; y=height; z=maxN-northing; G19 south-positive")
+            self.assertAlmostEqual(positions[0][0],7.5,places=3)
+            self.assertAlmostEqual(positions[0][2],2.5,places=3)
+            self.assertLess(positions[0][2],positions[-1][2])
+            self.assertGreater(positions[-1][2],495)
+            ixview=document["bufferViews"][2]
+            ai,bi,ci=struct.unpack_from("<3I",glb,binary_start+ixview["byteOffset"])
+            a,b,c=(positions[k] for k in (ai,bi,ci))
+            # Cross product's Y-component must be positive in G19's Y-up geometry.
+            normal_y=(b[2]-a[2])*(c[0]-a[0])-(b[0]-a[0])*(c[2]-a[2])
+            self.assertGreater(normal_y,0)
+            self.assertFalse(document["extras"]["vertical_datum_tie_to_G19_verified"])
+
     def test_04_unverified_sha_must_not_make_fake_glb(self):
         data=self.real_geotiff_fixture()
         with tempfile.TemporaryDirectory() as d:
