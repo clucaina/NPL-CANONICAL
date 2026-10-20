@@ -10,6 +10,7 @@ import {buildHedgeLayer} from './hedge_layer.mjs';
 import {createSurfaceTexture,enhanceMappedOSMRoads} from './road_surfaces.mjs';
 import {enhanceSourceMappedWater} from './water_surface.mjs';
 import {createExplanadaMosaic} from './explanada_mosaic.mjs';
+import {enhanceMappedBuildingFacades} from './facade_stucco.mjs';
 import {mountBrain3D} from './npl_brain3d.mjs';
 import {startBehaviorSession,selectProcess,sampleBehavior,publicBehaviorSnapshot,NPL_PROCESS_IDS} from './npl_behavior.mjs';
 import {inspectDataset,compareObservation,missionStart,missionStep,cognitivePulse,STAGES} from './neuro_mission.mjs';
@@ -328,7 +329,7 @@ if($('nplBrainStatus'))$('nplBrainStatus').textContent=brainRenderer.available?
 updateBrainPanel();
 const urbanKit=publicPreview?buildUrbanKit({tier:visualTier}):null;
 const hedgeLayer=publicPreview?buildHedgeLayer(visualTier):null;
-let roadStatus=null,coastalWater=null;
+let roadStatus=null,coastalWater=null,stuccoStatus=null;
 if(urbanKit){decorGroup.add(urbanKit.group);palmCount=urbanKit.stats.palmCount;}
 if(hedgeLayer)decorGroup.add(hedgeLayer.group);
 
@@ -401,7 +402,9 @@ function enterPublicCity(){
  mode='first';
  $('cameraMode').textContent='Primera persona · ciudad pública';
  window.NPL_READY={cityMeshes:city?.children?.length||0,cityOnly:true,privateAvatarLoaded:false,
-  explanadaCoords:[38.34318,-0.48326],windows:windowCount,facadeStyle:'artistic_not_surveyed',palms:palmCount,urbanKit:urbanKit?.stats||null,hedges:hedgeLayer?.stats||null,roadSurface:roadStatus,mosaic:mosaicKit.report,brain3D:{available:!!brainRenderer?.available,modelIsMetaphor:true},water:coastalWater?{
+  explanadaCoords:[38.34318,-0.48326],windows:windowCount,facadeStyle:'artistic_not_surveyed',palms:palmCount,urbanKit:urbanKit?.stats||null,hedges:hedgeLayer?.stats||null,roadSurface:roadStatus,facadeMaterial:stuccoStatus?{
+   source:stuccoStatus.source,meshCount:stuccoStatus.meshCount,
+   photoMatched:stuccoStatus.photoMatched}:null,mosaic:mosaicKit.report,brain3D:{available:!!brainRenderer?.available,modelIsMetaphor:true},water:coastalWater?{
    waterMeshes:coastalWater.waterMeshes,addedSeaPlanes:coastalWater.addedSeaPlanes,
    sourceGeometryReplaced:coastalWater.sourceGeometryReplaced,
    reducedMotion:coastalWater.reducedMotion}:null,skins:0,clips:[]};
@@ -415,6 +418,9 @@ async function loadWorld(){
  try{
   const data=await model('./assets/alicante.glb');
   city=data.scene;scene.add(city);
+  // Source wall materials first; the following OSM tile mask will chain this
+  // shader without losing its clipping at recovered G19/V50 tile boundaries.
+  if(publicPreview)stuccoStatus=enhanceMappedBuildingFacades(city,{tier:visualTier});
   if(publicPreview)osmCover=installCoveredOSMMask(city);
   // The source-matched asphalt texture belongs on OSM highway ribbon meshes, not on invented roads.
   if(publicPreview)roadStatus=enhanceMappedOSMRoads(city,{mobile:visualTier==='mobile'});
