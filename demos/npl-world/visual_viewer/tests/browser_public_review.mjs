@@ -69,7 +69,10 @@ try{
   };
   if(state.ready?.privateAvatarLoaded!==false || state.loadingVisible ||
      !state.webglCanvas || state.ready?.cityMeshes<1 ||
-     state.ready?.windows<500 || state.ready?.facadeStyle!=='artistic_not_surveyed' ||
+     state.ready?.windows!==0 ||
+     state.ready?.artificialFacadeGeometryDefaultOff!==true ||
+     state.ready?.decorativeWindowSourceVerified!==false ||
+     state.ready?.facadeStyle!=='artistic_not_surveyed' ||
      state.ready?.urbanKit?.meshGroups!==11 || state.ready?.urbanKit?.palmCount<20 ||
      state.ready?.urbanKit?.scope!=='illustrative_placement_not_surveyed' ||
      state.ready?.urbanKit?.palmSilhouettes!==3 ||
