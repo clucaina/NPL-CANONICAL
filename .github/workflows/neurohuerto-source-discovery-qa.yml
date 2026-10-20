@@ -4,12 +4,16 @@ on:
     paths:
       - 'cloud_factory/source_expander.py'
       - 'cloud_factory/test_source_expander.py'
+      - 'cloud_factory/source_feedback.py'
+      - 'cloud_factory/test_source_feedback.py'
       - 'cloud_factory/data_garden.py'
       - '.github/workflows/neurohuerto-source-discovery*.yml'
   pull_request:
     paths:
       - 'cloud_factory/source_expander.py'
       - 'cloud_factory/test_source_expander.py'
+      - 'cloud_factory/source_feedback.py'
+      - 'cloud_factory/test_source_feedback.py'
       - 'cloud_factory/data_garden.py'
       - '.github/workflows/neurohuerto-source-discovery*.yml'
 permissions:
@@ -24,4 +28,5 @@ jobs:
         run: |
           python3 -m unittest discover -s cloud_factory -p 'test_source_expander.py' -v
           python3 -m unittest discover -s cloud_factory -p 'test_data_garden.py' -v
+          python3 -m unittest discover -s cloud_factory -p 'test_source_feedback.py' -v
           python3 -m compileall -q cloud_factory/source_expander.py

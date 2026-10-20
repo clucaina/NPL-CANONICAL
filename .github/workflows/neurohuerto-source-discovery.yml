@@ -8,6 +8,8 @@ on:
       - '.github/workflows/neurohuerto-source-discovery.yml'
       - 'cloud_factory/source_expander.py'
       - 'cloud_factory/test_source_expander.py'
+      - 'cloud_factory/source_feedback.py'
+      - 'cloud_factory/test_source_feedback.py'
 permissions:
   contents: write
 concurrency:
@@ -56,6 +58,17 @@ jobs:
           assert all(c["release_gate"]=="NO_AUTO_IMPORT_NO_AUTO_DEPLOY" for c in j["candidates"])
           print("Candidate contracts:",len(j["candidates"]))
           PY
+      - name: Independently learn from PP's SHA-matched rejection, never alter original data
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s cloud_factory -p 'test_source_feedback.py' -v
+          curl --fail --silent --show-error --location --max-time 18 \
+            'https://raw.githubusercontent.com/clucaina/psicologia-politica/factory/review-inbox/review/source_checks.json' \
+            -o /tmp/neurohuerto-pp-feedback.json || true
+          python3 cloud_factory/source_feedback.py \
+            --ledger "$CANDIDATE_WORKTREE/review/index.json" \
+            --review /tmp/neurohuerto-pp-feedback.json \
+            --out-dir "$CANDIDATE_WORKTREE/review/sources"
       - name: Commit only new source metadata into its separate branch
         run: |
           set -euo pipefail
