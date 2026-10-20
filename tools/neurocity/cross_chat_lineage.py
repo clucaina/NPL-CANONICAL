@@ -19,7 +19,7 @@ SOURCES = (
     ("multi_source_rehearsal", "ci/neurocity-multi-source-unification-rehearsal-20261020", True),
     ("private_assembly_code_only", "tools/neurocity-private-world-reproducible-assembler-20261020", False),
 )
-PRIVATE_PATTERN = re.compile(r"(^|/)(patient|patients|private|secret|avatar_data)(/|$)", re.I)
+UNSAFE_BYTES_PATTERN = re.compile(r"(^|/)(world-master|patient_data|private_glbs)/|\\.(glb|gml|blend|las|laz)$", re.I)
 REQUIRED_AT_LEAST_ONE = {
     "public_city_viewer": "demos/npl-world/visual_viewer/app.js",
     "public_npl_contract": "demos/npl-world/visual_viewer/public_layers.mjs",
@@ -68,7 +68,7 @@ def audit(repo:Path, sources=SOURCES, base_ref="origin/main")->dict:
             if required:required_missing.append(label)
             continue
         paths=changes(repo,sha,base_ref)
-        if any(PRIVATE_PATTERN.search(p) for p in paths):
+        if any(UNSAFE_BYTES_PATTERN.search(p) for p in paths):
             # Paths only, never output source bytes; privacy risk is a STOP.
             raise RuntimeError("privacy-sensitive path in candidate "+label)
         change_sets[label]=paths
@@ -82,10 +82,10 @@ def audit(repo:Path, sources=SOURCES, base_ref="origin/main")->dict:
         supported=[]
         for item in refs:
             if item["state"]!="FOUND_SOURCE":continue
-            if git(repo,"cat-file","-e",item["sha"]+":"+path,check=False)=="": 
-                # git cat-file -e succeeds without stdout; evaluate path by ls-tree.
-                present=bool(git(repo,"ls-tree","--name-only",item["sha"],path))
-                if present:supported.append(item["label"])
+            # No blob bytes are opened. 'ls-tree' only lists tracked paths
+            # in the branch's commit tree.
+            if git(repo,"ls-tree","--name-only",item["sha"],path)==path:
+                supported.append(item["label"])
         required_coverage[capability]={"path":path,"sources":supported,
                                       "available":bool(supported)}
         if not supported:required_missing.append(capability)
