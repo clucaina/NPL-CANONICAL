@@ -40,8 +40,8 @@ def build_plan(spec:dict,*,tile_m:int=500,max_tiles:int=64)->dict:
     def approved(k):
         x=source.get(k,{})
         if not isinstance(x,dict):return False
-        return x.get('verified') is True and x.get('license_approved') is True and
-            bool(re.fullmatch(r'[a-f0-9]{64}',str(x.get('sha256',''))))
+        return (x.get('verified') is True and x.get('license_approved') is True and
+                bool(re.fullmatch(r'[a-f0-9]{64}',str(x.get('sha256','')))))
     result=[]
     for i in range(i0,i1):
         for j in range(j0,j1):
