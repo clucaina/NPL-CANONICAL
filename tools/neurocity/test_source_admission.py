@@ -80,6 +80,12 @@ class SourceAdmissionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"Repeated"):
             profile_preexisting_kenney(data)
 
+    def test_12_sha_and_license_never_make_metadata_only_runtime_live(self):
+        tool=copy.deepcopy(next(x for x in self.registry["records"] if x["id"]=="gltf_transform"))
+        tool["artifact_sha256"]="b"*64
+        self.assertTrue(evaluate(tool)["eligible_for_manual_import"])
+        self.assertFalse(evaluate(tool)["runtime_admitted"])
+
     def test_11_actual_generated_report_contains_no_binary_links(self):
         with tempfile.TemporaryDirectory() as d:
             out=Path(d)/"report.json"
