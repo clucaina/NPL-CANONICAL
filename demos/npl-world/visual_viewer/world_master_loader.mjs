@@ -90,6 +90,8 @@ export class RecoveredMasterTiles {
    const tile=this.manifest.tiles.find(t=>t.id===id);
    if(!tile)return false;
    const signal={cancelled:false};const group=new THREE.Group();
+   // An incomplete archive must never leak geometry over the verified OSM city.
+   group.visible=false;
    group.name='WORLDMASTER_'+id;
    group.matrix.fromArray(matrixElementsForTile(id));
    group.matrixAutoUpdate=false;
@@ -117,6 +119,7 @@ export class RecoveredMasterTiles {
      await batch(core);
      state.ready=!signal.cancelled && state.roles.has('terrain') &&
        (state.roles.has('architecture')||state.roles.has('mosaic')||state.roles.has('urban'));
+     group.visible=state.ready;
      // No fake success if only a few assets load. Original OSM remains fallback.
      if(state.ready){
        state.detailsPromise=batch(details).catch(e=>{
