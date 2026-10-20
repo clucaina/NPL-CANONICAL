@@ -66,7 +66,7 @@ jobs:
           mkdir -p reports
           printf '# NeuroCity - verified hourly rehearsal\n\n' > reports/REPORT.md
           printf 'Execution UTC: %s\n\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> reports/REPORT.md
-          printf 'Source: newest owner-only review branch descending from NPL/V50 **V7**, plus independent private assembler, Catastro, coastline and gameplay audits.\n\n' >> reports/REPORT.md
+          printf 'Source: newest owner-only review branch descending from NPL/V50 **V7**, checking other independent active G19 improvements, Catastro, coastline and gameplay without repeating already-merged assembly.\n\n' >> reports/REPORT.md
           printf '**Important:** an ephemeral merge is NOT a production merge; a passing test is NOT photographic fidelity or a 60-view validation.\n\n' >> reports/REPORT.md
           printf 'Private original GLBs/avatars are NOT downloaded, read or redistributed by this job.\n\n' >> reports/REPORT.md
           cp -a city-current city-integrated
@@ -75,7 +75,9 @@ jobs:
           printf 'Reviewed owner branch: %s; SHA: %s\n\n' "${{ steps.candidate.outputs.ref }}" "$(git -C city-current rev-parse HEAD)" >> reports/REPORT.md
           blocked=0
           for pair in \
-            'private-assembler:tools/neurocity-private-world-reproducible-assembler-20261020' \
+            'adaptive-G19:feat/neurocity-v7-adaptive-render-quality-20261020' \
+            'physical-G13:fix/neurocity-g13-osm-fallback-collision-20261020' \
+            'acceptance-48walls:feat/neurocity-g19-acceptance-from-pr41-20261020' \
             'integration-geo:ci/neurocity-multi-source-unification-rehearsal-20261020' \
             'cadastre-browser:feat/neurocity-real-cadastre-playable-webgl-20261020'; do
             label="${pair%%:*}"
@@ -138,7 +140,15 @@ jobs:
             printf 'Proceed to 60 geolocated photo-to-view comparisons and local private WorldMaster integration; no deploy until manual acceptance.\n' >> reports/REPORT.md
           fi
           cat reports/REPORT.md >> "$GITHUB_STEP_SUMMARY"
+          # Report failures as FAIL, not a misleading green check. Keep artifacts.
+          if [ "$(cat reports/merge-blocked.txt)" != 0 ] ||
+             [ "$(cat reports/v7-result.txt)" != PASS ] ||
+             [ "$(cat reports/integrated-result.txt)" != PASS ]; then
+            echo "NEUROCITY CONVERGENCE BLOCKED: see REPORT.md and conflict paths."
+            exit 1
+          fi
       - name: Save actual output, conflict paths and test logs
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: neurocity-v7-hourly-qa-${{ github.run_id }}
