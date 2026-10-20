@@ -43,6 +43,14 @@ test('mapped OSM walls receive real PBR normal perturbation without geometry cha
  assert.match(shader.fragmentShader,/roughnessFactor = clamp/);
  assert.match(shader.fragmentShader,/plinth/);
  assert.match(wall.material.customProgramCacheKey(),new RegExp(MICRORELIEF_VERSION));
+ assert.equal(shader.uniforms.ncMicroreliefEnabled.value,1);
+ assert.equal(enhanced.isEnabled(),true);
+ enhanced.setEnabled(false);
+ assert.equal(shader.uniforms.ncMicroreliefEnabled.value,0);
+ assert.equal(enhanced.isEnabled(),false);
+ enhanced.setEnabled(true);
+ assert.equal(shader.uniforms.ncMicroreliefEnabled.value,1);
+ assert.throws(()=>enhanced.setEnabled('false'),TypeError);
  enhanced.restore();
  const revert=mock();wall.material.onBeforeCompile(revert);
  assert.doesNotMatch(revert.fragmentShader,/ncBump/);
