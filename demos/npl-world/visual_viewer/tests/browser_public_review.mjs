@@ -116,6 +116,25 @@ try{
     geometryUntouched:pbr.worldmasterGeometryModified===false,
     noImportedTextures:pbr.textureDownloads===0,toggleRestored:true,
     visualScreenshots:'Two real WebGL frames, visual improvement not independently certified'};
+  const inspector=await page.evaluate(()=>window.NEUROCITY_FACADE_INSPECT?.activate());
+  if(!inspector?.ready||inspector?.source!=='OSM_REAL_BUILDING_WALLS_PUBLIC_GEOMETRY'||
+      inspector.geometryInvented!==0||inspector.distanceToObserver>95){
+    throw Error('Near-field view cannot locate a real OSM wall: '+JSON.stringify(inspector));
+  }
+  await pbrControl.click();
+  await page.waitForTimeout(400);
+  await page.locator('#game').screenshot({path:'demos/npl-world/visual_viewer/dist/QA_FACADE_CLOSEUP_ORIGINAL.png'});
+  await pbrControl.click();
+  await page.waitForTimeout(400);
+  await page.locator('#game').screenshot({path:'demos/npl-world/visual_viewer/dist/QA_FACADE_CLOSEUP_PBR.png'});
+  const inspectionOff=await page.evaluate(()=>window.NEUROCITY_FACADE_INSPECT?.deactivate());
+  if(inspectionOff?.inspectionDisabled!==true)
+    throw Error('3D source facade inspection cannot return to navigation');
+  reportCopy.nearSourceWallQA={
+    ...inspector,originalAndPbrScreenshots:true,
+    sourceGeometrySurveyed:false,personalDataUsed:false,
+    visualDifferenceMeasuredSeparately:true
+  };
   // Actual Three.js canvas remains interactive while users cycle the
   // session-only dynamic rendering budget: no GLB/model geometry is replaced.
   reportCopy.errorsBeforeQualityToggle=consoleErrors.slice();
