@@ -26,7 +26,7 @@ export function installCoveredOSMMask(city){
      const count={value:0};
      const vectors=Array.from({length:4},()=>new THREE.Vector4());
      const regions={value:vectors};
-     const previous=material.onBeforeCompile;
+     const previous=raw.onBeforeCompile;
      material.onBeforeCompile=shader=>{
        previous?.(shader);
        shader.uniforms.ncMasterTileCount=count;
