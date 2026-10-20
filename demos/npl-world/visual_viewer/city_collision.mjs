@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {sweptCircleHitsSegment} from './collision_sweep.mjs';
 
 const CELL_SIZE_M=12;
 const COLLISION_RADIUS_M=0.58;
@@ -7,12 +8,6 @@ const MAX_SEGMENTS=90000;
 
 const num=v=>Number.isFinite(v);
 const snap=n=>Math.round(n*20)/20;
-function distToEdge(x,z,e){
- const dx=e.bx-e.ax,dz=e.bz-e.az,den=dx*dx+dz*dz;
- if(den<1e-6)return Infinity;
- const t=Math.max(0,Math.min(1,((x-e.ax)*dx+(z-e.az)*dz)/den));
- return Math.hypot(x-(e.ax+t*dx),z-(e.az+t*dz));
-}
 function edgeKey(e){
  const a=snap(e.ax)+','+snap(e.az),b=snap(e.bx)+','+snap(e.bz);
  return a<b?a+'|'+b:b+'|'+a;
@@ -82,10 +77,7 @@ export function buildCityWallCollision(root,{cellSize=CELL_SIZE_M,radius=COLLISI
  function hitsWall(x,z,toX,toZ){
   if(![x,z,toX,toZ].every(num))throw new RangeError('Nonfinite player motion');
   for(const id of candidates(x,z,toX,toZ)){
-   const edge=edges[id];
-   const fromDist=distToEdge(x,z,edge),toDist=distToEdge(toX,toZ,edge);
-   // Allow escaping an already-overlapping wall but never entering one.
-   if(toDist<radius&&(fromDist>=radius||toDist<fromDist-.012))return true;
+   if(sweptCircleHitsSegment(x,z,toX,toZ,edges[id],radius))return true;
   }
   return false;
  }
@@ -104,7 +96,7 @@ export function buildCityWallCollision(root,{cellSize=CELL_SIZE_M,radius=COLLISI
   wallMeshes,trianglesScanned:trianglesSeen,wallSegments:edges.length,
   spatialCells:grid.size,cellSizeMeters:cellSize,
   collisionRadiusMeters:radius,blockedMoves,
-  inventedBarriers:0,
+  inventedBarriers:0,continuousSweep2D:true,verticalDatumVerified:false,
   sourceFloorHeightsMeasured:false
  })};
 }
