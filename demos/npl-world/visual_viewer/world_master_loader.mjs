@@ -10,12 +10,13 @@ import {instantiateMasterPalms} from './asset_instancing.mjs';
  * GlTF bytes are loaded only from same-origin localhost on explicit opt-in.
  */
 export class RecoveredMasterTiles {
- constructor({scene,loader,profile='desktop',base='./world-master',onVisibility=()=>{}}){
+ constructor({scene,loader,profile='desktop',base='./world-master',onVisibility=()=>{},onCoverage=()=>{}}){
    if(!scene?.add||!loader?.parseAsync)throw new TypeError('Need existing Three.js scene and GLTFLoader.parseAsync');
    if(!['desktop','mobile'].includes(profile)||base!=='./world-master')
      throw new Error('Invalid local-only tilepack configuration');
    this.scene=scene;this.loader=loader;this.profile=profile;this.base=base;
    this.onVisibility=onVisibility;
+   this.onCoverage=onCoverage;
    this.root=new THREE.Group();this.root.name='RECOVERED_G19_WORLD_MASTER';
    this.root.matrix.fromArray(matrixElementsForMaster());
    this.root.matrixAutoUpdate=false;
@@ -142,7 +143,9 @@ export class RecoveredMasterTiles {
    // Purge stale tiles before scheduling new ones; limit memory to two mobile/three desktop.
    for(const id of Array.from(this.states.keys()))if(!set.has(id))this._retire(id);
    await Promise.all(desired.map(id=>this._ensureTile(id)));
-   const active=Array.from(this.states.values()).some(s=>s.ready&&s.loaded>0);
+   const covered=Array.from(this.states.values()).filter(s=>s.ready&&s.loaded>0).map(s=>s.id);
+   const active=covered.length>0;
+   this.onCoverage(covered);
    if(active!==this.recoveredVisible){
      this.recoveredVisible=active;this.onVisibility(active);
    }
@@ -165,5 +168,6 @@ export class RecoveredMasterTiles {
    for(const id of [...this.states.keys()])this._retire(id);
    this.scene.remove(this.root);
    this.onVisibility(false);
+   this.onCoverage([]);
  }
 }
