@@ -12,11 +12,11 @@ const COLORS=Object.freeze({
  reasoning:0xb3a3df,decision:0x8bbda0
 });
 const POINTS=Object.freeze({
- perception:[1.33,.38,.10],
- attention:[.60,1.03,.34],
- memory:[-1.18,-.62,.50],
- reasoning:[-.96,.57,.78],
- decision:[-.19,.58,1.20]
+ perception:[1.09,.24,.91],
+ attention:[.55,.70,.76],
+ memory:[-1.11,-.43,.76],
+ reasoning:[-.77,.54,.93],
+ decision:[-.22,.26,1.12]
 });
 function cerebralHemisphere(side,quality='desktop'){
  const detail=quality==='mobile'?20:38,geometry=new THREE.SphereGeometry(1,detail,Math.ceil(detail*.72));
@@ -27,15 +27,15 @@ function cerebralHemisphere(side,quality='desktop'){
   const wave=.035*Math.sin(x.x*21+x.y*8+side*.6)*Math.cos(x.z*19-x.x*5);
   const fold=.019*Math.sin(x.x*37+x.y*26);
   const r=1+wave+fold;
-  p.setXYZ(i,x.x*.88*r,x.y*.91*r,x.z*1.04*r);
+  p.setXYZ(i,x.x*.65*r,x.y*.88*r,x.z*1.02*r);
  }
  p.needsUpdate=true;geometry.computeVertexNormals();
  const mesh=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({
-  color:0xb59a91,roughness:.88,metalness:0,flatShading:false,
-  transparent:true,opacity:.89,side:THREE.FrontSide
+  color:0xbe9d90,roughness:.84,metalness:0,flatShading:false,
+  transparent:false,side:THREE.FrontSide
  }));
- mesh.position.x=side*.44;
- mesh.rotation.y=side*.10;
+ mesh.position.x=side*.69;
+ mesh.rotation.y=side*.06;
  mesh.name=side<0?'NPL_illustrative_left_hemisphere':'NPL_illustrative_right_hemisphere';
  return mesh;
 }
@@ -44,10 +44,49 @@ export function buildBrainModel({tier='desktop'}={}){
  const root=new THREE.Group();root.name='NPL_3D_INTERACTIVE_BRAIN_METAPHOR';
  const hemispheres=[cerebralHemisphere(-1,tier),cerebralHemisphere(1,tier)];
  root.add(...hemispheres);
- // Thin fissure and associative cross-region arc geometry are illustrative.
- const fissure=new THREE.Mesh(new THREE.CapsuleGeometry(.028,1.38,4,8),
-   new THREE.MeshBasicMaterial({color:0x66474b,transparent:true,opacity:.6}));
- fissure.position.set(0,0,.15);root.add(fissure);
+ // Two separated cortical hemispheres and a clear longitudinal fissure.
+ // This is illustrative geography, NEVER human MRI/clinical anatomy.
+ const fissure=new THREE.Mesh(new THREE.CapsuleGeometry(.040,1.32,6,12),
+   new THREE.MeshStandardMaterial({color:0x4e3039,roughness:1}));
+ fissure.position.set(0,.03,.73);root.add(fissure);
+
+ // Actual geometry of sulcal surface-following 3D tubes, not a 2D brain icon.
+ // The lines are authored illustration and not reconstructed from a scan.
+ const gyri=[];
+ const sulcusMat=new THREE.MeshStandardMaterial({
+   color:0x644a49,roughness:.98,transparent:true,opacity:.67,
+   depthWrite:false
+ });
+ for(const side of [-1,1]){
+  for(let band=0;band<(tier==='mobile'?7:12);band++){
+   const pts=[],initial=-.70+band*(tier==='mobile'?.22:.128);
+   for(let k=0;k<=20;k++){
+    const t=k/20;
+    const localX=-.52+t*1.04;
+    const localY=initial+Math.sin(t*9.8+band*.7)*.052;
+    const norm=(localX/.66)**2+(localY/.9)**2;
+    if(norm>=.92)continue;
+    const z=1.04*Math.sqrt(Math.max(.04,1-norm))+.027;
+    pts.push(new THREE.Vector3(side*.69+localX,localY,z));
+   }
+   if(pts.length<4)continue;
+   const curve=new THREE.CatmullRomCurve3(pts);
+   const groove=new THREE.Mesh(new THREE.TubeGeometry(curve,25,.0095,5,false),sulcusMat);
+   groove.name='NPL_STYLIZED_SULCUS_'+side+'_'+band;
+   root.add(groove);gyri.push(groove);
+  }
+ }
+ // Cerebellar lobes and brainstem remain non-interpretable sculptural context.
+ const tissue=new THREE.MeshStandardMaterial({color:0xb58b81,roughness:.93});
+ const cerebellum=new THREE.Group();cerebellum.name='NPL_ILLUSTRATIVE_CEREBELLUM';
+ for(const side of [-1,1]){
+  const lobe=new THREE.Mesh(new THREE.SphereGeometry(.34,tier==='mobile'?13:20,12),tissue);
+  lobe.position.set(side*.27,-.72,-.78);lobe.scale.set(1.05,.72,.80);
+  cerebellum.add(lobe);
+ }
+ const stem=new THREE.Mesh(new THREE.CylinderGeometry(.115,.18,.72,10),tissue);
+ stem.position.set(0,-.94,-.38);stem.rotation.x=-.18;
+ root.add(cerebellum,stem);
  const nodes=new Map(),glows=new Map();
  for(const id of NPL_PROCESS_IDS){
   const anchor=POINTS[id],location=new THREE.Vector3(...anchor);
@@ -92,7 +131,7 @@ export function buildBrainModel({tier='desktop'}={}){
   return {...snapshot,selected};
  }
  update();
- return {root,nodes,glows,hemispheres,links,
+ return {root,nodes,glows,hemispheres,links,gyri,cerebellum,
    metadata:Object.freeze({source:BRAIN3D_STATUS,tier,
      functionalNodes:5,drawOnlyWhenPanelOpen:true,
      anatomyValidated:false,brainActivityMeasured:false,
@@ -129,8 +168,8 @@ export function mountBrain3D({canvas,details,onSelect,tier='desktop',reducedMoti
  scene.add(new THREE.HemisphereLight(0xe4e8ff,0x4f3034,1.8));
  const keylight=new THREE.DirectionalLight(0xffead0,2.7);
  keylight.position.set(-2,4,7);scene.add(keylight);
- const camera=new THREE.PerspectiveCamera(37,1,.1,100);
- camera.position.set(0,0.35,5.9);
+ const camera=new THREE.PerspectiveCamera(38,1,.1,100);
+ camera.position.set(0,0.31,5.65);
  let orbit=-.12,tilt=-.08,frameTime=-1,dirty=true,lastWidth=0,lastHeight=0;
  const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2();
  let pointerState=null,selected='perception';
