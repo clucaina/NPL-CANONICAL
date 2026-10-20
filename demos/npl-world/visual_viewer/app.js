@@ -423,8 +423,11 @@ async function loadWorld(){
     try{
       cityCollision=buildCityWallCollision(city);
       const stats=cityCollision.stats();
+      // Source-based physical acceptance ported from PR41; G19 swept
+      // collision remains the sole owner. No fabricated wall coordinates.
+      const physicalProbe=cityCollision.auditSourceWallBlocking({samples:48});
       window.NEUROCITY_COLLISION_QA={...stats,active:stats.wallSegments>0,
-        privateGLBsUsed:false,physicalAtlasPriority:true};
+        physicalProbe,privateGLBsUsed:false,physicalAtlasPriority:true};
     }catch(error){
       cityCollision=null;
       window.NEUROCITY_COLLISION_QA={active:false,wallSegments:0,
