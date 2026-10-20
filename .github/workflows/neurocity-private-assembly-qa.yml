@@ -1,0 +1,38 @@
+name: NeuroCity private G19 V50 source assembly verification (NO PRIVATE GLBS IN CI)
+on:
+  push:
+    paths:
+      - 'tools/neurocity/private_bundle_assembly.py'
+      - 'tools/neurocity/tests/test_private_bundle_assembly.py'
+      - '.github/workflows/neurocity-private-assembly-qa.yml'
+  pull_request:
+    paths:
+      - 'tools/neurocity/private_bundle_assembly.py'
+      - 'tools/neurocity/tests/test_private_bundle_assembly.py'
+      - '.github/workflows/neurocity-private-assembly-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reproducible-private-source-builder:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test preservation, deterministic output, corruption and traversal
+        run: python -m unittest discover -s tools/neurocity/tests -p test_private_bundle_assembly.py -v
+      - name: Refuse private asset inclusion in public PR
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('tools/neurocity')
+          forbidden={'.glb','.gltf','.zip','.p12','.pem','.key'}
+          matches=[str(f) for f in p.rglob('*') if f.is_file() and f.suffix.lower() in forbidden]
+          assert not matches, 'Model or private file unexpectedly committed'
+          print('Source-only: no private G19/V50 models shipped')
+          PY
