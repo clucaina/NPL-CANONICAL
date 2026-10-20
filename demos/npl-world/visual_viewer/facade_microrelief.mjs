@@ -20,7 +20,7 @@ export const MICRORELIEF_LIMITS=Object.freeze({
  * architecture coverage mask, camera or original GLB. Runs after the existing
  * stucco shader, before optional G19 geometry mask.
  */
-export function patchMicroreliefShader(shader,{tier='desktop'}={}){
+export function patchMicroreliefShader(shader,{tier='desktop',enabledUniform=null}={}){
  const cfg=MICRORELIEF_LIMITS[tier];
  if(!cfg)throw RangeError('Unsupported microrelief quality tier');
  if(!shader || typeof shader.fragmentShader!=='string' ||
@@ -29,6 +29,10 @@ export function patchMicroreliefShader(shader,{tier='desktop'}={}){
     !shader.fragmentShader.includes('ncFacadeWorld')){
    throw Error('Three shader or real OSM world projection missing; no silent material fallback');
  }
+ if(!shader.uniforms)shader.uniforms={};
+ if(enabledUniform)shader.uniforms.ncMicroreliefEnabled=enabledUniform;
+ else shader.uniforms.ncMicroreliefEnabled={value:1};
+ shader.fragmentShader='uniform float ncMicroreliefEnabled;\n'+shader.fragmentShader;
  const shape=cfg.detailScale.toFixed(1),strength=cfg.normalStrength.toFixed(3);
  const inject=[
   'vec3 ncViewDX = dFdx(ncFacadeWorld);',
@@ -38,12 +42,12 @@ export function patchMicroreliefShader(shader,{tier='desktop'}={}){
   'float ncWave = sin(ncFacadeWorld.x * '+shape+' + ncFacadeWorld.y * 13.0) *',
   '               sin(ncFacadeWorld.y * '+shape+' + ncFacadeWorld.z * 11.0);',
   'vec3 ncBump = dFdx(ncWave) * ncSurfaceDX + dFdy(ncWave) * ncSurfaceDY;',
-  'normal = normalize(normal - mat3(viewMatrix) * ncBump * '+strength+');'
+  'normal = normalize(normal - mat3(viewMatrix) * ncBump * '+strength+' * ncMicroreliefEnabled);'
  ].join('\n');
  const rough=[
   'float ncVariation = fract(sin(dot(floor(ncFacadeWorld.xy * 13.0),',
   '  vec2(17.17,43.91))) * 53724.13);',
-  'roughnessFactor = clamp(roughnessFactor * (.94 + ncVariation*.08), '+cfg.roughnessMin.toFixed(2)+', 1.0);'
+  'roughnessFactor = clamp(roughnessFactor * mix(1.0, (.94 + ncVariation*.08), ncMicroreliefEnabled), '+cfg.roughnessMin.toFixed(2)+', 1.0);'
  ].join('\n');
  shader.fragmentShader=shader.fragmentShader.replace(
   '#include <normal_fragment_maps>','#include <normal_fragment_maps>\n'+inject
@@ -56,6 +60,7 @@ export function enhanceRealOSMWallMicrorelief(city,{tier='desktop'}={}){
  if(!city?.traverse)throw TypeError('Public source scene required');
  if(!MICRORELIEF_LIMITS[tier])throw RangeError('Unsupported render tier');
  const entries=[],meshes=new Set();
+ let enabled=true;
  city.traverse(mesh=>{
    if(!mesh.isMesh||!isSourceBuildingWall(mesh.name))return;
    meshes.add(mesh);
@@ -67,14 +72,17 @@ export function enhanceRealOSMWallMicrorelief(city,{tier='desktop'}={}){
      if(material.userData?.ncMicrorelief)continue;
      const original=material.onBeforeCompile;
      const originalCache=material.customProgramCacheKey;
+     const uniforms=[];
      material.onBeforeCompile=(shader,renderer)=>{
        original?.(shader,renderer);
-       patchMicroreliefShader(shader,{tier});
+       const toggle={value:enabled?1:0};
+       uniforms.push(toggle);
+       patchMicroreliefShader(shader,{tier,enabledUniform:toggle});
      };
      material.customProgramCacheKey=()=>String(originalCache?.call(material)||'stucco')+'|'+MICRORELIEF_VERSION+'|'+tier;
      material.userData.ncMicrorelief={version:MICRORELIEF_VERSION,tier};
      material.needsUpdate=true;
-     entries.push({material,original,originalCache});
+     entries.push({material,original,originalCache,uniforms});
    }
  });
  const report={source:MICRORELIEF_SOURCE,tier,
@@ -84,6 +92,13 @@ export function enhanceRealOSMWallMicrorelief(city,{tier='desktop'}={}){
    worldmasterGeometryModified:false,visualCertification:false};
  return {
    ...report,
+   isEnabled(){return enabled;},
+   setEnabled(value){
+     if(typeof value!=='boolean')throw TypeError('Material toggle must be boolean');
+     enabled=value;
+     for(const entry of entries)for(const uniform of entry.uniforms)uniform.value=enabled?1:0;
+     return enabled;
+   },
    restore(){
      for(const {material,original,originalCache} of entries){
        material.onBeforeCompile=original;
