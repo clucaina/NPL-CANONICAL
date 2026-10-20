@@ -29,11 +29,20 @@ PALETTE=np.asarray([(215,193,146),(145,69,60),(208,185,149),(31,48,62),
 GROUT=np.array([76,72,70],dtype=np.uint8)
 
 
-def kind(x,z):
-    # S-shaped wave arcs over a repeatable 4m-periodic patch. Unmeasured phase.
-    arc=z + .55*math.sin((2*math.pi/SIZE_M)*x)
-    band=round(SIZE_M/12.0,12) # 12 bands/patch, six-hue periodic sequence
-    return int(math.floor((arc+1e-9)/band))%len(PALETTE)
+def warp(u,v):
+    """Bend whole tessera geometry into curved, tile-aligned arcs.
+
+    Local-only artistic map, periodic in x, and clamped to unwarped
+    boundaries in z to avoid tile overlap between adjacent 4m patches.
+    """
+    bend=.48 * math.sin((2*math.pi/SIZE_M)*u) * math.sin(math.pi*v/SIZE_M)**2
+    return (u,v+bend)
+
+
+def kind(u,v):
+    # Band assignment in tessera-grid coordinates; warp shapes real 3D curves.
+    band=SIZE_M/12.0
+    return int(math.floor((v+1e-9)/band))%len(PALETTE)
 
 
 def color_at(i,j,corner=0):
@@ -64,12 +73,17 @@ def near_geometry():
         h=.0036 + .00035*math.sin(i*12.9898+j*78.233)
         lo=.00035
         base=color_at(i,j).tolist()
-        top=[(x0,h,z0),(x0,h,z1),(x1,h,z1),(x1,h,z0)]
+        p00=warp(x0,z0);p01=warp(x0,z1);p11=warp(x1,z1);p10=warp(x1,z0)
+        top=[(x,h,z) for (x,z) in (p00,p01,p11,p10)]
         face4(top,(0,1,0),base)
-        face4([(x0,lo,z1),(x0,lo,z0),(x0,h,z0),(x0,h,z1)],(-1,0,0),[int(v*.74) for v in base])
-        face4([(x1,lo,z0),(x1,lo,z1),(x1,h,z1),(x1,h,z0)],(1,0,0),[int(v*.74) for v in base])
-        face4([(x0,lo,z0),(x1,lo,z0),(x1,h,z0),(x0,h,z0)],(0,0,-1),[int(v*.70) for v in base])
-        face4([(x1,lo,z1),(x0,lo,z1),(x0,h,z1),(x1,h,z1)],(0,0,1),[int(v*.70) for v in base])
+        # Vertical cut faces, physically separated by mortar; retain top—bottom gap.
+        for a,b in ((p00,p01),(p11,p10),(p10,p00),(p01,p11)):
+            ax,az=a;bx,bz=b
+            delta_x=bx-ax;delta_z=bz-az
+            leng=math.hypot(delta_x,delta_z)
+            normal=(-delta_z/leng,0,delta_x/leng)
+            face4([(ax,lo,az),(bx,lo,bz),(bx,h,bz),(ax,h,az)],normal,
+                  [int(v*.72) for v in base])
     return (np.array(verts,dtype=np.float32),np.array(faces,dtype=np.int32),
             np.array(normals,dtype=np.float32),np.array(colors,dtype=np.uint8))
 
@@ -101,13 +115,18 @@ def texture_image(pixels):
     for j in range(N):
       for i in range(N):
         val=color_at(i,j)
-        d.rectangle([i*pitch+gap,j*pitch+gap,(i+1)*pitch-gap,(j+1)*pitch-gap],
-                    fill=tuple(int(x) for x in val))
-        # Subtle marble grain lines. Procedurally synthetic—not photographic.
+        x0=i*TESSERA_M+GROUT_M/2;x1=(i+1)*TESSERA_M-GROUT_M/2
+        z0=j*TESSERA_M+GROUT_M/2;z1=(j+1)*TESSERA_M-GROUT_M/2
+        corners=[warp(x0,z0),warp(x0,z1),warp(x1,z1),warp(x1,z0)]
+        polygon=[(round(x*pixels/SIZE_M),round(z*pixels/SIZE_M)) for x,z in corners]
+        d.polygon(polygon,fill=tuple(int(x) for x in val))
+        # Fine marble mineral variation, PROCEDURAL, never copied from imagery.
         if (i*11+j*13)%9==0 and pitch>=12:
             lighter=tuple(int(min(255,q+16)) for q in val)
-            d.line([(i*pitch+gap+2,j*pitch+pitch//3),
-                    ((i+1)*pitch-gap-2,j*pitch+2*pitch//3)],fill=lighter,width=1)
+            a=warp(x0+GROUT_M,z0+TESSERA_M/3)
+            b=warp(x1-GROUT_M,z0+TESSERA_M*2/3)
+            d.line([(round(a[0]*pixels/SIZE_M),round(a[1]*pixels/SIZE_M)),
+                    (round(b[0]*pixels/SIZE_M),round(b[1]*pixels/SIZE_M))],fill=lighter,width=1)
     return image
 
 
