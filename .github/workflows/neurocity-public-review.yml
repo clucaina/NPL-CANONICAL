@@ -25,6 +25,11 @@ jobs:
           node-version: 22
       - name: Prove public source-quality audit unit tests
         run: python3 -m unittest discover -s tools/factory -p 'test_*.py' -v
+      - name: Fail early on browser test syntax before Blender and geodata downloads
+        run: |
+          node --check demos/npl-world/visual_viewer/tests/browser_public_review.mjs
+          node --check demos/npl-world/visual_viewer/tests/browser_mobile_review.mjs
+          node --check demos/npl-world/visual_viewer/tests/browser_layers_review.mjs
       - name: Set up open Blender CPU
         run: |
           sudo apt-get update -qq
