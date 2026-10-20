@@ -4,6 +4,7 @@ import { nextCameraMode, canNavigate } from './navigation_policy.mjs';
 import {normalizedStick,combineMovement} from './mobile_navigation.mjs';
 import {buildUrbanKit} from './urban_kit.mjs';
 import {animateExistingPublicPalmFronds} from './palm_canopy_wind.mjs';
+import {nearestSourceFacadeView,placeInspectionCamera} from './source_facade_inspector.mjs';
 import {RecoveredMasterTiles} from './world_master_loader.mjs';
 import {RecoveredPhysicalAtlas} from './world_physics.mjs';
 import {installCoveredOSMMask} from './osm_building_mask.mjs';
@@ -237,6 +238,24 @@ scene.add(decorGroup);
 const player=new THREE.Group();scene.add(player);
 player.position.set(-10.664,0,113.546);
 let avatar=null, city=null,mixer=null,animations={},current=null;
+let nearFacadeQA=null;
+if(publicPreview){
+  window.NEUROCITY_FACADE_INSPECT={
+    activate(){
+      if(!city?.isObject3D)return {ready:false,reason:'CITY_NOT_LOADED'};
+      nearFacadeQA=nearestSourceFacadeView(city,player.position,{maxDistance:95});
+      return nearFacadeQA?{
+        ready:true,source:nearFacadeQA.source,
+        originalMesh:nearFacadeQA.originalMesh,
+        distanceToObserver:nearFacadeQA.distanceToObserver,
+        facadeSourceVerified:nearFacadeQA.facadeSourceVerified,
+        geometryInvented:nearFacadeQA.geometryInvented
+      }:{ready:false,reason:'NO_NEARBY_VERIFIED_WALL'};
+    },
+    deactivate(){nearFacadeQA=null;return {ready:true,inspectionDisabled:true};},
+    status(){return {active:!!nearFacadeQA,source:nearFacadeQA?.source||null};}
+  };
+}
 let cityCollision=null; // Public OSM walls; verified G13 physics takes priority.
 let osmCover=null;
 let physicalAtlas=null,physicalPrefetchBusy=false,physicalLastPrefetch=0;
@@ -707,6 +726,9 @@ function frame(){
  sun.target.updateMatrixWorld();
  if(coastalWater)coastalWater.advance(clock.elapsedTime);
  if(palmWind)palmWind.update(clock.elapsedTime);
+ // Automated inspection is opt-in, PUBLIC-REVIEW-only; the source-derived
+ // near-field camera shows actual material detail without moving the player.
+ if(publicPreview&&nearFacadeQA)placeInspectionCamera(camera,nearFacadeQA);
  renderer.render(scene,camera);
  if(clock.elapsedTime>=nextPerformanceReportSec){
    nextPerformanceReportSec=clock.elapsedTime+1;
