@@ -84,6 +84,8 @@ def candidate_lods(cog_bytes,output_dir,official_report):
     with MemoryFile(cog_bytes) as inp:
         with inp.open() as ds:
             band=ds.read(1,masked=True)
+            import numpy as np
+            nodata_mask=np.ma.getmaskarray(band)
             for step in (1,2,4):
                 rows=list(range(0,ds.height,step))
                 cols=list(range(0,ds.width,step))
@@ -92,7 +94,7 @@ def candidate_lods(cog_bytes,output_dir,official_report):
                 verts=[];mapping={}
                 for ri,row in enumerate(rows):
                     for ci,col in enumerate(cols):
-                        if bool(band.mask[row,col]) or not math.isfinite(float(band[row,col])):
+                        if bool(nodata_mask[row,col]) or not math.isfinite(float(band[row,col])):
                             continue
                         E,N=ds.xy(row,col)
                         mapping[ri,ci]=len(verts)
