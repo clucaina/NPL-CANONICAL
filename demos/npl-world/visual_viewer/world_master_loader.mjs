@@ -73,7 +73,7 @@ export class RecoveredMasterTiles {
    if(!tile)return false;
    const signal={cancelled:false};const group=new THREE.Group();
    group.name='WORLDMASTER_'+id;
-   const state={id,group,signal,ready:false,loaded:0,errors:0};
+   const state={id,group,signal,ready:false,loaded:0,errors:0,roles:new Set()};
    this.states.set(id,state);this.root.add(group);
    const layers=plannedLayers(tile,this.profile);
    state.promise=(async()=>{
@@ -85,10 +85,12 @@ export class RecoveredMasterTiles {
                   reason:String(e?.message||e).slice(0,160)});return null;})));
        loaded.forEach((node,i)=>{
          if(!node||signal.cancelled)return;
-         node.visible=segment[i].role!=='lod';group.add(node);state.loaded++;
+         node.visible=segment[i].role!=='lod';group.add(node);state.loaded++;state.roles.add(segment[i].role);
        });
      }
-     state.ready=state.loaded>0&&!signal.cancelled;
+     state.ready=!signal.cancelled && state.roles.has('terrain') &&
+       (state.roles.has('architecture')||state.roles.has('mosaic')||state.roles.has('urban'));
+     // Never hide the verified fallback city after a partial/failed master load.
      return state.ready;
    })();
    return state.promise;
