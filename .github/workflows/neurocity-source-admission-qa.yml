@@ -6,6 +6,8 @@ on:
       - 'tools/neurocity/public_free_sources_20261020.json'
       - 'tools/neurocity/source_admission.py'
       - 'tools/neurocity/test_source_admission.py'
+      - 'tools/neurocity/official_terrain_probe.py'
+      - 'tools/neurocity/test_official_terrain_probe.py'
       - '.github/workflows/neurocity-source-admission-qa.yml'
 permissions:
   contents: read
@@ -32,7 +34,7 @@ jobs:
           import json
           p=json.load(open('_neurocity_source_qa/report.json'))
           assert p['schema']=='neurocity.public-source-admission-report.v1'
-          assert p['discovered']==10 and p['admitted']==0
+          assert p['discovered']==11 and p['admitted']==0
           assert p['generated_world_glbs']==0 and p['not_in_city'] is True
           PY
       - uses: actions/upload-artifact@v4
@@ -41,3 +43,28 @@ jobs:
           path: _neurocity_source_qa/report.json
           retention-days: 7
           if-no-files-found: error
+
+  terrain_real:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test exact G12 provenance and fail-closed source
+        run: python3 -m unittest discover -s tools/neurocity -p 'test_official_terrain_probe.py' -v
+      - name: Install free rasterio wheels to inspect real GeoTIFF
+        run: python3 -m pip install --disable-pip-version-check rasterio==1.4.3
+      - name: Probe one real Alicante EPSG25830 500m MDT05 COG from IGN IDEE
+        run: python3 tools/neurocity/official_terrain_probe.py
+      - name: Preserve truthful result even if official download is unavailable
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEUROCITY_OFFICIAL_ALICANTE_MDT05_REAL_PIXELS_QA
+          path: _neurocity_source_qa/real_terrain_r01_c02.json
+          retention-days: 7
+          if-no-files-found: warn
