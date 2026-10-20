@@ -14,9 +14,9 @@ class SourceAdmissionTests(unittest.TestCase):
     def setUp(self):
         self.registry=json.loads(SOURCE.read_text(encoding="utf8"))
 
-    def test_01_10_real_public_metadata_sources_and_zero_imports(self):
+    def test_01_11_real_public_metadata_sources_and_zero_imports(self):
         result=validate_registry(self.registry)
-        self.assertEqual(result["discovered"],10)
+        self.assertEqual(result["discovered"],11)
         self.assertEqual(result["admitted"],0)
         self.assertEqual(result["generated_world_glbs"],0)
         self.assertTrue(all(not r["runtime_admitted"] for r in result["records"]))
@@ -85,7 +85,7 @@ class SourceAdmissionTests(unittest.TestCase):
             out=Path(d)/"report.json"
             got=run(SOURCE,out)
             self.assertEqual(got["admitted"],0)
-            self.assertEqual(json.loads(out.read_text())["discovered"],10)
+            self.assertEqual(json.loads(out.read_text())["discovered"],11)
             self.assertNotIn("drive.google",out.read_text())
 
 if __name__=="__main__":
