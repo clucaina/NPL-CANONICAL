@@ -1,0 +1,56 @@
+name: NeuroCity source integration rehearsal (NO DEPLOY)
+on:
+  push:
+    paths: ['tools/neurocity/integration_rehearsal.py','.github/workflows/neurocity-integration-rehearsal.yml','tools/neurocity/tests/test_integration_rehearsal.py']
+  pull_request:
+    paths: ['tools/neurocity/integration_rehearsal.py','.github/workflows/neurocity-integration-rehearsal.yml','tools/neurocity/tests/test_integration_rehearsal.py']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Source guard unit tests
+        run: python -m unittest discover -s tools/neurocity/tests -p test_integration_rehearsal.py -v
+      - name: Attempt REAL temporary source merges; never push
+        id: merge
+        shell: bash
+        run: |
+          set +e
+          python tools/neurocity/integration_rehearsal.py --repo . --report /tmp/neurocity-integration.json
+          rc=$?
+          echo "merge_ok=$([[ $rc -eq 0 ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          exit 0
+      - uses: actions/setup-node@v4
+        if: steps.merge.outputs.merge_ok == 'true'
+        with:
+          node-version: 22
+      - name: Run integrated game module tests and produce compiled WebGL bundle
+        if: steps.merge.outputs.merge_ok == 'true'
+        working-directory: demos/npl-world/visual_viewer
+        run: |
+          npm ci --no-audit --no-fund
+          node --test tests/*.test.mjs
+          npm run build
+          test -s dist/game.js
+      - name: Archive real merge conflicts even if integration fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NeuroCity_cross_PR_integration_evidence_NO_DEPLOY
+          path: /tmp/neurocity-integration.json
+          retention-days: 7
+      - name: Fail closed on conflicts; never claim unified production
+        if: steps.merge.outputs.merge_ok != 'true'
+        run: |
+          echo "::error::NeuroCity PRs are not source-compatible; see archived conflicts."
+          exit 1
