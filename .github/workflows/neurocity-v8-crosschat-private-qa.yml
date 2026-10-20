@@ -1,0 +1,41 @@
+name: NeuroCity V8 owner-only G19 sweep lineage QA (NO DEPLOY)
+on:
+  push:
+    paths:
+      - 'tools/neurocity/upgrade_private_v7_to_v8_g19.py'
+      - 'tools/neurocity/tests/test_private_v8_g19_upgrade.py'
+      - 'tools/neurocity/private_bundle_assembly.py'
+      - 'tools/neurocity/tests/test_private_bundle_assembly.py'
+      - '.github/workflows/neurocity-v8-crosschat-private-qa.yml'
+  pull_request:
+    paths:
+      - 'tools/neurocity/upgrade_private_v7_to_v8_g19.py'
+      - 'tools/neurocity/tests/test_private_v8_g19_upgrade.py'
+      - '.github/workflows/neurocity-v8-crosschat-private-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-reproducibility-and-private-owner-boundaries:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test inherited G19/V50 assembler and new V8 cross-chat upgrade
+        run: |
+          python -m unittest discover -s tools/neurocity/tests -p test_private_bundle_assembly.py -v
+          python -m unittest discover -s tools/neurocity/tests -p test_private_v8_g19_upgrade.py -v
+      - name: Forbid redistributing original private GLB models via Git
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          for file in Path('tools/neurocity').rglob('*'):
+              if file.is_file() and file.suffix.lower() in {'.glb','.gltf','.zip','.p12','.pem','.key'}:
+                  raise SystemExit('Private source or asset in public code: '+str(file))
+          print('PASS source-only cross-chat integration; runtime WebGL private model review remains pending.')
+          PY
