@@ -74,6 +74,15 @@ try{
      !state.selectedCamera.includes('Primera persona')){
     throw new Error('Public review did not load expected geo scene: '+JSON.stringify(reportCopy));
   }
+  // Evidence remains accessible, but the normal game-first experience must
+  // show the selectable 3D brain, not the old text mission by default.
+  await page.locator('#nplMethods > summary').click();
+  if(await page.locator('#nplMethods').evaluate(el=>el.open))
+    throw Error('Evidence lesson still covers the game after closing');
+  await page.waitForTimeout(300);
+  await page.locator('#nplBrainScene').screenshot({
+    path:'demos/npl-world/visual_viewer/dist/QA_NPL_REAL_THREE_CORTEX.png'
+  });
   await page.screenshot({path:'demos/npl-world/visual_viewer/dist/QA_BROWSER_REAL_CHROME.png',fullPage:true});
   report={status:consoleErrors.length?'BROWSER_READY_WITH_SCRIPT_ERRORS':'BROWSER_READY',...reportCopy};
   if(consoleErrors.length) throw new Error('JavaScript console errors detected');
