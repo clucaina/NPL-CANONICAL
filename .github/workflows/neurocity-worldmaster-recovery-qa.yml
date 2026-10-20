@@ -1,0 +1,44 @@
+name: NeuroCity · recuperar mundo maestro original y teselas (NO DEPLOY)
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/neurocity-worldmaster-recovery-qa.yml'
+      - 'tools/neurocity/worldmaster_recovery.py'
+      - 'tools/neurocity/export_local_worldmaster.py'
+      - 'tools/neurocity/test_worldmaster_recovery.py'
+      - 'demos/npl-world/visual_viewer/geo_alignment.mjs'
+      - 'demos/npl-world/visual_viewer/city_tiles.mjs'
+      - 'demos/npl-world/visual_viewer/world_master_loader.mjs'
+      - 'demos/npl-world/visual_viewer/tests/recovered_master_tiles.test.mjs'
+      - 'demos/npl-world/visual_viewer/app.js'
+permissions:
+  contents: read
+jobs:
+  recovery_qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prove source SHA256 integrity and offline citypack with synthetic fixtures only
+        run: python3 -m unittest discover -s tools/neurocity -p 'test_worldmaster_recovery.py' -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify physical CRS compatibility, tile LOD, native Three scene and fail-safe fallback
+        working-directory: demos/npl-world/visual_viewer
+        run: |
+          npm install --no-audit --no-fund
+          node --test tests/recovered_master_tiles.test.mjs
+      - name: Confirm city game compiles WITHOUT restored user Drive binaries
+        working-directory: demos/npl-world/visual_viewer
+        run: npm run build
+      - name: Assert no recovered original assets or patients are committed
+        run: |
+          test ! -d demos/npl-world/visual_viewer/world-master
+          test ! -f demos/npl-world/visual_viewer/dist/assets/maya.glb
+          test -s demos/npl-world/visual_viewer/dist/game.js
+          echo "PASS: source-only recovery; no original unapproved 3D payloads published"
