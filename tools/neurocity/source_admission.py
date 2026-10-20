@@ -70,7 +70,10 @@ def evaluate(record):
         if not isinstance(record.get("survey_year"), int) or not 2000 <= record["survey_year"] <= 2026:
             errors.append("SURVEY_DATE_UNVERIFIED")
     return {"id":record.get("id"), "kind":kind,
-            "runtime_admitted":not errors, "reasons":sorted(set(errors))}
+            # These records are metadata-only and binary_imported must be False.
+            # A newly validated SHA can permit REVIEW, never claim it is live.
+            "eligible_for_manual_import":not errors,
+            "runtime_admitted":False, "reasons":sorted(set(errors))}
 
 
 def validate_registry(payload):
