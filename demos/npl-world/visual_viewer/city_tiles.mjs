@@ -102,8 +102,9 @@ export function plannedLayers(tile,profile='desktop'){
     if(profile==='mobile' && ['environment','driving','lod'].includes(asset.role))continue;
     // Previously mustKeep bypassed the cap entirely: mobile could exceed 290k.
     // Fail closed and let geographic OSM fallback work instead of claiming LOD.
-    if(profile==='mobile'&&(triangles+cost>cap||images+imageCost>30))continue;
-    if(!mustKeep&&(triangles+cost>cap||images+imageCost>140))continue;
+    // Mandatory layers also consume real GPU budget on ALL devices:
+    // never overcommit desktop or mobile and mask the live OSM fallback.
+    if(triangles+cost>cap||images+imageCost>(profile==='mobile'?30:140))continue;
     selected.push(asset);triangles+=cost;images+=imageCost;
   }
   return selected;
