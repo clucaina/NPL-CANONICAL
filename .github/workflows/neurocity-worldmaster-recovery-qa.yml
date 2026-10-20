@@ -7,6 +7,8 @@ on:
       - 'tools/neurocity/worldmaster_recovery.py'
       - 'tools/neurocity/export_local_worldmaster.py'
       - 'tools/neurocity/test_worldmaster_recovery.py'
+      - 'tools/neurocity/spain_tile_factory.py'
+      - 'tools/neurocity/test_spain_tile_factory.py'
       - 'demos/npl-world/visual_viewer/geo_alignment.mjs'
       - 'demos/npl-world/visual_viewer/city_tiles.mjs'
       - 'demos/npl-world/visual_viewer/world_master_loader.mjs'
@@ -25,6 +27,7 @@ jobs:
           python-version: '3.12'
       - name: Prove source SHA256 integrity and offline citypack with synthetic fixtures only
         run: python3 -m unittest discover -s tools/neurocity -p 'test_worldmaster_recovery.py' -v
+          python3 -m unittest discover -s tools/neurocity -p 'test_spain_tile_factory.py' -v
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
