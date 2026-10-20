@@ -8,6 +8,8 @@ on:
       - 'tools/neurocity/test_source_admission.py'
       - 'tools/neurocity/official_terrain_probe.py'
       - 'tools/neurocity/test_official_terrain_probe.py'
+      - 'tools/neurocity/official_terrain_lod.py'
+      - 'tools/neurocity/test_official_terrain_lod.py'
       - '.github/workflows/neurocity-source-admission-qa.yml'
 permissions:
   contents: read
@@ -57,9 +59,11 @@ jobs:
       - name: Install free rasterio and pyproj with pinned versions to inspect real GeoTIFF
         run: python3 -m pip install --disable-pip-version-check rasterio==1.4.3 pyproj==3.7.1
       - name: Test exact G12 provenance, EPSG3042 axis conversion and fail-closed source
-        run: python3 -m unittest discover -s tools/neurocity -p 'test_official_terrain_probe.py' -v
+        run: |
+          python3 -m unittest discover -s tools/neurocity -p 'test_official_terrain_probe.py' -v
+          python3 -m unittest discover -s tools/neurocity -p 'test_official_terrain_lod.py' -v
       - name: Probe one real Alicante EPSG25830 500m MDT05 COG from IGN IDEE
-        run: python3 tools/neurocity/official_terrain_probe.py
+        run: python3 tools/neurocity/official_terrain_probe.py --mesh-output _neurocity_source_qa/mdt_lod
       - name: Preserve truthful result even if official download is unavailable
         if: always()
         uses: actions/upload-artifact@v4
@@ -67,4 +71,13 @@ jobs:
           name: NEUROCITY_OFFICIAL_ALICANTE_MDT05_REAL_PIXELS_QA
           path: _neurocity_source_qa/real_terrain_r01_c02.json
           retention-days: 7
+          if-no-files-found: warn
+
+      - name: Archive real official MDT05 LOD candidate GLB, no private models or deployment
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEUROCITY_MDT05_REAL_TERRAIN_3_LOD_CANDIDATE_CCBY_NOT_APPROVED
+          path: _neurocity_source_qa/mdt_lod/
+          retention-days: 1
           if-no-files-found: warn
