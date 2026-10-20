@@ -70,36 +70,56 @@ button:hover{background:#2e6474}button:disabled{opacity:.45;cursor:not-allowed}
 #neurohud .npl-method-body{padding:1px 0 6px}
 #neurohud .npl-legacy-flow{opacity:.77}
 @media(max-width:680px){#nplBrainCanvas{height:170px}#neurohud[open]{top:96px;max-height:calc(100vh - 106px)}}
+
+/* Original NPL BrainViewer runs only inside the same-origin iframe. No fake
+   procedural egg brains, no duplicate atlas engine or anatomy renderer. */
+#nplCanonicalDialog{position:absolute;inset:10px;z-index:20;display:flex;flex-direction:column;
+ background:#0c1722f5;border:1px solid #b9948680;border-radius:18px;
+ box-shadow:0 14px 72px #000b;color:#f4ebe1;overflow:hidden}
+#nplCanonicalDialog[hidden]{display:none!important}
+.npl-canonical-header{position:relative;display:flex;align-items:center;justify-content:space-between;
+ width:100%;max-width:none;top:auto;left:auto;padding:12px 17px;gap:14px;
+ background:linear-gradient(95deg,#422a36,#182634)}
+.npl-canonical-header h2{font-size:16px;margin:0 0 3px}.npl-canonical-header p{font-size:11px;color:#e4cabe;margin:0}
+#nplCanonicalStatus{padding:5px 17px;font-size:12px;color:#f0c8ac;border-bottom:1px solid #ffffff1c}
+#nplCanonicalFrame{display:block;flex:1;min-height:180px;width:100%;border:0;background:#0b1521}
+#nplCanonicalFrame[hidden]{display:none!important}
+#nplCanonicalDialog #neurohud{position:relative;display:block;width:100%;max-height:28vh;
+ top:auto;right:auto;left:auto;bottom:auto;border-radius:0;box-shadow:none;overflow:auto;
+ flex-shrink:0;background:#261f2bb3}
+#nplCanonicalDialog #neurohud>summary{padding:11px 16px}
+.npl-canonical-provenance{font-size:10px;color:#b9afb0;padding:5px 14px;background:#141d26}
+#nplCanonicalDialog #nplMethods>summary{display:none}
+#nplCanonicalDialog #nplMethods>.npl-method-body{display:block}
+@media(max-width:680px){#nplCanonicalDialog{inset:3px;border-radius:8px}
+ .npl-canonical-header{padding:9px}.npl-canonical-header h2{font-size:13px}
+ .npl-canonical-header p{display:none}
+ #nplCanonicalDialog #neurohud{max-height:22vh}
+ #nplCanonicalClose{font-size:11px;padding:7px}}
 </style></head><body>
 <canvas id="game"></canvas>
 <header class="panel"><strong>N✦ NPL WORLD</strong><p>Explanada de Alicante · Edificios OSM y escena 3D con vestuario y paisaje mediterráneo.<br><small>Ciudad y semejanza facial aún no fotogramétricas.</small></p></header>
-<div id="panelControls" class="panel"><button id="cam">◉ Cámara (C)</button><button id="face">◎ Ver rostro</button><button id="fidelity">◈ Calidad</button><button id="reset">↻ Centrar</button></div>
-<details id="neurohud" open aria-label="NPL: simulador funcional 3D, operaciones cognitivas y aprendizaje interactivo"><summary><span>◉ NPL · Laboratorio 3D</span><em id="nplMode">Entrenamiento</em></summary><section>
-<div id="nplBrainScene"><canvas id="nplBrainCanvas" width="310" height="200" aria-label="Cerebro tridimensional didáctico, seleccionable y giratorio"></canvas><div id="nplBrainStatus" role="status" aria-live="polite">Preparando el simulador tridimensional…</div></div>
-<div id="nplBrainProcesses" role="group" aria-label="Explora cinco operaciones funcionales">
-<button type="button" data-brain-process="perception" aria-pressed="true">Percepción</button>
-<button type="button" data-brain-process="attention" aria-pressed="false">Atención</button>
-<button type="button" data-brain-process="memory" aria-pressed="false">Memoria</button>
-<button type="button" data-brain-process="reasoning" aria-pressed="false">Contraste</button>
-<button type="button" data-brain-process="decision" aria-pressed="false">Decisión</button></div>
-<h3 id="nplActiveTitle">Percepción espacial</h3>
-<p id="nplActiveDescription" aria-live="polite">Observa las operaciones del juego; no representa actividad cerebral real.</p>
-<div id="nplLiveMetrics" aria-live="off">Recorrido 0 m · Decisiones 0</div>
-<p id="nplBrainLabel" class="npl-note">Simulación de acciones observadas en el juego, NO escáner cerebral ni evaluación clínica.</p>
-<details id="nplMethods"><summary>◈ Investigar datos y tomar decisiones</summary><div class="npl-method-body">
+<div id="panelControls" class="panel"><button id="cam">◉ Cámara (C)</button><button id="face">◎ Ver rostro</button><button id="fidelity">◈ Calidad</button><button id="nplCanonicalOpen" type="button" aria-haspopup="dialog" aria-expanded="false">◉ NPL · Atlas 3D real</button><button id="reset">↻ Centrar</button></div>
+<div id="nplCanonicalDialog" hidden role="dialog" aria-modal="true" aria-labelledby="nplCanonicalHeading">
+<header class="npl-canonical-header"><div><h2 id="nplCanonicalHeading">NPL · Atlas anatómico canónico</h2><p>437 estructuras originales · fuente NPL C14-R3 · navegación anatómica auténtica</p></div><button id="nplCanonicalClose" type="button" aria-label="Cerrar atlas NPL y volver a Alicante">✕ Volver a Alicante</button></header>
+<div id="nplCanonicalStatus" role="status" aria-live="polite">Atlas original pendiente de carga.</div>
+<iframe id="nplCanonicalFrame" title="Visor original de NPL" loading="lazy" hidden></iframe>
+<details id="neurohud" aria-label="NPL: investigación, conflicto y misión metodológica"><summary><span>◈ Datos, Conflictómetro y misiones</span><em id="nplMode">Entrenamiento</em></summary><section>
+<p class="npl-note" id="nplBrainLabel">La anatomía se explora en BrainViewer original; las decisiones del juego no miden actividad cerebral.</p>
 <div id="nplFlow" class="npl-legacy-flow" aria-live="off"></div>
 <h3>CONFLICTÓMETRO · EVIDENCIA</h3><p id="nplDataState" data-ready="false">Buscando observaciones verificadas…</p><p id="nplConflictSummary">Sin atribuciones causales ni diagnósticos colectivos.</p>
 <h3>MISIÓN · CONTRASTAR ANTES DE ACTUAR</h3><p id="nplMissionStage" aria-live="polite">Verificando fuente…</p><div id="nplOptions"></div><p id="nplFeedback" aria-live="polite"></p>
 <p class="npl-note">Sin cuentas, chat ni seguimiento. Progreso local a esta sesión.</p></div></details>
 </section></details>
+<div class="npl-canonical-provenance">Atlas canónico original: Z-Anatomy / BodyParts3D · CC BY-SA 4.0 · visualización educativa, no medición clínica del jugador.</div>
+</div>
 <div id="walkPad" role="group" aria-label="Control táctil de desplazamiento. Desliza para avanzar, retroceder y moverte lateralmente."><div id="walkKnob"></div></div>
 <div id="loading"><h2>Cargando recursos locales 3D</h2><p id="progress">Preparando motor gráfico…</p><p>No se descargan personas ni edificios al abrir. Los modelos ya están en el paquete.</p></div>
 <div id="stat" class="panel">0,0 m</div><div id="info" class="panel"><span id="messageText">W/S avanzar y retroceder · A/D lateral · Mayús correr · ratón cámara</span> · <span id="cameraMode">Tercera persona</span></div>
 <script>
 // Navigation remains usable on phones: a learning panel must not cover the 3D city by default.
-if(window.matchMedia('(pointer:coarse) and (max-width:680px)').matches){
- document.querySelector('#neurohud').open=false;
-}
+// NPL is an optional immersive atlas, not a fixed panel covering Alicante.
+document.querySelector('#neurohud').open=false;
 document.querySelector('#face').onclick=()=>{
  for(let i=0;i<3;i++){
   if(document.querySelector('#cameraMode').textContent.includes('Inspección facial'))break;
