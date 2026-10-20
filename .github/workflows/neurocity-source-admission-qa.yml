@@ -10,6 +10,8 @@ on:
       - 'tools/neurocity/test_official_terrain_probe.py'
       - 'tools/neurocity/official_terrain_lod.py'
       - 'tools/neurocity/test_official_terrain_lod.py'
+      - 'tools/neurocity/official_terrain_batch.py'
+      - 'tools/neurocity/test_official_terrain_batch.py'
       - '.github/workflows/neurocity-source-admission-qa.yml'
 permissions:
   contents: read
@@ -79,5 +81,30 @@ jobs:
         with:
           name: NEUROCITY_MDT05_REAL_TERRAIN_3_LOD_CANDIDATE_CCBY_NOT_APPROVED
           path: _neurocity_source_qa/mdt_lod/
+          retention-days: 1
+          if-no-files-found: warn
+
+  four_existing_g19_tiles:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned free geospatial raster validator
+        run: python3 -m pip install --disable-pip-version-check rasterio==1.4.3 pyproj==3.7.1
+      - name: Test four original G19 coordinate tuples and deliberate missing tile
+        run: python3 -m unittest discover -s tools/neurocity -p 'test_official_terrain_batch.py' -v
+      - name: Download official IGN terrain for all four original G19 tiles; no invented coverage
+        run: python3 tools/neurocity/official_terrain_batch.py --output _neurocity_four_tile_source
+      - name: Upload only public CC-BY official-derived candidates and exact partial-coverage QA
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEUROCITY_FOUR_G19_TILES_OFFICIAL_MDT05_LOD_CANDIDATES_NOT_APPROVED
+          path: _neurocity_four_tile_source/
           retention-days: 1
           if-no-files-found: warn
