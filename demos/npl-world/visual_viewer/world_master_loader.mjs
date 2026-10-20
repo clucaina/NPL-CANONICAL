@@ -181,7 +181,7 @@ export class RecoveredMasterTiles {
    await Promise.all(desired.map(id=>this._ensureTile(id)));
    const covered=Array.from(this.states.values()).filter(s=>s.ready&&s.loaded>0).map(s=>s.id);
    const active=covered.length>0;
-   this.onCoverage(covered);
+   this.onCoverage(Array.from(this.states.values()).filter(s=>s.ready&&s.roles.has('architecture')&&s.errors===0).map(s=>s.id));
    if(active!==this.recoveredVisible){
      this.recoveredVisible=active;this.onVisibility(active);
    }
