@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {assertTileManifest,planActiveTiles,plannedLayers,tileBounds,safeTilePath} from './city_tiles.mjs';
 import {matrixElementsForMaster,VERTICAL_DATUM_VERIFIED} from './geo_alignment.mjs';
+import {instantiateMasterPalms} from './asset_instancing.mjs';
 
 /**
  * Optional local GLB recovery layer compatible with Three.js r169.
@@ -38,12 +39,11 @@ export class RecoveredMasterTiles {
    if(!node?.isObject3D)throw Error('GLTF lacks scene');
    const obj=new THREE.Group();obj.name='MASTER_'+asset.role;
    if(asset.placements?.length){
-     for(const p of asset.placements){
-       if(![p.x,p.y,p.z,p.scale,p.rotation].every(Number.isFinite))throw Error('Bad authored palm position');
-       const instance=node.clone(true);instance.position.set(p.x,p.y,p.z);
-       instance.rotation.y=p.rotation;instance.scale.setScalar(p.scale);
-       obj.add(instance);
-     }
+     // Each archived palm is a genuine multi-part GLB. GPU instancing retains
+     // the original geometry, UVs and materials and scales by validated poses.
+     const instanced=instantiateMasterPalms(node,asset.placements,{mobile:this.profile==='mobile'});
+     obj.add(instanced.group);
+     obj.userData.palmInstancing=instanced.report;
    }else{
      obj.add(node);
      if(asset.local===true){
