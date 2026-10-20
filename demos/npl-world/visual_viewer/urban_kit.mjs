@@ -4,28 +4,52 @@ import {planUrbanKit,makeKitReport} from './urban_kit_layout.mjs';
 /**
  * Lightweight, original parametric models. CC0-1.0 dedication; geometry authored
  * for NeuroCity. Not imported photographic, photogrammetric or surveyed props.
- * Ten InstancedMesh draw groups: 3 palm + 3 bench + 2 planter + 1 cycle rack.
+ * Eleven InstancedMesh draw groups: 5 palm + 3 bench + 2 planter + 1 cycle rack.
  * Building and street geodata meshes remain unchanged.
  */
-function frondGeometry(config){
+function frondGeometry(config,variant=0){
  const vertices=[],indices=[],uv=[];
- const N=config.fronds, S=config.segments;
+ const N=config.fronds+(variant===2?4:0),S=config.segments+2;
+ const canopyLength=[3.75,4.42,3.10][variant];
+ const arch=[1.20,1.72,.83][variant];
+ const droop=[1.9,2.55,1.24][variant];
+ const bladeWidth=[.42,.33,.57][variant];
+ const put=(p,u,v)=>{vertices.push(...p);uv.push(u,v);};
  for(let j=0;j<N;j++){
-  const a=j*2*Math.PI/N,dx=Math.cos(a),dz=Math.sin(a),tx=-dz,tz=dx;
-  const length=3.6+0.48*Math.sin(j*2.7);
+  const angle=j*2*Math.PI/N+.17*Math.sin(j*1.9);
+  const dx=Math.cos(angle),dz=Math.sin(angle),tx=-dz,tz=dx;
+  const length=canopyLength*(.88+.12*Math.sin(j*2.77+variant));
   const base=vertices.length/3;
   for(let i=0;i<=S;i++){
-   const t=i/S, r=.38+length*t;
-   const h=.54+1.25*Math.sin(Math.PI*t*.85)-1.9*t*t;
-   const width=.02+.43*Math.pow(Math.sin(Math.PI*t),.8);
+   const t=i/S;
+   const radius=.26+length*t;
+   const y=.26+arch*Math.sin(Math.PI*t*.90)-droop*t*t;
+   const width=(.035+bladeWidth*Math.pow(Math.sin(Math.PI*t),.83))*(1-.10*Math.sin(j));
    for(const side of [-1,1]){
-    vertices.push(dx*r+tx*width*side,h,dz*r+tz*width*side);
-    uv.push(t,side>0?1:0);
+    put([dx*radius+tx*width*side,y+side*.022,dz*radius+tz*width*side],t,side>0?1:0);
    }
   }
   for(let i=0;i<S;i++){
    const k=base+i*2;
    indices.push(k,k+1,k+2,k+1,k+3,k+2);
+  }
+  // Narrow paired leaflets along the date-palm rachis create recognizable
+  // feathery silhouettes, not opaque solid triangular LEGO palm leaves.
+  const leafletCount=variant===2?6:9;
+  for(let n=1;n<=leafletCount;n++){
+   const t=n/(leafletCount+1),radius=.26+length*t;
+   const y=.26+arch*Math.sin(Math.PI*t*.90)-droop*t*t;
+   const segment=.38+(.48* Math.sin(Math.PI*t));
+   const span=[.47,.35,.60][variant]*Math.sin(Math.PI*t);
+   for(const side of [-1,1]){
+    const k=vertices.length/3;
+    const cx=dx*radius,cz=dz*radius;
+    put([cx-tx*span*.04*side,y,cz-tz*span*.04*side],t,0);
+    put([cx+tx*span*side,y+.045,cz+tz*span*side],t,.5);
+    put([cx+tx*(span+segment)*side+dx*.13,y-.26*t,
+         cz+tz*(span+segment)*side+dz*.13],t,1);
+    indices.push(k,k+1,k+2);
+   }
   }
  }
  const geo=new THREE.BufferGeometry();
@@ -60,11 +84,20 @@ export function buildUrbanKit({tier='desktop'}={}){
  const ceramic=new THREE.MeshStandardMaterial({color:0xb89d82,roughness:.9});
  const shrub=new THREE.MeshStandardMaterial({color:0x4d7251,roughness:.93});
  const palmTrunk=new THREE.CylinderGeometry(.17,.31,6.5,9,6);
- const palmFronds=frondGeometry(plan.config),palmCore=new THREE.IcosahedronGeometry(.38,1);
+ const palmCore=new THREE.IcosahedronGeometry(.38,1);
  instanced(group,'palm_trunks',palmTrunk,bark,plan.palms,(o,p)=>{o.position.set(p.x,3.25*p.scale-.06,p.z);o.scale.setScalar(p.scale);}, {shadow:tier==='desktop'});
- instanced(group,'palm_canopies',palmFronds,foliage,plan.palms,(o,p)=>{
-   o.position.set(p.x,6.55*p.scale-.06,p.z);o.rotation.y=p.heading;o.scale.setScalar(p.scale);
- });
+ const frondColors=[0x315e40,0x44734a,0x507547];
+ for(let variant=0;variant<3;variant++){
+   const palms=plan.palms.filter(p=>p.variant===variant);
+   const shape=frondGeometry(plan.config,variant);
+   const green=new THREE.MeshStandardMaterial({color:frondColors[variant],
+     roughness:.84,metalness:0,side:THREE.DoubleSide});
+   instanced(group,'palm_canopies_'+variant,shape,green,palms,(o,p)=>{
+     o.position.set(p.x,6.55*p.scale-.06,p.z);
+     o.rotation.y=p.heading;o.scale.setScalar(p.scale);
+     o.scale.x*=variant===1?.87:variant===2?1.12:1;
+   });
+ }
  instanced(group,'palm_crowns',palmCore,collar,plan.palms,(o,p)=>{o.position.set(p.x,6.55*p.scale-.06,p.z);o.scale.setScalar(p.scale);});
  const seat=new THREE.BoxGeometry(1.9,.13,.59),back=new THREE.BoxGeometry(1.9,.7,.11),leg=new THREE.BoxGeometry(.13,.81,.13);
  instanced(group,'bench_seats',seat,timber,plan.benches,(o,p)=>{o.position.set(p.x,.82,p.z);o.rotation.y=p.heading;});
