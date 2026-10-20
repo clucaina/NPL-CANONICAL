@@ -200,6 +200,13 @@ for(const ob of scene.children.slice(decorStart)){scene.remove(ob);decorGroup.ad
 decorGroup.rotation.y=EXPLANADA_BEARING;
 decorGroup.position.copy(ESPLANADA_CENTER);
 scene.add(decorGroup);
+// The Mediterranean is a geographic layer, not a removable street prop:
+// preserve the exact decorated world transform while keeping the sea visible
+// when recovered city tiles temporarily hide illustrative OSM decorations.
+decorGroup.updateMatrixWorld(true);
+decorGroup.remove(sea);
+sea.applyMatrix4(decorGroup.matrixWorld);
+scene.add(sea);
 const player=new THREE.Group();scene.add(player);
 player.position.set(-10.664,0,113.546);
 let avatar=null, city=null,mixer=null,animations={},current=null;
@@ -495,6 +502,7 @@ function frame(){
      elapsed:sea.material.uniforms.uTime.value,
      detail:sea.material.uniforms.uDetail.value,
      programCount:renderer.info.programs?.length||0,
+     independentSeaLayer:sea.parent===scene,
      pixelRatio:renderer.getPixelRatio()};
  }
  if(Math.floor(clock.elapsedTime*3)!==Math.floor((clock.elapsedTime-dt)*3)){
