@@ -100,6 +100,19 @@ jobs:
               printf 'ALREADY PORTED: verified frame governor, bounded queue, source hook; skipping redundant merge.\n\n' >> reports/REPORT.md
               continue
             fi
+            if [ "$label" = 'physical-G13' ] &&
+               [ "$(git -C city-integrated rev-parse HEAD:demos/npl-world/visual_viewer/world_physics.mjs)" = "$(git -C city-integrated rev-parse refs/remotes/origin/ci-$label:demos/npl-world/visual_viewer/world_physics.mjs)" ] &&
+               grep -q 'fallbackCollision:wallFallback' city-integrated/demos/npl-world/visual_viewer/app.js &&
+               grep -q "if(triangles+cost>cap||images+imageCost>" city-integrated/demos/npl-world/visual_viewer/city_tiles.mjs; then
+              printf 'ALREADY PORTED: signed G13 fallback to real walls and stronger GPU cap; no needless PR48 merge.\n\n' >> reports/REPORT.md
+              continue
+            fi
+            if [ "$label" = 'acceptance-48walls' ] &&
+               [ "$(git -C city-integrated rev-parse HEAD:demos/npl-world/visual_viewer/city_collision.mjs)" = "$(git -C city-integrated rev-parse refs/remotes/origin/ci-$label:demos/npl-world/visual_viewer/city_collision.mjs)" ] &&
+               grep -q 'auditSourceWallBlocking({samples:48})' city-integrated/demos/npl-world/visual_viewer/app.js; then
+              printf 'ALREADY PORTED: true G19 48-wall sweep acceptance; no needless PR50 merge.\n\n' >> reports/REPORT.md
+              continue
+            fi
             if git -C city-integrated merge --no-ff --no-edit \
                  "refs/remotes/origin/ci-$label" > "reports/merge-$label.log" 2>&1; then
               printf 'CLEAN ephemeral merge; SHA %s\n\n' "$(git -C city-integrated rev-parse HEAD)" >> reports/REPORT.md
