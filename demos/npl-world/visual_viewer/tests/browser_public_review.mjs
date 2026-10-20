@@ -80,6 +80,28 @@ try{
   if(await page.locator('#nplBrainCanvas').count())
     throw Error('Fake brain canvas regressed into canonical NeuroCity');
   await page.waitForTimeout(300);
+  // Actual Three.js canvas remains interactive while users cycle the
+  // session-only dynamic rendering budget: no GLB/model geometry is replaced.
+  const perfAtStart=await page.evaluate(()=>window.NEUROCITY_PERFORMANCE_QA);
+  if(perfAtStart?.mode!=='auto'||perfAtStart?.plan?.geometryUnchanged!==true||
+     perfAtStart?.privateModelInfoExcluded!==true||
+     perfAtStart?.rendererDrawingBudgetApplied!==true)
+    throw Error('Renderer quality governor did not start on live WebGL');
+  await page.locator('#fidelity').click();
+  const detail=await page.evaluate(()=>window.NEUROCITY_PERFORMANCE_QA);
+  if(detail?.mode!=='detail'||detail?.plan?.tier!=='detail')
+    throw Error('Manual quality DETAIL control did not affect live renderer');
+  await page.locator('#fidelity').click();
+  const low=await page.evaluate(()=>window.NEUROCITY_PERFORMANCE_QA);
+  if(low?.mode!=='economy'||low?.plan?.shadowSize!==512)
+    throw Error('Manual economy mode or draw-call budget unavailable');
+  await page.locator('#fidelity').click();
+  const restored=await page.evaluate(()=>window.NEUROCITY_PERFORMANCE_QA);
+  if(restored?.mode!=='auto'||restored?.plan?.geometryUnchanged!==true||
+     restored?.telemetryNetwork!==false)
+    throw Error('Restored AUTO mode mutated private 3D models or opened telemetry');
+  reportCopy.adaptive_quality={start:perfAtStart.mode,detail:detail.plan,
+    economy:low.plan,restored:restored.mode,geometryProtected:true};
   await page.screenshot({path:'demos/npl-world/visual_viewer/dist/QA_BROWSER_REAL_CHROME.png',fullPage:true});
   report={status:consoleErrors.length?'BROWSER_READY_WITH_SCRIPT_ERRORS':'BROWSER_READY',...reportCopy};
   if(consoleErrors.length) throw new Error('JavaScript console errors detected');
