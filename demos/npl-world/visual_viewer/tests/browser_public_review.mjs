@@ -6,8 +6,14 @@ const browser=await chromium.launch({
   args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']
 });
 const page=await browser.newPage({viewport:{width:1440,height:900},deviceScaleFactor:1});
-const consoleErrors=[],failedRequests=[];
+const consoleErrors=[],failedRequests=[],shaderConsoleErrors=[];
 page.on('pageerror',error=>consoleErrors.push(String(error.stack||error.message).slice(0,2400)));
+page.on('console',message=>{
+ const m=message.text();
+ if((message.type()==='error'||message.type()==='warning')&&
+   /THREE\\.WebGLProgram|Shader Error|VALIDATE_STATUS|GL_INVALID|INVALID_OPERATION/.test(m))
+   shaderConsoleErrors.push(m.slice(0,1800));
+});
 page.on('requestfailed',request=>failedRequests.push(request.url()));
 let report={};
 try{
@@ -125,6 +131,13 @@ try{
       inspector.geometryInvented!==0||inspector.distanceToObserver>95){
     throw Error('Near-field view cannot locate a real OSM wall: '+JSON.stringify(inspector));
   }
+  const rawGLB=await page.evaluate(()=>window.NEUROCITY_SOURCE_WALL_QA?.setRaw(true));
+  if(rawGLB?.raw!==true||rawGLB?.meshCount<1||rawGLB.sourceGeometryUnchanged!==true)
+    throw Error('Cannot inspect raw public GLB OSM building material');
+  await page.waitForTimeout(350);
+  await page.locator('#game').screenshot({path:'demos/npl-world/visual_viewer/dist/QA_FACADE_CLOSEUP_RAW_GLB.png'});
+  const rawRestored=await page.evaluate(()=>window.NEUROCITY_SOURCE_WALL_QA?.setRaw(false));
+  if(rawRestored?.raw!==false)throw Error('Original OSM wall material cannot be restored');
   await pbrControl.click();
   await page.waitForTimeout(400);
   await page.locator('#game').screenshot({path:'demos/npl-world/visual_viewer/dist/QA_FACADE_CLOSEUP_ORIGINAL.png'});
@@ -137,6 +150,7 @@ try{
   reportCopy.nearSourceWallQA={
     ...inspector,originalAndPbrScreenshots:true,
     sourceGeometrySurveyed:false,personalDataUsed:false,
+    rawSourceMaterialRendered:true,shaderConsoleErrors,
     visualDifferenceMeasuredSeparately:true
   };
   // Actual Three.js canvas remains interactive while users cycle the
@@ -181,6 +195,8 @@ try{
   }
   reportCopy.cameraCaptures=captures;
   report={status:consoleErrors.length?'BROWSER_READY_WITH_SCRIPT_ERRORS':'BROWSER_READY',...reportCopy};
+  if(shaderConsoleErrors.length)
+    throw new Error('WebGL shader errors (source walls may be invisible): '+shaderConsoleErrors.join(' | ').slice(0,1600));
   if(consoleErrors.length) throw new Error('JavaScript console errors detected');
 } catch(error) {
   report={status:'BROWSER_QA_FAILED',error:String(error),consoleErrors,failedRequests,...report};
