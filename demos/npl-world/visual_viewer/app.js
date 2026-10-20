@@ -4,6 +4,7 @@ import { nextCameraMode, canNavigate } from './navigation_policy.mjs';
 import {normalizedStick,combineMovement} from './mobile_navigation.mjs';
 import {buildUrbanKit} from './urban_kit.mjs';
 import {RecoveredMasterTiles} from './world_master_loader.mjs';
+import {RecoveredPhysicalAtlas} from './world_physics.mjs';
 import {installCoveredOSMMask} from './osm_building_mask.mjs';
 import {buildHedgeLayer} from './hedge_layer.mjs';
 import {createSurfaceTexture,enhanceMappedOSMRoads} from './road_surfaces.mjs';
@@ -196,6 +197,7 @@ const player=new THREE.Group();scene.add(player);
 player.position.set(-10.664,0,113.546);
 let avatar=null, city=null,mixer=null,animations={},current=null;
 let osmCover=null;
+let physicalAtlas=null,physicalPrefetchBusy=false,physicalLastPrefetch=0;
 let recoveredMaster=null,masterNextUpdate=0,masterBusy=false;
 const keys=new Set();
 const touchStick={forward:0,strafe:0};
@@ -336,6 +338,18 @@ function startRecoveredMasterIfRequested(){
  });
  recoveredMaster.initialize().then(()=>recoveredMaster.update(player.position)).then(()=>{
    makeSourceComparisonControl();
+   // SOURCE G13–G16 physics is local-only, hashed and independent of archived 3D.
+   // Never use provisional G05 height as a certified terrain/sea elevation.
+   physicalAtlas=new RecoveredPhysicalAtlas({maxTiles:visualTier==='mobile'?3:5});
+   physicalAtlas.initialize()
+     .then(()=>physicalAtlas.prefetch(player.position.x,player.position.z))
+     .then(()=>{window.NPL_PHYSICS=physicalAtlas.status();})
+     .catch(error=>{
+       window.NPL_PHYSICS={status:'UNAVAILABLE_OSM_FALLBACK',
+         reason:String(error?.message||error).slice(0,130),
+         certifiedTerrain:false};
+       physicalAtlas.dispose();physicalAtlas=null;
+     });
    window.NPL_RECOVERED_GEO=recoveredMaster.status();
    if(recoveredMaster.status().active)
       display('Mundo maestro Drive recuperado: mosaico V50, fachada y vegetación original por teselas. Alturas y licencias pendientes de aprobación pública.');
@@ -440,6 +454,13 @@ function frame(){
       window.NPL_RECOVERED_GEO=recoveredMaster.status();
    }).catch(()=>{}).finally(()=>{masterBusy=false;});
  }
+ if(physicalAtlas?.index && !physicalPrefetchBusy &&
+    clock.elapsedTime-physicalLastPrefetch>2.5){
+   physicalLastPrefetch=clock.elapsedTime;physicalPrefetchBusy=true;
+   physicalAtlas.prefetch(player.position.x,player.position.z)
+     .then(()=>{window.NPL_PHYSICS=physicalAtlas?.status()||null;})
+     .catch(()=>{}).finally(()=>{physicalPrefetchBusy=false;});
+ }
  const input=combineMovement(
   Number(keys.has('KeyW')||keys.has('ArrowUp'))-Number(keys.has('KeyS')||keys.has('ArrowDown')),
   Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft')),
@@ -453,8 +474,17 @@ function frame(){
   const speed=(fast?6.6:2.6)*dt;
   const dx=Math.sin(yaw)*forward-Math.cos(yaw)*strafe;
   const dz=Math.cos(yaw)*forward+Math.sin(yaw)*strafe;
-  player.position.x=Math.max(-318,Math.min(402,player.position.x+dx*speed));
-  player.position.z=Math.max(-411,Math.min(304,player.position.z+dz*speed));
+  const deltaX=dx*speed,deltaZ=dz*speed;
+  if(showingArchivedMaster && physicalAtlas?.index){
+    const moved=physicalAtlas.move(player.position,deltaX,deltaZ);
+    player.position.x=Math.max(-318,Math.min(402,moved.x));
+    player.position.z=Math.max(-411,Math.min(304,moved.z));
+    window.NPL_LAST_PHYSICS_MOVE={blockedSubsteps:moved.blockedSubsteps,
+      fallbackSubsteps:moved.fallbackSubsteps,verticalDatumVerified:false};
+  }else{
+    player.position.x=Math.max(-318,Math.min(402,player.position.x+deltaX));
+    player.position.z=Math.max(-411,Math.min(304,player.position.z+deltaZ));
+  }
   actorHeading=Math.atan2(Math.sin(yaw)*Math.sign(forward),Math.cos(yaw)*Math.sign(forward));
   if(avatar&&Math.abs(forward)>.05){const headingDelta=Math.atan2(Math.sin(actorHeading-avatar.rotation.y),Math.cos(actorHeading-avatar.rotation.y));
     avatar.rotation.y+=headingDelta*Math.min(1,dt*7);}
