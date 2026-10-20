@@ -44,17 +44,45 @@ source_gml=D/"catastro_building_parts.gml"
 overlay_file=D/"catastro_building_parts.json"
 # Optional official-source upgrade: no GML, no override. Never trust a loose
 # JSON geometry file without its exact original official WFS bytes.
+cadastre_source_count=0
+cadastre_coverage_complete=False
 if overlay_file.exists():
-    if not source_gml.exists():raise RuntimeError("Cadastre overlay requires original GML for SHA verification")
     source=json.loads(overlay_file.read_text(encoding="utf-8"))
-    if (source.get("schema")!="neurocity.catastro-building-parts.v1" or
-        source.get("source")!="DG_CATASTRO_INSPIRE_BU_BUILDINGPART" or
+    if (source.get("source")!="DG_CATASTRO_INSPIRE_BU_BUILDINGPART" or
         source.get("crs")!="EPSG:3857_local" or source.get("height_is_surveyed") is not False or
-        source.get("height_method")!="official_floors_times_3m_ESTIMATE" or
-        not source.get("source_url","").startswith("https://ovc.catastro.meh.es/INSPIRE/wfsBU.aspx?") or
-        hashlib.sha256(source_gml.read_bytes()).hexdigest()!=source.get("source_sha256")):
-        raise RuntimeError("Unsigned, unverified or overclaimed Catastro footprint overlay")
-    catastro_sha=source["source_sha256"]
+        source.get("height_method")!="official_floors_times_3m_ESTIMATE"):
+        raise RuntimeError("Invalid cadastral provenance/height semantics")
+    if source.get("schema")=="neurocity.catastro-building-parts.v1":
+        if not source_gml.exists():raise RuntimeError("Original official GML required")
+        if (not source.get("source_url","").startswith("https://ovc.catastro.meh.es/INSPIRE/wfsBU.aspx?") or
+            hashlib.sha256(source_gml.read_bytes()).hexdigest()!=source.get("source_sha256")):
+            raise RuntimeError("Official single-tile GML hash missing/mismatch")
+        catastro_sha=source["source_sha256"]
+        cadastre_source_count=1
+    elif source.get("schema")=="neurocity.catastro-building-grid.v2":
+        source_tiles=source.get("source_tiles")
+        if not isinstance(source_tiles,list) or not 1<=len(source_tiles)<=9:
+            raise RuntimeError("Missing bounded 3x3 official source grid")
+        tile_names=set();digests=[]
+        for tile in source_tiles:
+            ident=tile.get("tile_id");name=tile.get("gml_name")
+            if (not isinstance(ident,str) or not re.fullmatch(r"r[0-2]_c[0-2]",ident)
+                or name!=ident+".gml" or ident in tile_names):
+                raise RuntimeError("Unsafe or duplicated grid source tile")
+            tile_names.add(ident)
+            original=D/"catastro_grid_tiles"/name
+            if (not original.is_file() or
+                not str(tile.get("url","")).startswith("https://ovc.catastro.meh.es/INSPIRE/wfsBU.aspx?") or
+                hashlib.sha256(original.read_bytes()).hexdigest()!=tile.get("sha256")):
+                raise RuntimeError("Missing/unverified official grid tile")
+            digests.append(tile["sha256"])
+        cadastre_source_count=len(source_tiles)
+        cadastre_coverage_complete=(cadastre_source_count==9)
+        if source.get("coverage_complete") is not cadastre_coverage_complete:
+            raise RuntimeError("Claimed grid completeness inconsistent with bytes")
+        catastro_sha=hashlib.sha256("".join(sorted(digests)).encode()).hexdigest()
+    else:
+        raise RuntimeError("Unsupported official cadastral volume schema")
     for building in source.get("matched",[]):
         name=building.get("osm_way_id")
         if not isinstance(name,str) or not name.isdigit() or name in cadastre_matches:
@@ -194,6 +222,8 @@ result={"real_osm_buildings":total,"heights_directly_measured":measured,"omitted
 "cadastre_building_parts_geometry":catastro_parts_drawn,
 "cadastre_original_osm_footprints_replaced":catastro_replaced_osm,
 "cadastre_source_gml_sha256":catastro_sha,
+"cadastre_verified_source_tiles":cadastre_source_count,
+"cadastre_coverage_complete":cadastre_coverage_complete,
 "cadastre_floor_based_height_not_measured":True,
 "original_osm_file_modified":False,
 "roof_triangulation":"Blender tessellate_polygon nonconvex_safe"}
