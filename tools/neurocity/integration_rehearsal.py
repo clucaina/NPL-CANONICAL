@@ -103,6 +103,7 @@ def review(repo, report):
         # Do not invent a merge: preserve V50/G13 physical and coast safeguards
         # for a synthetic compilation trial, and mark human review mandatory.
         allowed_resolution={
+            "demos/npl-world/visual_viewer/app.js",
             "demos/npl-world/visual_viewer/city_tiles.mjs",
             "demos/npl-world/visual_viewer/water_surface.mjs",
             "demos/npl-world/visual_viewer/tests/water_surface.test.mjs"
