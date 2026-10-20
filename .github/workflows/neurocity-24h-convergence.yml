@@ -47,11 +47,19 @@ jobs:
         with:
           node-version: '22'
       - name: Test cross-chat lineage audit on synthetic git graphs
-        run: python3 -m unittest discover -s orchestrator/tools/neurocity -p 'test_cross_chat_lineage.py' -v
-      - name: Capture current verified source SHAs and overlapping edit paths
         run: |
           mkdir -p reports
-          python3 orchestrator/tools/neurocity/cross_chat_lineage.py --repo city-v7 --output-dir reports
+          python3 -m unittest discover -s orchestrator/tools/neurocity -p 'test_cross_chat_lineage.py' -v > reports/lineage-tests.log 2>&1 || {
+            cat reports/lineage-tests.log
+            exit 1
+          }
+          tail -n 3 reports/lineage-tests.log
+      - name: Capture current verified source SHAs and overlapping edit paths
+        run: |
+          python3 orchestrator/tools/neurocity/cross_chat_lineage.py --repo city-v7 --output-dir reports > reports/lineage-source-audit.log 2>&1 || {
+            cat reports/lineage-source-audit.log
+            exit 1
+          }
           cat reports/CROSS_CHAT_LINEAGE.md >> "${GITHUB_STEP_SUMMARY}"
       - name: Rehearse independent 3D branches without modifying remote history
         id: integration
