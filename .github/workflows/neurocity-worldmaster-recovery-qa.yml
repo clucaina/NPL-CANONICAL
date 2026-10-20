@@ -15,6 +15,8 @@ on:
       - 'demos/npl-world/visual_viewer/world_master_loader.mjs'
       - 'demos/npl-world/visual_viewer/asset_instancing.mjs'
       - 'demos/npl-world/visual_viewer/tests/asset_instancing.test.mjs'
+      - 'demos/npl-world/visual_viewer/osm_building_mask.mjs'
+      - 'demos/npl-world/visual_viewer/tests/osm_building_mask.test.mjs'
       - 'demos/npl-world/visual_viewer/tests/recovered_master_tiles.test.mjs'
       - 'demos/npl-world/visual_viewer/app.js'
 permissions:
@@ -50,7 +52,7 @@ jobs:
         working-directory: demos/npl-world/visual_viewer
         run: |
           npm install --no-audit --no-fund
-          node --test tests/recovered_master_tiles.test.mjs tests/asset_instancing.test.mjs
+          node --test tests/recovered_master_tiles.test.mjs tests/asset_instancing.test.mjs tests/osm_building_mask.test.mjs
       - name: Confirm city game compiles WITHOUT restored user Drive binaries
         working-directory: demos/npl-world/visual_viewer
         run: npm run build
