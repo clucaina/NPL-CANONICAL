@@ -63,7 +63,11 @@ export function plannedLayers(tile,profile='desktop'){
   const priority={terrain:0,geo:1,mosaic:2,street:3,coast:4,beach:5,
     architecture:6,landmark:7,facade:8,palm_variants:9,streetlamp:9,urban:10,
     driving:11,environment:12,lod:13,furniture:14};
-  const candidates=tile.assets.filter(a=>profile==='desktop'||!['facade','furniture'].includes(a.role))
+  const hasV50Furniture=tile.assets.some(a=>a.role==='furniture');
+  const candidates=tile.assets.filter(a=>{
+    if(profile==='desktop')return !(a.role==='streetlamp'&&hasV50Furniture);
+    return !['facade','furniture'].includes(a.role);
+  })
       .sort((a,b)=>(priority[a.role]??99)-(priority[b.role]??99)||a.path.localeCompare(b.path));
   // Original 2026 checkpoint: r02_c00 alone has >600k triangles. Loading
   // every old GLB on low-end mobile without LOD is NOT acceptable.
