@@ -53,6 +53,18 @@ jobs:
           node --test tests/*.test.mjs
           npm run build
           test -s dist/game.js
+          cp index.html dist/index.html
+          test -s dist/index.html
+      - name: Export playable public-source preview bundle for PRIVATE LOCAL assembly only
+        if: steps.merge.outputs.build_ok == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: NeuroCity_G19_V50_multiPR_COMPILED_SOURCE_ONLY_NO_MODELS
+          path: |
+            demos/npl-world/visual_viewer/dist/game.js
+            demos/npl-world/visual_viewer/dist/index.html
+          retention-days: 7
+          if-no-files-found: error
       - name: Archive real merge conflicts even if integration fails
         if: always()
         uses: actions/upload-artifact@v4
