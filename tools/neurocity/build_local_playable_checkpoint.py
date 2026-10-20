@@ -65,7 +65,7 @@ def build_private_local_checkpoint(base_zip:Path,runtime_zip:Path,city_zip:Path,
         coast=meta.get('coastal_and_vegetation_visual_objects',{})
         if coast.get('mapped_tree_nodes',0)<1 or coast.get('rounded_tree_canopy_lobes')!=3*coast.get('mapped_tree_nodes',0):
             raise ValueError('Regressed back to Roblox pyramid trees')
-        if coast.get('scrub_clusters_within_osm_polygon',0)<1:
+        if coast.get('shrub_clusters_within_osm_polygon',0)<1:
             raise ValueError('New OSM shrub map layer missing')
         if meta.get('private_avatar_included') is not False or meta.get('facades_photogrammetric') is not False:
             raise ValueError('Official source incorrectly claims private user data or photogrammetry')
