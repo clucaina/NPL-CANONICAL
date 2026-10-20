@@ -10,6 +10,9 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
+from time import sleep
+from http.client import RemoteDisconnected
+from urllib.error import URLError
 from urllib.parse import urlencode,urlsplit
 from urllib.request import Request,urlopen
 from catastro_parts import compile_overlay,validate_official_url
@@ -26,15 +29,23 @@ USER_AGENT='NeuroCity-OpenData-Source-Audit/1.0 (+https://github.com/clucaina/NP
 
 def receive(url,cap,path,host):
     req=Request(url,headers={'User-Agent':USER_AGENT,'Accept':'application/xml,text/xml;q=0.8,*/*;q=0.1'})
-    with urlopen(req,timeout=32) as rsp:
-        dest=urlsplit(rsp.url)
-        if dest.scheme!='https' or dest.hostname!=host or rsp.status!=200:
-            raise RuntimeError('source_redirect_or_http_error')
-        data=rsp.read(cap+1)
-        if len(data)>cap or len(data)<80:
-            raise RuntimeError('source_invalid_byte_count')
-    Path(path).write_bytes(data)
-    return len(data)
+    # A refused TCP connection or early remote disconnect is transient.
+    # At most TWO total attempts, fixed 4 s pause. Never retry invalid
+    # source URLs, unexpected hosts, oversized payloads or WFS exceptions.
+    for attempt in range(2):
+        try:
+            with urlopen(req,timeout=32) as rsp:
+                dest=urlsplit(rsp.url)
+                if dest.scheme!='https' or dest.hostname!=host or rsp.status!=200:
+                    raise RuntimeError('source_redirect_or_http_error')
+                data=rsp.read(cap+1)
+                if len(data)>cap or len(data)<80:
+                    raise RuntimeError('source_invalid_byte_count')
+            Path(path).write_bytes(data)
+            return len(data)
+        except (RemoteDisconnected,ConnectionResetError,TimeoutError,URLError):
+            if attempt==1:raise
+            sleep(4)
 
 def probe():
     validate_official_url(WFS)
