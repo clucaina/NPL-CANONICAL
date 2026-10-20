@@ -1,0 +1,95 @@
+name: NeuroCity · Alicante nine-tile cadastral 3D geometry scale QA (NO DEPLOY)
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/neurocity-grid-3d-qa.yml'
+      - 'tools/neurocity/catastro_grid.py'
+      - 'tools/neurocity/catastro_grid_live.py'
+      - 'tools/neurocity/catastro_grid_smoke.py'
+      - 'tools/neurocity/test_catastro_grid.py'
+      - 'demos/npl-world/open_city_pipeline/build_blender.py'
+permissions:
+  contents: read
+concurrency:
+  group: neurocity-alicante-grid-qa
+  cancel-in-progress: false
+jobs:
+  nine_zone_city:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 24
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned public geospatial libraries
+        run: python3 -m pip install --no-cache-dir pyproj==3.7.2 shapely==2.1.2
+      - name: Validate spatial grid, duplicate/collision handling and provenance without network
+        run: |
+          python3 -m unittest discover -s tools/neurocity -p 'test_catastro_parts.py' -v
+          python3 -m unittest discover -s tools/neurocity -p 'test_catastro_grid.py' -v
+      - name: Install Blender CPU
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq blender
+      - name: Prepare nine authentic-style source snapshots with synthetic geometries
+        run: python3 tools/neurocity/catastro_grid_smoke.py --workspace /tmp/neurocity-nine-tiles
+      - name: Verify real Blender builds official-style multi-source city with OSM preservation
+        run: |
+          cd /tmp/neurocity-nine-tiles
+          blender -b --factory-startup -t 2 --python-exit-code 1 -P "$GITHUB_WORKSPACE/demos/npl-world/open_city_pipeline/build_blender.py"
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          q=json.loads(Path('output/QA_source_report.json').read_text())
+          assert q['real_osm_buildings']==2,q
+          assert q['cadastre_original_osm_footprints_replaced']==1,q
+          assert q['cadastre_building_parts_geometry']==1,q
+          assert q['cadastre_verified_source_tiles']==9,q
+          assert q['cadastre_coverage_complete'] is True,q
+          assert q['cadastre_floor_based_height_not_measured'] is True,q
+          assert q['original_osm_file_modified'] is False,q
+          assert Path('output/Alicante_REAL_OSM_PNOA.glb').stat().st_size>1000
+          print('PASS: 9 source snapshots, real Blender nine-zone GLB build, original OSM intact')
+          PY
+      - name: Fetch bounded real official Alicante 3x3 grid and export ephemeral derived 3D
+        run: |
+          python3 tools/neurocity/catastro_grid_live.py
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          d=Path('/tmp/neurocity-cadastre-public-evidence/OFFICIAL_WFS_3X3_GRID_QA.json')
+          q=json.loads(d.read_text())
+          assert q['planned_tiles']==9
+          assert q['retrieved_tiles']<=9
+          assert q['original_osm_modified'] is False,q
+          assert q['source_gml_published'] is False,q
+          assert q['source_glb_published'] is False,q
+          assert q['height_is_surveyed'] is False,q
+          if q['retrieved_tiles']==9:
+              assert q['coverage_complete'] is True,q
+          if q['actual_city_models_generated']:
+              assert q['actual_blender_3d_official_buildings']==q['matched_osm_buildings'],q
+              assert q['actual_blender_3d_building_parts']==q['matched_official_parts'],q
+              print('PASS real-world ephemeral 3D Alicante, matched official volumes:',q['matched_official_parts'])
+          else:
+              print('SOURCE/EXPORT BLOCKED; published NO model:',q['source_status'],q.get('export_blocker_class'))
+          PY
+      - name: Save only aggregate QA and never upload original GML or personal records
+        if: always()
+        run: |
+          mkdir -p /tmp/neurocity-cadastre-public-evidence
+          if [ -f /tmp/neurocity-nine-tiles/output/QA_source_report.json ]; then
+            cp /tmp/neurocity-nine-tiles/output/QA_source_report.json /tmp/neurocity-cadastre-public-evidence/NINE_TILES_SYNTHETIC_3D_QA.json
+          fi
+          if [ -f /tmp/neurocity-cadastre-public-evidence/OFFICIAL_WFS_3X3_GRID_QA.json ]; then
+            python3 -m json.tool /tmp/neurocity-cadastre-public-evidence/OFFICIAL_WFS_3X3_GRID_QA.json > /dev/null
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: NEUROCITY_ALICANTE_9TILE_GEOMETRY_QA_ONLY
+          path: /tmp/neurocity-cadastre-public-evidence/
+          retention-days: 7
+          if-no-files-found: warn
