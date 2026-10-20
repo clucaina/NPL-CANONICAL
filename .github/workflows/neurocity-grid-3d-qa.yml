@@ -10,6 +10,11 @@ on:
       - 'tools/neurocity/test_catastro_grid.py'
       - 'tools/neurocity/catastro_native_parts.py'
       - 'tools/neurocity/test_catastro_native_parts.py'
+      - 'tools/neurocity/private_playable_review.py'
+      - 'demos/npl-world/visual_viewer/city_geometry_qa.mjs'
+      - 'demos/npl-world/visual_viewer/tests/city_geometry_qa.test.mjs'
+      - 'demos/npl-world/visual_viewer/tests/browser_cadastre_real.mjs'
+      - 'demos/npl-world/visual_viewer/app.js'
       - 'demos/npl-world/open_city_pipeline/build_blender.py'
 permissions:
   contents: read
@@ -57,7 +62,21 @@ jobs:
           assert Path('output/Alicante_REAL_OSM_PNOA.glb').stat().st_size>1000
           print('PASS: 9 source snapshots, real Blender nine-zone GLB build, original OSM intact')
           PY
-      - name: Fetch bounded real official Alicante 3x3 grid and export ephemeral derived 3D
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Compile actual Three.js public viewer and verify real GLB mesh topology
+        working-directory: demos/npl-world/visual_viewer
+        run: |
+          npm install --no-audit --no-fund
+          node --test tests/city_geometry_qa.test.mjs
+          npm run build
+          npm install --no-save --no-audit --no-fund playwright@1.56.0
+          npx playwright install chromium
+      - name: Fetch actual official Alicante and inspect ephemeral GLB in local Chromium WebGL
+        env:
+          NEUROCITY_PRIVATE_WEBGL_QA: '1'
+          LIBGL_ALWAYS_SOFTWARE: '1'
         run: |
           python3 tools/neurocity/catastro_grid_live.py
           python3 - <<'PY'
@@ -74,6 +93,11 @@ jobs:
           if q['retrieved_tiles']==9:
               assert q['coverage_complete'] is True,q
           if q['actual_city_models_generated']:
+              assert q['private_webgl_qa']=='PASS',q
+              assert q['private_webgl_meshes']>=3,q
+              assert q['private_webgl_triangles']>1000,q
+              assert q['private_webgl_npl_mission'] is True,q
+              assert q['private_webgl_official_building_parts']==q['matched_official_parts']+q['native_official_parts_eligible'],q
               assert q['actual_blender_3d_official_buildings']==q['matched_osm_buildings'],q
               assert q['actual_blender_3d_building_parts']==q['matched_official_parts'],q
               assert q['actual_blender_3d_native_parts']==q['native_official_parts_eligible'],q

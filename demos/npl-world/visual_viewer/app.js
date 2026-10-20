@@ -9,6 +9,7 @@ import {RecoveredMasterTiles} from './world_master_loader.mjs';
 import {installCoveredOSMMask} from './osm_building_mask.mjs';
 import {buildHedgeLayer} from './hedge_layer.mjs';
 import {createSurfaceTexture,enhanceMappedOSMRoads} from './road_surfaces.mjs';
+import {inspectPublicCityModel} from './city_geometry_qa.mjs';
 import {inspectDataset,compareObservation,missionStart,missionStep,cognitivePulse,STAGES} from './neuro_mission.mjs';
 
 // NPL WORLD - real GLB integration. No placeholder people, no pay-per-map API.
@@ -377,6 +378,9 @@ async function loadWorld(){
  try{
   const data=await model('./assets/alicante.glb');
   city=data.scene;scene.add(city);
+  // The QA bridge observes the actual GLB loaded and rendered by Three.js,
+  // rather than trusting exported metadata alone. Public-only builds only.
+  if(publicPreview)window.NEUROCITY_CITY_MODEL_QA=inspectPublicCityModel(city);
   if(publicPreview)osmCover=installCoveredOSMMask(city);
   // The source-matched asphalt texture belongs on OSM highway ribbon meshes, not on invented roads.
   if(publicPreview)roadStatus=enhanceMappedOSMRoads(city,{mobile:visualTier==='mobile'});
