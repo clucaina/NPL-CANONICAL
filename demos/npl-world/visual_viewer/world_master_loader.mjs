@@ -87,6 +87,7 @@ export class RecoveredMasterTiles {
    const hash=new Uint8Array(await crypto.subtle.digest('SHA-256',bytes));
    const hex=Array.from(hash,b=>b.toString(16).padStart(2,'0')).join('');
    if(hex!==asset.sha256)throw Error('Original GLB SHA256 mismatch');
+   if(this.disposed||signal.cancelled)return null; // Do not decode stale 90MB models after navigation.
    const model=await this.loader.parseAsync(bytes,new URL('.',parsed.href).href);
    if(this.disposed||signal.cancelled)return null;
    return this._tileAssetGroup(model,asset,tileId);
