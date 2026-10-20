@@ -3,6 +3,9 @@ on:
   push:
     paths:
       - 'tools/neurocity/upgrade_private_v7_to_v8_g19.py'
+      - 'demos/npl-world/visual_viewer/owner_worldmaster_policy.mjs'
+      - 'demos/npl-world/visual_viewer/tests/owner_worldmaster_policy.test.mjs'
+      - 'demos/npl-world/visual_viewer/app.js'
       - 'tools/neurocity/tests/test_private_v8_g19_upgrade.py'
       - 'tools/neurocity/private_bundle_assembly.py'
       - 'tools/neurocity/tests/test_private_bundle_assembly.py'
@@ -30,6 +33,16 @@ jobs:
         run: |
           python -m unittest discover -s tools/neurocity/tests -p test_private_bundle_assembly.py -v
           python -m unittest discover -s tools/neurocity/tests -p test_private_v8_g19_upgrade.py -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate G19 private-avatar activation, physical fallback and all playable JS modules
+        working-directory: demos/npl-world/visual_viewer
+        run: |
+          npm install --no-audit --no-fund
+          node --test tests/*.test.mjs
+          npm run build
+          test -s dist/game.js
       - name: Forbid redistributing original private GLB models via Git
         run: |
           python - <<'PY'
