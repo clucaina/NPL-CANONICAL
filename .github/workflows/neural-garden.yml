@@ -66,7 +66,7 @@ jobs:
             }
             const rows=observed.flatMap(p=>p.failures.map(r=>
               '- '+p.id+': CHECKS_FAILED ('+r.name+' · '+r.branch+') · '+r.url));
-            const body=marker+'\\n### Fallos de CI pendientes de comprobación\\n'+rows.join('\\n')+
-              '\\n\\n[Ver ejecución y visor offline]('+context.serverUrl+'/'+owner+'/'+repo+'/actions/runs/'+context.runId+')'+
-              '\\n\\n*Un CI fallido no demuestra una regresión en la web desplegada; un CI correcto tampoco valida renders, investigación o despliegues. Sin datos privados.*';
+            const body=marker+'\n### Fallos de CI pendientes de comprobación\n'+rows.join('\n')+
+              '\n\n[Ver ejecución y visor offline]('+context.serverUrl+'/'+owner+'/'+repo+'/actions/runs/'+context.runId+')'+
+              '\n\n*Un CI fallido no demuestra una regresión en la web desplegada; un CI correcto tampoco valida renders, investigación o despliegues. Sin datos privados.*';
             await github.rest.issues.createComment({owner,repo,issue_number:6,body});
