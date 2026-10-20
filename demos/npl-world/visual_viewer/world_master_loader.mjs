@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {assertTileManifest,planActiveTiles,plannedLayers,tileBounds,safeTilePath} from './city_tiles.mjs';
 import {matrixElementsForTile,VERTICAL_DATUM_VERIFIED,MAX_SAMPLED_TILE_PROJECTION_ERROR_M} from './geo_alignment.mjs';
-import {instantiateMasterPalms} from './asset_instancing.mjs';
+import {instantiateMasterPalms,instantiateArchivedStreetlights} from './asset_instancing.mjs';
 
 /**
  * Optional local GLB recovery layer compatible with Three.js r169.
@@ -44,9 +44,10 @@ export class RecoveredMasterTiles {
    if(asset.placements?.length){
      // Each archived palm is a genuine multi-part GLB. GPU instancing retains
      // the original geometry, UVs and materials and scales by validated poses.
-     const instanced=instantiateMasterPalms(node,asset.placements,{mobile:this.profile==='mobile'});
+     const instantiate=asset.role==='streetlamp'?instantiateArchivedStreetlights:instantiateMasterPalms;
+     const instanced=instantiate(node,asset.placements,{mobile:this.profile==='mobile'});
      obj.add(instanced.group);
-     obj.userData.palmInstancing=instanced.report;
+     obj.userData.archivedSourceInstancing=instanced.report;
    }else{
      obj.add(node);
      if(asset.local===true){
