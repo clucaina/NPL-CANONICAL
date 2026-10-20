@@ -30,6 +30,13 @@ try{
       !starting.summary.includes('ES30') ){
     throw new Error('NPL/source binding failed: '+JSON.stringify(starting));
   }
+  const foliage=await page.evaluate(()=>window.NEUROCITY_VEGETATION_QA);
+  if(foliage?.source!=='CC0_PUBLIC_ARTISTIC_PALM_CANOPIES_NOT_SURVEYED'||
+     foliage.canopyGroups!==3||foliage.geometryAdded!==0||
+     foliage.drawCallsAdded!==0||foliage.G19SourcePalmsAltered!==false||
+     foliage.originalAssetsUntouched!==true){
+    throw Error('Live original 3D palm frond animation unverified: '+JSON.stringify(foliage));
+  }
   // The protected 437-structure NPL brain is intentionally NOT in PUBLIC CI.
   // No synthetic 2-sphere renderer may pretend to replace it.
   const newAtlas=await page.evaluate(()=>window.NPL_READY?.brain3D);
@@ -54,7 +61,7 @@ try{
   }
   await page.locator('#nplOptions button').filter({hasText:'Nueva misión'}).click();
   if(await page.evaluate(()=>window.NPL_MISSION.stage)!==0)throw new Error('Mission restart failed');
-  const reportCopy={
+  const reportCopy={\n    foliageGPU:foliage,
     ...state,mission_start:starting,mission_completed:completed,consoleErrors,failedRequests,
     frame:'REAL_CHROMIUM_SOFTWARE_WEBGL_SCREENSHOT_NOT_PERFORMANCE_BENCHMARK',
     preview_url:'local-only'
