@@ -21,7 +21,7 @@ def tiny_glb():
     json_chunk+=b' '*((-len(json_chunk))%4)
     return b'glTF'+struct.pack('<II',2,20+len(json_chunk))+struct.pack('<I4s',len(json_chunk),b'JSON')+json_chunk
 
-def fixture_zip(path,broken_hash=False):
+def fixture_zip(path,broken_hash=False,with_lamps=False):
     tids=['r02_c00','r02_c01','r01_c01','r01_c02']
     assets={}
     for t in tids:
@@ -30,6 +30,8 @@ def fixture_zip(path,broken_hash=False):
     for name in ('Explanada_v50_PBR_1024','MASTER_EXPLANADA_FURNITURE_V50','MASTER_BANCOS_G131_V50',
                  'r02_c01_G19_PUERTA_STONE_STREET','r01_c01_G19_BEACH_BASE_G05','r01_c02_G19_BEACH_BASE_G05'):
         assets[f'assets/selected/{name}.glb']=tiny_glb()
+    if with_lamps:
+        assets['assets/prefabs/Farola_Globo_Simple_4m.glb']=tiny_glb()
     model={'geo':{'crs':'EPSG:25830','vertical_datum':'G05_UNVERIFIED'},
            'version':'synthetic-test','tile_ids':tids,
            'existingTileAssets':{t:['terrain','architecture'] for t in tids},
@@ -39,6 +41,11 @@ def fixture_zip(path,broken_hash=False):
     if broken_hash:hashes[0]['sha256']='0'*64
     with ZipFile(path,'w',compression=ZIP_DEFLATED) as z:
         for name,data in assets.items():z.writestr('NEUROCITY_WORLD_MASTER/'+name,data)
+        if with_lamps:
+            g16={'fixtures':[{'id':f'G16_lamp_{i}','ground':{'x':280.0+i*14,
+                  'y':2.1,'z':1400.0-i*13},'yaw':0.0,
+                  'position_confidence':'PROVISIONAL'} for i in range(5)]}
+            z.writestr('NEUROCITY_WORLD_MASTER/geo/CONTRATO/G16_PHYSICAL_FIXTURES.json',json.dumps(g16))
         z.writestr('NEUROCITY_WORLD_MASTER/world-master.json',json.dumps(model))
         z.writestr('NEUROCITY_WORLD_MASTER/source-hashes.json',json.dumps(hashes))
         z.writestr('NEUROCITY_WORLD_MASTER/README_WORLD_MASTER_ES.md','Source revision synthetic fixture')
@@ -82,6 +89,17 @@ class RecoveryTests(unittest.TestCase):
             self.assertTrue((root/'assets/selected/Explanada_v50_PBR_1024.glb').exists())
             self.assertTrue((root/'ORIGINAL_SOURCE_NOTICE.md').exists())
             self.assertFalse((root/'assets/maya.glb').exists())
+    def test_original_g16_streetlamps_are_preserved_as_provisional_local_mobile_models(self):
+        with tempfile.TemporaryDirectory() as t:
+            z=Path(t)/'existing.zip';fixture_zip(z,with_lamps=True)
+            m=exporter.compile_manifest(z)
+            self.assertEqual(m['asset_count'],15)
+            lamps=[a for tile in m['tiles'] for a in tile['assets'] if a['role']=='streetlamp']
+            self.assertEqual(len(lamps),1)
+            self.assertEqual(lamps[0]['path'],'assets/prefabs/Farola_Globo_Simple_4m.glb')
+            self.assertEqual(len(lamps[0]['placements']),5)
+            self.assertTrue(lamps[0]['source_hash_record'])
+            self.assertNotIn('actual_shop',json.dumps(lamps))
     def test_invalid_binary_does_not_pass_as_real_3d(self):
         with self.assertRaises(ValueError):recover.glb_structural_qa(b'glTF')
         ok=tiny_glb()

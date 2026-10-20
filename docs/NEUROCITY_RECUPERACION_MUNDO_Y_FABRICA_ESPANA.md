@@ -36,3 +36,19 @@ Una ciudad no puede declararse milimétrica por estar texturizada. Para cada sec
 
 ## Pruebas
 La ejecución `neurocity-worldmaster-recovery-qa.yml` instala Node y Three.js y comprueba determinismo, matrices de proyección, seguridad de rutas, límites de carga, fallbacks, compatibilidad de render r169 y código del juego. Python comprueba bytes, hashes, archivos sintéticos malformados, cuatro sectores y CRS regionales para la futura fábrica española. Solo archivos sintéticos se usan en GitHub Actions, no se copian originales del usuario.
+
+## Iteración posterior · fidelidad geométrica, presupuesto y visualización (20/10/2026)
+**Verificado sobre originales del propietario, no generado a partir de fotografías ajenas:**
+- 75 GLB únicos, **899.328 triángulos estimados** según los accesores `POSITION`/`indices`, 1.017 mallas y 47 imágenes integradas; la geometría acumulada incluye variantes y no significa que todo se dibuje simultáneamente.
+- Render CPU independiente con VTK + Xvfb de **17 GLB originales combinados** del sector Explanada, incluidos mosaico V50, los seis Phoenix, arquitectura, mobiliario y costa. Artefacto de revisión privada; **no es captura del juego ni aprobado por fotometría**. Muestra errores visibles de plano costero y falta de detalle de edificios; no ocultarlos.
+- `asset_instancing.mjs`: reutiliza geometría/materiales originales con `InstancedMesh`, en vez de clonar las decenas de mallas; muestreo móvil determinista y draw calls acotadas.
+- `worldmaster_recovery.py` y `export_local_worldmaster.py`: añaden triángulos e imágenes auditados por GLB al manifiesto local. `city_tiles.mjs` limita geometría por perfil (290.000 móvil, 1.500.000 escritorio de presupuesto objetivo para una tesela), conserva terreno+arquitectura+mosaico y descarta opcionales costosos cuando no caben. Los triángulos originales son estimaciones de metadata, no perfil GPU real.
+- Cada transferencia GLB local ahora comprueba **tamaño exacto y SHA-256 con WebCrypto antes de que el cargador GLTFLoader interprete los bytes**. Una copia corrupta no se convierte silenciosamente en un modelo aparentemente real.
+- `osm_building_mask.mjs` recorta únicamente paredes/tejados OSM bajo teselas maestras listas; mantiene PNOA y las superficies viarias OSM para que nunca desaparezca la ciudad completa al cargarse un sector.
+- `geo_alignment.mjs` tiene **cuatro matrices por tesela EPSG:25830 -> EPSG:3857**, calculadas con PROJ en vez de la anterior única matriz afín. Residuo de la aproximación de proyección en la cuadrícula 7×7 **menor de 0,010 m en cada 500m** (comparación numérica). **Esto NO prueba exactitud milimétrica de edificios, árbol, relieve o fachadas**, ni datum vertical.
+- Botón A/B dentro del visor local: alternar entre el mundo 3D original archivado y OSM/PNOA, sin reiniciar sesión ni perder controles del juego. El archivo original no se transmite al repositorio.
+- `render_worldmaster_cpu.py` hace reproducible un render técnico con verificación del SHA de cada GLB, sin prometer fotorrealismo.
+
+**QA separado por naturaleza:** pruebas Python de fuente y pipeline con fixtures; Node+Three comprueba mallas reales sintéticas, poses, budget, proyección y máscaras de material; Chromium de GitHub valida el visor público sin archivos de Drive. Chromium local en este entorno devolvió `net::ERR_BLOCKED_BY_ADMINISTRATOR`, por lo que queda expresamente pendiente validar el conjunto real de 75 GLB en Windows. No atribuir la restricción del navegador al código de NeuroCity.
+
+**Lote v2 local:** regenerado para propietario a partir del mismo ZIP fuente original, incorporando `game.js` compilado por CI, SHA-256 intacto de los 75 GLB, nueva metadata y documentos de QA. No fusionado, no desplegado, no distribuido públicamente por GitHub.

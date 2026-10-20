@@ -36,18 +36,27 @@ def glb_structural_qa(raw:bytes)->dict:
     accessors=doc.get("accessors",[])
     if not isinstance(accessors,list):
         raise ValueError("Invalid accessor metadata")
-    draws=0
+    draws=0;triangles=0
     for mesh in doc["meshes"]:
         if not isinstance(mesh,dict):continue
         for prim in mesh.get("primitives",[]):
             if not isinstance(prim,dict) or prim.get("mode",4)!=4:continue
             attrs=prim.get("attributes",{})
             pos=attrs.get("POSITION") if isinstance(attrs,dict) else None
-            if isinstance(pos,int) and 0<=pos<len(accessors):
-                n=accessors[pos].get("count",0)
-                if isinstance(n,int) and n>=3:draws+=1
+            if not (isinstance(pos,int) and 0<=pos<len(accessors)):continue
+            n=accessors[pos].get("count",0)
+            if not isinstance(n,int) or n<3:continue
+            count=n
+            indices=prim.get("indices")
+            if isinstance(indices,int) and 0<=indices<len(accessors):
+                count=accessors[indices].get("count",0)
+            if not isinstance(count,int) or count<3:continue
+            draws+=1
+            triangles+=count//3
     if draws<1:raise ValueError("GLB has no drawable triangle primitives")
-    return {"meshes":len(doc["meshes"]),"drawable_primitives":draws}
+    return {"meshes":len(doc["meshes"]),"drawable_primitives":draws,
+        "triangle_estimate":triangles,"embedded_images":len(doc.get("images",[])),
+        "materials":len(doc.get("materials",[]))}
 
 def sha_stream(z:ZipFile, name:str)->str:
     h=hashlib.sha256()

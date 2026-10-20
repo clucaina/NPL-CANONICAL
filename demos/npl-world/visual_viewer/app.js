@@ -4,6 +4,7 @@ import { nextCameraMode, canNavigate } from './navigation_policy.mjs';
 import {normalizedStick,combineMovement} from './mobile_navigation.mjs';
 import {buildUrbanKit} from './urban_kit.mjs';
 import {RecoveredMasterTiles} from './world_master_loader.mjs';
+import {installCoveredOSMMask} from './osm_building_mask.mjs';
 import {buildHedgeLayer} from './hedge_layer.mjs';
 import {createSurfaceTexture,enhanceMappedOSMRoads} from './road_surfaces.mjs';
 import {inspectDataset,compareObservation,missionStart,missionStep,cognitivePulse,STAGES} from './neuro_mission.mjs';
@@ -194,6 +195,7 @@ scene.add(decorGroup);
 const player=new THREE.Group();scene.add(player);
 player.position.set(-10.664,0,113.546);
 let avatar=null, city=null,mixer=null,animations={},current=null;
+let osmCover=null;
 let recoveredMaster=null,masterNextUpdate=0,masterBusy=false;
 const keys=new Set();
 const touchStick={forward:0,strafe:0};
@@ -295,22 +297,52 @@ if(hedgeLayer)decorGroup.add(hedgeLayer.group);
 
 // Loading older Drive GEO is strictly LOCAL and opt-in; public artifacts NEVER
 // fetch/copy privately-held geometry or replace native game actors/controllers.
+let showingArchivedMaster=true;
+function makeSourceComparisonControl(){
+ let button=document.getElementById('ncCompareOriginalSources');
+ if(button)return button;
+ button=document.createElement('button');
+ button.type='button';button.id='ncCompareOriginalSources';
+ button.setAttribute('aria-label','Alternar entre la ciudad OSM PNOA y el mundo maestro 3D recuperado');
+ button.style.cssText='position:fixed;right:16px;bottom:82px;z-index:45;background:#4d192a;color:#fff9ef;border:1px solid #f3dfcc;border-radius:12px;padding:12px 16px;font:600 12px system-ui;max-width:270px;box-shadow:0 10px 28px #0006;cursor:pointer;';
+ const redraw=()=>{
+   const ready=!!recoveredMaster?.status().active;
+   if(recoveredMaster)recoveredMaster.root.visible=showingArchivedMaster;
+   decorGroup.visible=!(ready&&showingArchivedMaster);
+   osmCover?.update(ready&&showingArchivedMaster?recoveredMaster.status().tiles:[]);
+   button.textContent=showingArchivedMaster?'Vista: mundo original G19 / V50  ·  Cambiar a OSM':'Vista: OSM / PNOA  ·  Cambiar a G19 / V50';
+   button.setAttribute('aria-pressed',String(showingArchivedMaster));
+   window.NPL_COMPARISON={originalMaster:showingArchivedMaster,
+     fallbackGeography:true,privateImageryPublished:false};
+ };
+ button.addEventListener('click',()=>{
+   showingArchivedMaster=!showingArchivedMaster;
+   redraw();
+ });
+ document.body.appendChild(button);
+ redraw();
+ return button;
+}
 function startRecoveredMasterIfRequested(){
  if(!publicPreview || new URLSearchParams(location.search).get('worldmaster')!=='1')return;
  recoveredMaster=new RecoveredMasterTiles({
    scene,loader:new GLTFLoader(),profile:visualTier,
    onVisibility:(active)=>{
-     if(city)city.visible=!active;
-     decorGroup.visible=!active;
-   }
+     // Never hide ALL Alicante because only one of four original tiles arrived.
+     // PNOA ground and mapped asphalt remain visible; clip only covered walls.
+     decorGroup.visible=!(active&&showingArchivedMaster);
+   },
+   onCoverage:(tileIds)=>{osmCover?.update(showingArchivedMaster?tileIds:[]);}
  });
  recoveredMaster.initialize().then(()=>recoveredMaster.update(player.position)).then(()=>{
+   makeSourceComparisonControl();
    window.NPL_RECOVERED_GEO=recoveredMaster.status();
    if(recoveredMaster.status().active)
       display('Mundo maestro Drive recuperado: mosaico V50, fachada y vegetación original por teselas. Alturas y licencias pendientes de aprobación pública.');
  }).catch(err=>{
    window.NPL_RECOVERED_GEO={installed:false,error:String(err?.message||err).slice(0,160)};
    if(city)city.visible=true;decorGroup.visible=true;
+   osmCover?.update([]);
    display('Mundo Drive opcional no instalado o no validado. Continúa Alicante OSM: '+String(err?.message||err).slice(0,110));
  });
 }
@@ -331,6 +363,7 @@ async function loadWorld(){
  try{
   const data=await model('./assets/alicante.glb');
   city=data.scene;scene.add(city);
+  if(publicPreview)osmCover=installCoveredOSMMask(city);
   // The source-matched asphalt texture belongs on OSM highway ribbon meshes, not on invented roads.
   if(publicPreview)roadStatus=enhanceMappedOSMRoads(city,{mobile:visualTier==='mobile'});
   // Public-only, bounded artistic facade detail on verifiable OSM wall geometry.

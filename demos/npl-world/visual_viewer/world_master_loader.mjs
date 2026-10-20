@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {assertTileManifest,planActiveTiles,plannedLayers,tileBounds,safeTilePath} from './city_tiles.mjs';
-import {matrixElementsForMaster,VERTICAL_DATUM_VERIFIED} from './geo_alignment.mjs';
+import {matrixElementsForTile,VERTICAL_DATUM_VERIFIED,MAX_SAMPLED_TILE_PROJECTION_ERROR_M} from './geo_alignment.mjs';
+import {instantiateMasterPalms,instantiateArchivedStreetlights} from './asset_instancing.mjs';
 
 /**
  * Optional local GLB recovery layer compatible with Three.js r169.
@@ -9,14 +10,17 @@ import {matrixElementsForMaster,VERTICAL_DATUM_VERIFIED} from './geo_alignment.m
  * GlTF bytes are loaded only from same-origin localhost on explicit opt-in.
  */
 export class RecoveredMasterTiles {
- constructor({scene,loader,profile='desktop',base='./world-master',onVisibility=()=>{}}){
-   if(!scene?.add||!loader?.loadAsync)throw new TypeError('Need existing Three.js scene and GLTFLoader');
+ constructor({scene,loader,profile='desktop',base='./world-master',onVisibility=()=>{},onCoverage=()=>{}}){
+   if(!scene?.add||!loader?.parseAsync)throw new TypeError('Need existing Three.js scene and GLTFLoader.parseAsync');
    if(!['desktop','mobile'].includes(profile)||base!=='./world-master')
      throw new Error('Invalid local-only tilepack configuration');
    this.scene=scene;this.loader=loader;this.profile=profile;this.base=base;
    this.onVisibility=onVisibility;
+   this.onCoverage=onCoverage;
    this.root=new THREE.Group();this.root.name='RECOVERED_G19_WORLD_MASTER';
-   this.root.matrix.fromArray(matrixElementsForMaster());
+   // Each 500m source tile uses its own higher-precision PROJ Jacobian.
+   // World root is identity; glTF children retain original ETRS89 geometry.
+   this.root.matrix.identity();
    this.root.matrixAutoUpdate=false;
    this.root.userData={crs:'EPSG:25830',verticalDatumVerified:VERTICAL_DATUM_VERIFIED,
      originalGameplayReplaced:false,source:'previous user-owned Drive world master'};
@@ -38,12 +42,12 @@ export class RecoveredMasterTiles {
    if(!node?.isObject3D)throw Error('GLTF lacks scene');
    const obj=new THREE.Group();obj.name='MASTER_'+asset.role;
    if(asset.placements?.length){
-     for(const p of asset.placements){
-       if(![p.x,p.y,p.z,p.scale,p.rotation].every(Number.isFinite))throw Error('Bad authored palm position');
-       const instance=node.clone(true);instance.position.set(p.x,p.y,p.z);
-       instance.rotation.y=p.rotation;instance.scale.setScalar(p.scale);
-       obj.add(instance);
-     }
+     // Each archived palm is a genuine multi-part GLB. GPU instancing retains
+     // the original geometry, UVs and materials and scales by validated poses.
+     const instantiate=asset.role==='streetlamp'?instantiateArchivedStreetlights:instantiateMasterPalms;
+     const instanced=instantiate(node,asset.placements,{mobile:this.profile==='mobile'});
+     obj.add(instanced.group);
+     obj.userData.archivedSourceInstancing=instanced.report;
    }else{
      obj.add(node);
      if(asset.local===true){
@@ -63,7 +67,21 @@ export class RecoveredMasterTiles {
    const source=this.base+'/'+asset.path;
    const parsed=new URL(source,document.baseURI);
    if(parsed.origin!==location.origin)throw Error('Cross-origin asset requests prohibited');
-   const model=await this.loader.loadAsync(parsed.href);
+   // The prior viewer trusted manifest digests but never compared the actual
+   // fetched bytes. Do so BEFORE decoding or displaying any private/local GLB.
+   if(!globalThis.crypto?.subtle?.digest)throw Error('SHA-256 unavailable in insecure browser context');
+   const response=await fetch(parsed.href,{credentials:'omit',cache:'force-cache'});
+   if(!response.ok)throw Error('Tile bytes missing: HTTP '+response.status);
+   const cap=Math.min(90_000_000,asset.bytes);
+   const stated=Number(response.headers?.get?.('content-length'));
+   if(Number.isFinite(stated)&&stated>0&&stated!==asset.bytes)throw Error('GLB HTTP length mismatch');
+   const bytes=await response.arrayBuffer();
+   if(this.disposed||signal.cancelled)return null;
+   if(bytes.byteLength!==asset.bytes||bytes.byteLength>cap)throw Error('Original GLB byte-length mismatch');
+   const hash=new Uint8Array(await crypto.subtle.digest('SHA-256',bytes));
+   const hex=Array.from(hash,b=>b.toString(16).padStart(2,'0')).join('');
+   if(hex!==asset.sha256)throw Error('Original GLB SHA256 mismatch');
+   const model=await this.loader.parseAsync(bytes,new URL('.',parsed.href).href);
    if(this.disposed||signal.cancelled)return null;
    return this._tileAssetGroup(model,asset,tileId);
  }
@@ -73,6 +91,8 @@ export class RecoveredMasterTiles {
    if(!tile)return false;
    const signal={cancelled:false};const group=new THREE.Group();
    group.name='WORLDMASTER_'+id;
+   group.matrix.fromArray(matrixElementsForTile(id));
+   group.matrixAutoUpdate=false;
    const state={id,group,signal,ready:false,loaded:0,errors:0,roles:new Set()};
    this.states.set(id,state);this.root.add(group);
    const layers=plannedLayers(tile,this.profile);
@@ -128,7 +148,9 @@ export class RecoveredMasterTiles {
    // Purge stale tiles before scheduling new ones; limit memory to two mobile/three desktop.
    for(const id of Array.from(this.states.keys()))if(!set.has(id))this._retire(id);
    await Promise.all(desired.map(id=>this._ensureTile(id)));
-   const active=Array.from(this.states.values()).some(s=>s.ready&&s.loaded>0);
+   const covered=Array.from(this.states.values()).filter(s=>s.ready&&s.loaded>0).map(s=>s.id);
+   const active=covered.length>0;
+   this.onCoverage(covered);
    if(active!==this.recoveredVisible){
      this.recoveredVisible=active;this.onVisibility(active);
    }
@@ -140,7 +162,9 @@ export class RecoveredMasterTiles {
      tiles:Array.from(this.states.values()).filter(x=>x.ready).map(x=>x.id),
      assetsLoaded:Array.from(this.states.values()).reduce((n,s)=>n+s.loaded,0),
      errors:this.errors.slice(-12),
-     georeferencedTo:'EPSG:3857_affine_approximate',
+     georeferencedTo:'EPSG:3857_per_tile_PROJ_500m',
+     maxSampledProjectionResidualM:MAX_SAMPLED_TILE_PROJECTION_ERROR_M,
+     sourceGeometryAccuracyNotCertified:true,
      millimetreFidelityCertified:false,verticalDatumVerified:false,
      privateAvatarsLoaded:false,publicRedistributionApproved:false
    };
@@ -151,5 +175,6 @@ export class RecoveredMasterTiles {
    for(const id of [...this.states.keys()])this._retire(id);
    this.scene.remove(this.root);
    this.onVisibility(false);
+   this.onCoverage([]);
  }
 }
