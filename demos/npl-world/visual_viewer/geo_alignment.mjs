@@ -23,6 +23,45 @@ export const A=Object.freeze({
 });
 export const OBSERVED_MAX_AFFINE_RESIDUAL_M=0.38;
 export const VERTICAL_DATUM_VERIFIED=false;
+/**
+ * Independent pyproj (PROJ 9.x / EPSG:25830 -> EPSG:3857) calculation,
+ * 7x7 reference grid per archived tile, local finite-difference Jacobian.
+ * Maximum sampled affine horizontal PROJECTION residual 0.0099 m per 500 m.
+ * Not measured building/terrain accuracy; vertical datum remains unknown.
+ */
+export const MAX_SAMPLED_TILE_PROJECTION_ERROR_M=0.010;
+export const MASTER_TILE_AFFINES=Object.freeze({
+  r02_c00:Object.freeze({
+    xx:1.272666757359,xz:-0.034705123471,zx:0.034848973155,zz:1.277942629531,
+    tx:-268.379904197,tz:-1690.579833342
+  }),
+  r02_c01:Object.freeze({
+    xx:1.272659001552,xz:-0.034783744195,zx:0.034928042442,zz:1.277934899554,
+    tx:-268.277749767,tz:-1690.609724757
+  }),
+  r01_c01:Object.freeze({
+    xx:1.272737624458,xz:-0.034791504731,zx:0.034935772419,zz:1.278013223782,
+    tx:-268.328956879,tz:-1690.693851047
+  }),
+  r01_c02:Object.freeze({
+    xx:1.272729859193,xz:-0.034870134550,zx:0.035014702007,zz:1.278005354106,
+    tx:-268.262217333,tz:-1690.766897674
+  })
+});
+export function masterTileToViewer(tileId,x,z){
+ const affine=MASTER_TILE_AFFINES[tileId];
+ if(!affine||!Number.isFinite(x)||!Number.isFinite(z))throw new TypeError('Unknown tile or nonfinite source UTM point');
+ return {x:affine.xx*x+affine.xz*z+affine.tx,
+         z:affine.zx*x+affine.zz*z+affine.tz};
+}
+export function matrixElementsForTile(tileId){
+ const a=MASTER_TILE_AFFINES[tileId];
+ if(!a)throw new Error('Unknown verified 500m tile projection');
+ return [a.xx,0,a.zx,0,
+         0,1,0,0,
+         a.xz,0,a.zz,0,
+         a.tx,0,a.tz,1];
+}
 const finite=(x)=>typeof x==='number'&&Number.isFinite(x);
 export function masterToViewer(x,z){
  if(!finite(x)||!finite(z))throw new TypeError('Nonfinite UTM geometry');
