@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
+import {createHash} from 'node:crypto';
 import {
   masterToViewer,viewerToMaster,matrixElementsForMaster,
   SOURCE_CRS,VIEWER_CRS,OBSERVED_MAX_AFFINE_RESIDUAL_M
@@ -10,9 +11,13 @@ import {
 } from '../city_tiles.mjs';
 import {RecoveredMasterTiles} from '../world_master_loader.mjs';
 
-const D='a'.repeat(64);
+const RAW=new TextEncoder().encode('source-glb-bytes-test-hash-verified');
+const D=createHash('sha256').update(RAW).digest('hex');
+const answer=(url,manifest)=>String(url).endsWith('manifest.json')
+ ? {ok:true,json:async()=>manifest}
+ : {ok:true,status:200,headers:{get:()=>String(RAW.byteLength)},arrayBuffer:async()=>RAW.buffer.slice(0)};
 const asset=(name,role,local=false)=>({path:'assets/source/ASSETS/tiles/r02_c00/'+name+'.glb',
-  role,sha256:D,bytes:400,local});
+  role,sha256:D,bytes:RAW.byteLength,local});
 const fixture=()=>({
  schema:'neurocity.local-worldmaster-tiles.v1',crs:'EPSG:25830',
  viewer_crs:'EPSG:3857',vertical_datum_verified:false,
@@ -70,8 +75,8 @@ test('nearby original four GEO tiles are selected with bounded mobile and deskto
 test('real Three scene uses local GLBs only; native loader and original city fallback survive errors',async()=>{
  const scene=new THREE.Scene();
  const seen=[];
- const loader={loadAsync:async(url)=>{
-   seen.push(url);
+ const loader={parseAsync:async(buffer,baseUrl)=>{
+   seen.push(baseUrl);
    const root=new THREE.Group();
    root.add(new THREE.Mesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshStandardMaterial()));
    return {scene:root};
@@ -79,7 +84,7 @@ test('real Three scene uses local GLBs only; native loader and original city fal
  const previousFetch=globalThis.fetch,previousDoc=globalThis.document,previousLoc=globalThis.location;
  globalThis.document={baseURI:'http://127.0.0.1:8766/'};
  globalThis.location={origin:'http://127.0.0.1:8766'};
- globalThis.fetch=async()=>({ok:true,json:async()=>fixture()});
+ globalThis.fetch=async(url)=>answer(url,fixture());
  const visible=[];
  try{
    const streamer=new RecoveredMasterTiles({scene,loader,onVisibility:x=>visible.push(x)});
@@ -104,12 +109,12 @@ test('real Three scene uses local GLBs only; native loader and original city fal
 });
 test('partial failed master tiles do not hide official OSM baseline',async()=>{
  const scene=new THREE.Scene(),base=fixture();
- const loader={loadAsync:async(url)=>{
-   if(url.includes('architecture'))throw Error('decoding failed');
+ const loader={parseAsync:async(_,baseUrl)=>{
+   if(baseUrl.endsWith('/r02_c00/'))throw Error('decoding failed');
    return {scene:new THREE.Group()};
  }};
  const oldFetch=globalThis.fetch,oldDoc=globalThis.document,oldLoc=globalThis.location;
- globalThis.fetch=async()=>({ok:true,json:async()=>base});
+ globalThis.fetch=async(url)=>answer(url,base);
  globalThis.document={baseURI:'http://localhost:8766/'};
  globalThis.location={origin:'http://localhost:8766'};
  let hidden=false;
