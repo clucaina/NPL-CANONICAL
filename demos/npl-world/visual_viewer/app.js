@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { nextCameraMode, canNavigate } from './navigation_policy.mjs';
 import {normalizedStick,combineMovement} from './mobile_navigation.mjs';
 import {buildUrbanKit} from './urban_kit.mjs';
+import {animateExistingPublicPalmFronds} from './palm_canopy_wind.mjs';
 import {RecoveredMasterTiles} from './world_master_loader.mjs';
 import {RecoveredPhysicalAtlas} from './world_physics.mjs';
 import {installCoveredOSMMask} from './osm_building_mask.mjs';
@@ -366,6 +367,15 @@ window.NPL_CANONICAL_STATUS={
 };
 updateBrainPanel();
 const urbanKit=publicPreview?buildUrbanKit({tier:visualTier}):null;
+const palmWind=urbanKit?animateExistingPublicPalmFronds(urbanKit.group,{
+ tier:visualTier,reducedMotion:window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches===true
+}):null;
+if(palmWind)window.NEUROCITY_VEGETATION_QA={
+ source:palmWind.source,canopyGroups:palmWind.canopyGroups,
+ geometryAdded:palmWind.geometryAdded,drawCallsAdded:palmWind.drawCallsAdded,
+ G19SourcePalmsAltered:palmWind.G19SourcePalmsAltered,
+ reducedMotion:palmWind.reducedMotion,originalAssetsUntouched:true
+};
 const hedgeLayer=publicPreview?buildHedgeLayer(visualTier):null;
 let roadStatus=null,coastalWater=null,stuccoStatus=null;let wallMicroreliefStatus=null;
 const pbrSwitch=$('pbrMicrorelief');
@@ -696,6 +706,7 @@ function frame(){
  sun.target.position.set(player.position.x,0,player.position.z);
  sun.target.updateMatrixWorld();
  if(coastalWater)coastalWater.advance(clock.elapsedTime);
+ if(palmWind)palmWind.update(clock.elapsedTime);
  renderer.render(scene,camera);
  if(clock.elapsedTime>=nextPerformanceReportSec){
    nextPerformanceReportSec=clock.elapsedTime+1;
