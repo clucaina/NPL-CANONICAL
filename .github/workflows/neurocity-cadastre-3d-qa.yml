@@ -1,0 +1,65 @@
+name: NeuroCity · Catastro INSPIRE real building-part 3D source QA (NO DEPLOY)
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/neurocity-cadastre-3d-qa.yml'
+      - 'tools/neurocity/catastro_parts.py'
+      - 'tools/neurocity/test_catastro_parts.py'
+      - 'tools/neurocity/catastro_blender_smoke.py'
+      - 'demos/npl-world/open_city_pipeline/build_blender.py'
+permissions:
+  contents: read
+concurrency:
+  group: neurocity-cadastre-3d-qa
+  cancel-in-progress: false
+jobs:
+  official_bu_geometry_qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned public geospatial geometry libraries
+        run: python3 -m pip install --no-cache-dir pyproj==3.7.2 shapely==2.1.2
+      - name: Test provenance, geometry overlap, adversarial inputs, and original OSM integrity
+        run: python3 -m unittest discover -s tools/neurocity -p 'test_catastro_parts.py' -v
+      - name: Create anonymous synthetic but geographic-consistent original WFS and OSM fixtures
+        run: python3 tools/neurocity/catastro_blender_smoke.py --workspace /tmp/neurocity-cadastre-qa
+      - name: Install open Blender CPU
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq blender
+      - name: Prove actual native Blender builds one cadastral multivolume and preserves unmatched OSM
+        run: |
+          cd /tmp/neurocity-cadastre-qa
+          blender -b --factory-startup -t 2 --python-exit-code 1 -P "$GITHUB_WORKSPACE/demos/npl-world/open_city_pipeline/build_blender.py"
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          q=json.loads(Path('output/QA_source_report.json').read_text())
+          assert q['real_osm_buildings']==2,q
+          assert q['cadastre_building_parts_geometry']==1,q
+          assert q['cadastre_original_osm_footprints_replaced']==1,q
+          assert q['cadastre_floor_based_height_not_measured'] is True
+          assert q['original_osm_file_modified'] is False
+          assert len(q['cadastre_source_gml_sha256'])==64
+          assert Path('output/Alicante_REAL_OSM_PNOA.glb').stat().st_size>1000
+          print('PASS: real Blender 3D mesh export; one validated public official-style geometry; one original OSM fallback')
+          PY
+      - name: Persist public-safe facts only, never raw cadastral or original GLB files
+        if: always()
+        run: |
+          mkdir -p /tmp/neurocity-cadastre-public-evidence
+          if [ -f /tmp/neurocity-cadastre-qa/output/QA_source_report.json ]; then
+            cp /tmp/neurocity-cadastre-qa/output/QA_source_report.json /tmp/neurocity-cadastre-public-evidence/SYNTHETIC_BLENDER_QA.json
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: NEUROCITY_CATASTRO_BU3D_SYNTHETIC_PUBLIC_QA_NO_GML
+          path: /tmp/neurocity-cadastre-public-evidence
+          retention-days: 7
+          if-no-files-found: warn
