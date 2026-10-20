@@ -76,3 +76,20 @@ test('Mobile original 3D LOD maintains mapped core and rejects costly optional g
  assert.ok(desktop.some(a=>a.role==='landmark'));
  assert.ok(desktop.some(a=>a.role==='facade'));
 });
+
+test('original 18MB V50 furniture and 33KB source globe lamps are mutually exclusive per device',()=>{
+ const common={sha256:'a'.repeat(64),triangle_estimate:100,embedded_images:0,bytes:33428};
+ const tile={assets:[
+  {...common,role:'terrain',path:'assets/source/ASSETS/tiles/r02_c00/terrain.glb'},
+  {...common,role:'architecture',path:'assets/source/ASSETS/tiles/r02_c00/architecture.glb'},
+  {...common,role:'furniture',path:'assets/selected/MASTER_EXPLANADA_FURNITURE_V50.glb',bytes:18_071_240},
+  {...common,role:'streetlamp',path:'assets/prefabs/Farola_Globo_Simple_4m.glb',
+   placements:[{x:280,y:2,z:1405,scale:1,rotation:0}]}
+ ]};
+ const mobile=plannedLayers(tile,'mobile').map(x=>x.role);
+ const desktop=plannedLayers(tile,'desktop').map(x=>x.role);
+ assert.ok(mobile.includes('streetlamp'));
+ assert.ok(!mobile.includes('furniture'));
+ assert.ok(desktop.includes('furniture'));
+ assert.ok(!desktop.includes('streetlamp'));
+});
