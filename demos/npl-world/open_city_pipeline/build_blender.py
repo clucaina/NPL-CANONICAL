@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Blender CPU: real OSM footprints + available PNOA orthophoto ground. NO invented landmark."""
-import bpy, math, json, re, xml.etree.ElementTree as ET
+import bpy, math, json, re, hashlib, xml.etree.ElementTree as ET
+from mathutils.geometry import tessellate_polygon
 from pathlib import Path
 from mathutils import Vector
 D=Path("input");O=Path("output");O.mkdir(exist_ok=True)
@@ -38,6 +39,59 @@ for face in me.polygons:
 ob=bpy.data.objects.new("ENV_Real_PNOA_Aerial_Not_Street_Facades",me)
 s.collection.objects.link(ob);me.materials.append(ground)
 wallvs=[];wallfs=[];roofvs=[];rooff=[];total=0;measured=0;skipped=0
+cadastre_matches={};catastro_parts_drawn=0;catastro_replaced_osm=0;catastro_sha=None
+source_gml=D/"catastro_building_parts.gml"
+overlay_file=D/"catastro_building_parts.json"
+# Optional official-source upgrade: no GML, no override. Never trust a loose
+# JSON geometry file without its exact original official WFS bytes.
+if overlay_file.exists():
+    if not source_gml.exists():raise RuntimeError("Cadastre overlay requires original GML for SHA verification")
+    source=json.loads(overlay_file.read_text(encoding="utf-8"))
+    if (source.get("schema")!="neurocity.catastro-building-parts.v1" or
+        source.get("source")!="DG_CATASTRO_INSPIRE_BU_BUILDINGPART" or
+        source.get("crs")!="EPSG:3857_local" or source.get("height_is_surveyed") is not False or
+        source.get("height_method")!="official_floors_times_3m_ESTIMATE" or
+        not source.get("source_url","").startswith("https://ovc.catastro.meh.es/INSPIRE/wfsBU.aspx?") or
+        hashlib.sha256(source_gml.read_bytes()).hexdigest()!=source.get("source_sha256")):
+        raise RuntimeError("Unsigned, unverified or overclaimed Catastro footprint overlay")
+    catastro_sha=source["source_sha256"]
+    for building in source.get("matched",[]):
+        name=building.get("osm_way_id")
+        if not isinstance(name,str) or not name.isdigit() or name in cadastre_matches:
+            raise RuntimeError("Duplicate or invalid OSM match in cadastre")
+        sections=building.get("sections")
+        if not isinstance(sections,list) or not 1<=len(sections)<=75:
+            raise RuntimeError("Invalid official multi-volume sections")
+        prepared=[]
+        for section in sections:
+            floors=section.get("floors");height=section.get("height_estimated_m")
+            pts=section.get("ring")
+            if (type(floors) is not int or not 1<=floors<=30 or
+                height!=floors*3.0 or not isinstance(pts,list) or not 3<=len(pts)<=160 or
+                any(not isinstance(pt,list) or len(pt)!=2 or
+                    not all(isinstance(v,(float,int)) and math.isfinite(v) for v in pt) or
+                    not (x1-30<=pt[0]<=x2+30 and y1-30<=pt[1]<=y2+30) for pt in pts)):
+                raise RuntimeError("Unsafe or unverified Catastro ring/height")
+            prepared.append(([(float(a),float(b)) for a,b in pts],height))
+        cadastre_matches[name]=prepared
+
+def append_building(pts,h):
+    # Keep authentic source footprint vertices. Non-convex OSM and Catastro
+    # roof N-gons must be tessellated rather than rendered as arbitrary fans.
+    if len(pts)<3:raise RuntimeError("Insufficient footprint vertices")
+    area=sum(pts[i][0]*pts[(i+1)%len(pts)][1]-pts[(i+1)%len(pts)][0]*pts[i][1] for i in range(len(pts)))
+    if abs(area)<3:raise RuntimeError("Invalid building footprint area")
+    if area<0:pts=list(reversed(pts))
+    k=len(wallvs)
+    for x,y in pts:wallvs.extend([(x,y,0),(x,y,h)])
+    for j in range(len(pts)):
+        a=k+2*j;b=k+2*((j+1)%len(pts));wallfs.append((a,b,b+1,a+1))
+    polygon=[Vector((x,y,h)) for x,y in pts]
+    roof_triangles=tessellate_polygon([polygon])
+    if len(roof_triangles)<1:raise RuntimeError("Building roof cannot be tessellated")
+    for tri in roof_triangles:
+        q=len(roofvs);roofvs.extend([(v.x,v.y,v.z) for v in tri])
+        rooff.append((q,q+1,q+2))
 def height(tags):
     try:
         val=float(re.sub(r"[^0-9.]","",tags.get("height","")))
@@ -57,13 +111,15 @@ for way in doc.findall("way"):
     area=sum(pts[i][0]*pts[(i+1)%len(pts)][1]-pts[(i+1)%len(pts)][0]*pts[i][1] for i in range(len(pts)))
     if abs(area)<3:skipped+=1;continue
     if area<0:pts.reverse()
-    h,realheight=height(tags);measured+=int(realheight)
-    k=len(wallvs)
-    for x,y in pts:wallvs.extend([(x,y,0),(x,y,h)])
-    for j in range(len(pts)):
-        a=k+2*j;b=k+2*((j+1)%len(pts));wallfs.append((a,b,b+1,a+1))
-    k=len(roofvs);roofvs.extend([(x,y,h) for x,y in pts])
-    rooff.append(tuple(range(k,k+len(pts))));total+=1
+    override=cadastre_matches.get(way.attrib["id"])
+    if override:
+        for ring,h_estimated in override:append_building(ring,h_estimated)
+        catastro_parts_drawn+=len(override)
+        catastro_replaced_osm+=1
+    else:
+        h,realheight=height(tags);measured+=int(realheight)
+        append_building(pts,h)
+    total+=1
 def add(name,verts,faces,mat):
     if not faces:return
     mesh=bpy.data.meshes.new(name);mesh.from_pydata(verts,[],faces);mesh.update()
@@ -130,6 +186,12 @@ bpy.ops.export_scene.gltf(filepath=str((O/"Alicante_REAL_OSM_PNOA.glb").resolve(
 # Visual QA render is a separate optional workflow step, never blocks successful GLB export.
 result={"real_osm_buildings":total,"heights_directly_measured":measured,"omitted":skipped,"road_segments_from_OSM":roadcounts,
 "pnoa_ground":info["real_orthophoto"],"facades_photogrammetric":False,
-"private_avatar_included":False,"blender_version":list(bpy.app.version)}
+"private_avatar_included":False,"blender_version":list(bpy.app.version),
+"cadastre_building_parts_geometry":catastro_parts_drawn,
+"cadastre_original_osm_footprints_replaced":catastro_replaced_osm,
+"cadastre_source_gml_sha256":catastro_sha,
+"cadastre_floor_based_height_not_measured":True,
+"original_osm_file_modified":False,
+"roof_triangulation":"Blender tessellate_polygon nonconvex_safe"}
 (O/"QA_source_report.json").write_text(json.dumps(result,indent=2))
 print("SCENE QA",json.dumps(result),flush=True)
