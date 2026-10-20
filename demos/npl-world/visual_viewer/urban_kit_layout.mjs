@@ -19,7 +19,15 @@ export function planUrbanKit(tier='desktop'){
  for(let z=-136;z<=106;z+=config.palmStep){
    for(const [i,x,offset] of [[0,-18.4,0],[1,5.8,5.2]]){
      const zz=z+offset,seed=variation(zz+i*11.31);
-     palms.push({x, z:round(zz), scale:round(0.91+seed*0.15), heading:round(seed*6.283)});
+     // Three deliberately alternating Mediterranean silhouettes, not 24
+     // identical LEGO trees. Real archived V50 uses six distinct Phoenix GLBs.
+     const variant=(Math.floor((z+136)/config.palmStep)+i)%3;
+     const height=[.82,1.21,1.00][variant];
+     const scale=height*(.93+seed*.16);
+     palms.push({x,z:round(zz),scale:round(scale),
+       heading:round(seed*6.283),variant,
+       morphology:['wide_date','tall_date','compact_fan'][variant],
+       surveyed:false});
    }
  }
  for(let z=-118,i=0;z<=105;z+=config.benchStep,i++){
@@ -41,6 +49,7 @@ export function planUrbanKit(tier='desktop'){
 }
 export function makeKitReport(plan){
  return {tier:plan.tier,scope:plan.scope,license:plan.license,
+  palmSilhouettes:3,archivedV50PalmVariantsWhenLocal:6,
   palmCount:plan.palms.length,benchCount:plan.benches.length,
   planterCount:plan.planters.length,cycleCount:plan.cycles.length,
   instances:plan.instances,drawCallGroupsBudget:12,geodataSourceModified:false};

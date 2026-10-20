@@ -11,6 +11,8 @@ on:
       - 'tools/neurocity/test_recover_worldmaster_sidecars.py'
       - 'tools/neurocity/continuity_gate.py'
       - 'tools/neurocity/test_continuity_gate.py'
+      - 'tools/neurocity/build_local_playable_checkpoint.py'
+      - 'tools/neurocity/test_build_local_playable_checkpoint.py'
       - 'tools/factory/coast_inventory.py'
       - 'tools/factory/test_coast_inventory.py'
       - 'demos/npl-world/open_city_pipeline/build_blender.py'
@@ -27,6 +29,14 @@ on:
       - 'demos/npl-world/visual_viewer/water_surface.mjs'
       - 'demos/npl-world/visual_viewer/tests/water_source_integration.test.mjs'
       - 'demos/npl-world/visual_viewer/tests/water_surface.test.mjs'
+      - 'demos/npl-world/visual_viewer/explanada_mosaic.mjs'
+      - 'demos/npl-world/visual_viewer/urban_kit_layout.mjs'
+      - 'demos/npl-world/visual_viewer/urban_kit.mjs'
+      - 'demos/npl-world/visual_viewer/npl_behavior.mjs'
+      - 'demos/npl-world/visual_viewer/npl_brain3d.mjs'
+      - 'demos/npl-world/visual_viewer/facade_stucco.mjs'
+      - 'demos/npl-world/visual_viewer/tests/mosaic_brain.test.mjs'
+      - 'demos/npl-world/visual_viewer/tests/facade_stucco.test.mjs'
       - 'demos/npl-world/visual_viewer/asset_instancing.mjs'
       - 'demos/npl-world/visual_viewer/tests/asset_instancing.test.mjs'
       - 'demos/npl-world/visual_viewer/osm_building_mask.mjs'
@@ -51,6 +61,7 @@ jobs:
           python3 -m unittest discover -s tools/neurocity -p 'test_render_worldmaster_cpu.py' -v
           python3 -m unittest discover -s tools/neurocity -p 'test_recover_worldmaster_sidecars.py' -v
           python3 -m unittest discover -s tools/neurocity -p 'test_continuity_gate.py' -v
+          python3 -m unittest discover -s tools/neurocity -p 'test_build_local_playable_checkpoint.py' -v
           python3 -m unittest discover -s tools/factory -p 'test_coast_inventory.py' -v
           python3 tools/neurocity/continuity_gate.py --repo-root . --output /tmp/NEUROCITY_CONTINUITY_QA.json
       - name: Prove Alicante regional 500m plan refuses unsupported measurements and brands
@@ -71,7 +82,7 @@ jobs:
         working-directory: demos/npl-world/visual_viewer
         run: |
           npm install --no-audit --no-fund
-          node --test tests/recovered_master_tiles.test.mjs tests/asset_instancing.test.mjs tests/osm_building_mask.test.mjs tests/world_physics.test.mjs tests/water_surface.test.mjs tests/water_source_integration.test.mjs
+          node --test tests/recovered_master_tiles.test.mjs tests/asset_instancing.test.mjs tests/osm_building_mask.test.mjs tests/world_physics.test.mjs tests/water_surface.test.mjs tests/water_source_integration.test.mjs tests/mosaic_brain.test.mjs tests/facade_stucco.test.mjs tests/urban_kit.test.mjs
       - name: Confirm city game compiles WITHOUT restored user Drive binaries
         working-directory: demos/npl-world/visual_viewer
         run: npm run build

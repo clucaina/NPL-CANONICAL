@@ -38,6 +38,20 @@ jobs:
       - name: Generate real georeferenced city (no avatars, no private materials)
         working-directory: demos/npl-world/open_city_pipeline
         run: blender -b --factory-startup -t 2 --python-exit-code 1 -P build_blender.py
+      - name: Verify that actual OSM tree points render volumetric crowns, not Roblox pyramids
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          doc=json.loads(Path('demos/npl-world/open_city_pipeline/output/QA_source_report.json').read_text())
+          v=doc['coastal_and_vegetation_visual_objects']
+          assert v['mapped_tree_nodes']>=1,'Downloaded map has no tree samples'
+          assert v['rounded_tree_canopy_lobes']==3*v['mapped_tree_nodes'],v
+          assert v['shrub_clusters_within_osm_polygon']>=0
+          print('VOLUMETRIC_OSM_TREE_CROWNS',v['rounded_tree_canopy_lobes'])
+          print('MAPPED_OSM_SHRUB_CLUSTERS',v['shrub_clusters_within_osm_polygon'])
+          print('NOT_SURVEYED_SPECIES_OR_FOLIAGE')
+          PY
       - name: Gate provenance before shipping public review
         run: |
           python3 tools/factory/city_quality.py \

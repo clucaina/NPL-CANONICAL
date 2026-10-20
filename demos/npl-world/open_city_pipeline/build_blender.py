@@ -67,6 +67,9 @@ for way in doc.findall("way"):
 def add(name,verts,faces,mat):
     if not faces:return
     mesh=bpy.data.meshes.new(name);mesh.from_pydata(verts,[],faces);mesh.update()
+    if name in ("OSM_REAL_tree_locations_canopy_illustrative",
+                "OSM_REAL_scrub_polygon_bush_cluster_illustrative"):
+        for polygon in mesh.polygons:polygon.use_smooth=True
     o=bpy.data.objects.new(name,mesh);s.collection.objects.link(o);mesh.materials.append(mat)
 add("OSM_Real_Building_Walls_UNTEXTURED",wallvs,wallfs,wall)
 add("OSM_Real_Building_Roofs",roofvs,rooff,roof)
@@ -121,15 +124,47 @@ print("Road OSM segments",roadcounts,flush=True)
 # Physical positions sourced from mapped OSM tags. Dimensions and foliage
 # remain illustrative: not surveyed, no ships invented, no fake marinas.
 extra_counts={"pier_segments":0,"barrier_segments":0,"mapped_tree_nodes":0,
-              "water_polygons":0,"scrub_polygons":0}
+              "water_polygons":0,"scrub_polygons":0,
+              "rounded_tree_canopy_lobes":0,"shrub_clusters_within_osm_polygon":0}
 pierverts=[];pierfaces=[];fenceverts=[];fencefaces=[];waterverts=[];waterfaces=[]
 scrubverts=[];scrubfaces=[];barkverts=[];barkfaces=[];leafverts=[];leaffaces=[]
+bushverts=[];bushfaces=[]
 piermat=material("OSM_mapped_piers_width_estimated",(.52,.49,.46))
 fencemat=material("OSM_mapped_fences_height_estimated",(.29,.31,.31))
 watermat=material("OSM_mapped_water_polygons_only",(.13,.31,.4))
 leafmat=material("OSM_tree_positions_with_illustrative_foliage",(.23,.39,.24))
 barkmat=material("OSM_tree_positions_with_illustrative_trunks",(.39,.27,.17))
 scrubmat=material("OSM_mapped_scrub_polygons_only",(.31,.45,.29))
+bushmat=material("OSM_scrub_mapped_region_round_bushes_illustrative",(.24,.40,.24))
+def ellipsoid(verts,faces,center,radii,segments=10,rings=6):
+    # Rounded foliage volume instead of the previous visual placeholder: a
+    # square pyramid, which made every verified OSM tree look like Roblox.
+    cx,cy,cz=center;rx,ry,rz=radii
+    base=len(verts)
+    for j in range(rings+1):
+        v=math.pi*j/rings
+        for k in range(segments):
+            u=2*math.pi*k/segments
+            verts.append((cx+rx*math.sin(v)*math.cos(u),
+                          cy+ry*math.sin(v)*math.sin(u),
+                          cz+rz*math.cos(v)))
+    for j in range(rings):
+        for k in range(segments):
+            a=base+j*segments+k;b=base+j*segments+(k+1)%segments
+            c=base+(j+1)*segments+k;d=base+(j+1)*segments+(k+1)%segments
+            if j==0:faces.append((a,c,d))
+            elif j==rings-1:faces.append((a,c,b))
+            else:faces.append((a,c,d,b))
+def inside_polygon(x,y,vertices):
+    # Polygon shapes are actual mapped OSM areas. Individual bush placement
+    # inside a polygon is artistic and not a surveyed shrub.
+    hit=False;j=len(vertices)-1
+    for i in range(len(vertices)):
+        xi,yi=vertices[i];xj,yj=vertices[j]
+        if (yi>y)!=(yj>y) and x<(xj-xi)*(y-yi)/(yj-yi)+xi:
+            hit=not hit
+        j=i
+    return hit
 def strip_geom(targetv,targetf,a,b,width,z0,z1):
     dx,dy=b[0]-a[0],b[1]-a[1]
     L=math.hypot(dx,dy)
@@ -170,7 +205,24 @@ for way in doc.findall("way"):
     if tags.get("natural")=="water" or tags.get("water") in ("sea","basin","harbour"):
         extra_counts["water_polygons"]+=int(flat_mapped_area(waterverts,waterfaces,pts,.045))
     if tags.get("natural")=="scrub" or tags.get("landuse") in ("grass","forest"):
-        extra_counts["scrub_polygons"]+=int(flat_mapped_area(scrubverts,scrubfaces,pts,.025))
+        valid=flat_mapped_area(scrubverts,scrubfaces,pts,.025)
+        extra_counts["scrub_polygons"]+=int(valid)
+        if valid:
+            # Only a few procedural shrubs per mapped landuse polygon. Hard
+            # limit avoids turning giant polygons into tens of thousands of props.
+            poly=pts[:-1]
+            minx,maxx=min(p[0] for p in poly),max(p[0] for p in poly)
+            miny,maxy=min(p[1] for p in poly),max(p[1] for p in poly)
+            for ix in range(min(50,math.ceil((maxx-minx)/4.8))):
+                if extra_counts["shrub_clusters_within_osm_polygon"]>=240:break
+                for iy in range(min(50,math.ceil((maxy-miny)/4.8))):
+                    if extra_counts["shrub_clusters_within_osm_polygon"]>=240:break
+                    xx=minx+(ix+.5)*4.8;yy=miny+(iy+.5)*4.8
+                    if not inside_polygon(xx,yy,poly):continue
+                    seed=(ix*11+iy*17)%13
+                    ellipsoid(bushverts,bushfaces,(xx,yy,.70),
+                              (.67+seed*.021,.72+seed*.015,.54))
+                    extra_counts["shrub_clusters_within_osm_polygon"]+=1
 for n in doc.findall("node"):
     tags={t.attrib["k"]:t.attrib["v"] for t in n.findall("tag")}
     if tags.get("natural")!="tree":continue
@@ -178,22 +230,29 @@ for n in doc.findall("node"):
     if pos is None:continue
     x,y=pos
     extra_counts["mapped_tree_nodes"]+=1
-    # Each stem and crown has deterministic, intentionally illustrative size.
-    base=len(barkverts)
-    for a,b in [(-.12,-.12),(.12,-.12),(.12,.12),(-.12,.12)]:
-        barkverts.extend([(x+a,y+b,.1),(x+a,y+b,2.4)])
-    for k in range(4):
-        v=base+k*2;v2=base+((k+1)%4)*2
+    # Every OSM tree point stays georeferenced. Height, trunk and 3D lobe
+    # shapes remain illustrative (NOT a survey or a species identification).
+    serial=int(n.attrib.get("id","0"))%97
+    tall=4.6+serial*.021
+    radius=.16+serial*.00035
+    stem=tall*.60
+    base=len(barkverts);segments=9
+    for k in range(segments):
+        a=2*math.pi*k/segments
+        barkverts.extend([(x+radius*math.cos(a),y+radius*math.sin(a),.12),
+                          (x+radius*.83*math.cos(a),y+radius*.83*math.sin(a),stem)])
+    for k in range(segments):
+        v=base+k*2;v2=base+((k+1)%segments)*2
         barkfaces.append((v,v2,v2+1,v+1))
-    base=len(leafverts)
-    for a,b in [(-1.15,-1.15),(1.15,-1.15),(1.15,1.15),(-1.15,1.15)]:
-        leafverts.append((x+a,y+b,2.0))
-    leafverts.append((x,y,5.0))
-    leaffaces.extend([(base+i,base+(i+1)%4,base+4) for i in range(4)])
+    ellipsoid(leafverts,leaffaces,(x,y,tall*.82),(1.65,1.45,1.55))
+    ellipsoid(leafverts,leaffaces,(x-0.72,y+.25,tall*.73),(1.15,1.16,1.12))
+    ellipsoid(leafverts,leaffaces,(x+.68,y-.19,tall*.73),(1.20,1.13,1.14))
+    extra_counts["rounded_tree_canopy_lobes"]+=3
 add("OSM_REAL_pier_segments_width_illustrative",pierverts,pierfaces,piermat)
 add("OSM_REAL_barrier_segments_height_illustrative",fenceverts,fencefaces,fencemat)
 add("OSM_REAL_water_polygon_source_only",waterverts,waterfaces,watermat)
 add("OSM_REAL_scrub_boundary_flat_illustrative",scrubverts,scrubfaces,scrubmat)
+add("OSM_REAL_scrub_polygon_bush_cluster_illustrative",bushverts,bushfaces,bushmat)
 add("OSM_REAL_tree_locations_trunk_illustrative",barkverts,barkfaces,barkmat)
 add("OSM_REAL_tree_locations_canopy_illustrative",leafverts,leaffaces,leafmat)
 print("Coastal and greenery OSM-bound visual layer",extra_counts,flush=True)

@@ -12,12 +12,17 @@ try{
  if(assets?.hedges?.count<100||assets?.hedges?.count>=190||assets?.hedges?.tier!=='mobile'||
     !assets?.roadSurface?.asphaltMaterialApplied)throw Error('Mobile hedges/asphalt LOD unavailable: '+JSON.stringify(assets));
  const urban=await page.evaluate(()=>window.NPL_READY?.urbanKit);
- if(urban?.tier!=='mobile'||urban?.meshGroups!==9||urban?.palmCount<10||urban?.palmCount>=20)throw Error('Mobile instanced LOD is not active: '+JSON.stringify(urban));
+ if(urban?.tier!=='mobile'||urban?.meshGroups!==11||urban?.palmCount<10||urban?.palmCount>=20)throw Error('Mobile instanced LOD is not active: '+JSON.stringify(urban));
  const hud=page.locator('#neurohud');
  if(await hud.evaluate(el=>el.open))throw Error('Mobile 3D viewport is obstructed by an expanded HUD');
- await hud.locator('summary').click();
- if(!await hud.evaluate(el=>el.open))throw Error('Mission panel cannot be opened on mobile');
- await hud.locator('summary').click();
+ await page.locator('#neurohud > summary').click();
+ if(!await hud.evaluate(el=>el.open))throw Error('NPL 3D brain panel cannot be opened on mobile');
+ const brain=await page.evaluate(()=>window.NPL_BRAIN3D);
+ if(brain?.mode!=='REAL_INTERACTIVE_THREEJS'||brain?.brainActivityMeasured!==false)
+   throw Error('Mobile 3D NPL interactive canvas missing');
+ if(await page.locator('#nplMethods').evaluate(el=>el.open))
+   throw Error('Text mission must be secondary to 3D on mobile');
+ await page.locator('#neurohud > summary').click();
  if(await hud.evaluate(el=>el.open))throw Error('Mission panel does not collapse when asked');
  const pad=page.locator('#walkPad');
  if(!await pad.isVisible())throw Error('Mobile control is hidden in coarse-pointer viewport');
@@ -35,6 +40,10 @@ try{
  const moving=await page.evaluate(()=>window.NEUROCITY_INPUT);
  await page.waitForTimeout(800);
  await page.mouse.up();
+ await page.waitForFunction(()=>window.NPL_BRAIN3D?.distanceMeters>0.2,null,{timeout:8000});
+ const metrics=await page.evaluate(()=>window.NPL_BRAIN3D);
+ if(metrics.personalDataPersisted!==false||metrics.diagnosticClaims!==false)
+   throw Error('NPL brain must only observe session-local video-game actions');
  await page.waitForFunction(()=>window.NEUROCITY_INPUT?.forward===0&&window.NEUROCITY_INPUT?.strafe===0,null,{timeout:8000});
  const stopped=await page.evaluate(()=>window.NEUROCITY_INPUT);
  await page.screenshot({path:'demos/npl-world/visual_viewer/dist/QA_BROWSER_MOBILE.png',fullPage:true});

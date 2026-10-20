@@ -36,6 +36,16 @@ CONTRACTS={
  'NPL_conflictometro_bounded':('demos/npl-world/visual_viewer/app.js',[
    'loadNPLOpenData','inspectDataset','RecoveredPhysicalAtlas',
    'makeSourceComparisonControl']),
+ 'professional_trencadis_mosaic':('demos/npl-world/visual_viewer/explanada_mosaic.mjs',[
+   'paintMosaic','irregularGrout','historicalV50PreferredWhenAvailable']),
+ 'alternating_palm_geometries':('demos/npl-world/visual_viewer/urban_kit.mjs',[
+   'palm_canopies_','leafletCount','InstancedMesh']),
+ 'facades_source_stucco':('demos/npl-world/visual_viewer/facade_stucco.mjs',[
+   'enhanceMappedBuildingFacades','geometricFootprintsPreserved','shopsFabricated:0']),
+ 'functional_interactive_3d_brain':('demos/npl-world/visual_viewer/npl_brain3d.mjs',[
+   'buildBrainModel','mountBrain3D','raycaster','onSelect']),
+ 'npl_observed_behavior_not_biometric':('demos/npl-world/visual_viewer/npl_behavior.mjs',[
+   'sampleBehavior','LOCAL_GAME_ACTIONS_ONLY_NOT_NEURAL_MEASUREMENT','patientData:false']),
  'no_fake_real_people':('docs/NEUROCITY_RECUPERACION_MUNDO_Y_FABRICA_ESPANA.md',[
    'interiores ficticios','consentimiento'])
 }

@@ -9,6 +9,10 @@ import {installCoveredOSMMask} from './osm_building_mask.mjs';
 import {buildHedgeLayer} from './hedge_layer.mjs';
 import {createSurfaceTexture,enhanceMappedOSMRoads} from './road_surfaces.mjs';
 import {enhanceSourceMappedWater} from './water_surface.mjs';
+import {createExplanadaMosaic} from './explanada_mosaic.mjs';
+import {enhanceMappedBuildingFacades} from './facade_stucco.mjs';
+import {mountBrain3D} from './npl_brain3d.mjs';
+import {startBehaviorSession,selectProcess,sampleBehavior,publicBehaviorSnapshot,NPL_PROCESS_IDS} from './npl_behavior.mjs';
 import {inspectDataset,compareObservation,missionStart,missionStep,cognitivePulse,STAGES} from './neuro_mission.mjs';
 
 // NPL WORLD - real GLB integration. No placeholder people, no pay-per-map API.
@@ -16,6 +20,7 @@ import {inspectDataset,compareObservation,missionStart,missionStep,cognitivePuls
 const $=id=>document.getElementById(id);
 const loading=$('loading'), info=$('info'), stat=$('stat'), progress=$('progress');
 const view=$('game');
+const publicPreview=window.NPL_PUBLIC_REVIEW===true;
 const display=(message,problem=false)=>{$('messageText').textContent=message;info.classList.toggle('error',problem)};
 const renderer=new THREE.WebGLRenderer({canvas:view, antialias:true,alpha:false,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));
@@ -50,23 +55,15 @@ sun.target.position.copy(origin);
 const decorStart=scene.children.length;
 const ESPLANADA_CENTER=new THREE.Vector3(-3.5,0,119.0);
 const EXPLANADA_BEARING=-0.65; // World direction from city centre towards Canalejas.
-const promenadeColor=new THREE.CanvasTexture((()=>{
- const c=document.createElement('canvas');c.width=768;c.height=768;
- const q=c.getContext('2d');q.fillStyle='#e8dfc7';q.fillRect(0,0,768,768);
- for(let y=0;y<768;y+=4){for(let x=0;x<768;x+=4){
-  const w=Math.sin(x*.055+2.1*Math.sin(y*.022));
-  const type=w<-.22?'#3d5b60':w>.36?'#efe6d4':'#c98c78';
-  q.fillStyle=type;q.fillRect(x,y,4,4);
- }}
- return c;
-})());
-promenadeColor.colorSpace=THREE.SRGBColorSpace;
-promenadeColor.wrapS=THREE.RepeatWrapping;promenadeColor.wrapT=THREE.RepeatWrapping;
-promenadeColor.repeat.set(1.0,9);
-promenadeColor.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());
+// True archival G19/V50 ceramics win when the owner enables worldmaster=1;
+// the public city gets a high-frequency original trencadís study, not LEGO pixels.
+const mosaicKit=createExplanadaMosaic({
+ tier:window.matchMedia?.('(pointer:coarse)')?.matches?'mobile':'desktop',
+ renderer
+});
 const matStone=new THREE.MeshStandardMaterial({color:0xcbbda0,roughness:.94});
 const matAsphalt=new THREE.MeshStandardMaterial({name:'NEUROCITY_ARTISTIC_ASPHALT',map:createSurfaceTexture('asphalt',256),color:0xffffff,roughness:.97,metalness:0});
-const matMosaic=new THREE.MeshStandardMaterial({map:promenadeColor,roughness:.81});
+const matMosaic=mosaicKit.material;
 function horizontalPlane(w,h,x,z,y,material){
  const o=new THREE.Mesh(new THREE.PlaneGeometry(w,h),material);
  o.rotation.x=-Math.PI/2;o.position.set(x,y,z);o.receiveShadow=true;
@@ -86,7 +83,10 @@ for(let z=-160;z<125;z+=10){
 const sea=new THREE.Mesh(new THREE.PlaneGeometry(750,1050),new THREE.MeshPhysicalMaterial({
  color:0x06738a,metalness:.02,roughness:.23,clearcoat:1,clearcoatRoughness:.16
 }));
-sea.rotation.x=-Math.PI/2;sea.position.set(395,-.17,-15);scene.add(sea);
+sea.rotation.x=-Math.PI/2;sea.position.set(395,-.17,-15);
+// The public version now uses ONLY the truly mapped OSM harbor water mesh.
+// Never lay this older approximate 750×1050m polygon over mapped coastal details.
+sea.visible=!publicPreview;scene.add(sea);
 const matIron=new THREE.MeshStandardMaterial({color:0x1b2528,metalness:.72,roughness:.32});
 const matLamp=new THREE.MeshStandardMaterial({color:0xfff1ca,roughness:.38,emissive:0xffc673,emissiveIntensity:.13});
 function cityLamp(x,z){
@@ -203,14 +203,36 @@ let recoveredMaster=null,masterNextUpdate=0,masterBusy=false;
 const keys=new Set();
 const touchStick={forward:0,strafe:0};
 let yaw=-.65,pitch=.14,zoom=2.95,mode='back',actorHeading=0,moving=false;
+let lastBehaviorYaw=yaw;
 const loader=new GLTFLoader();
 const model=(url)=>new Promise((resolve,reject)=>loader.load(url,resolve,undefined,reject));
 const showLoad=(text)=>{progress.textContent=text;};
-// Public preview deliberately excludes optional props and private avatars.
-// Do not expose personal/biometric models through a GitHub artifact.
-const publicPreview=window.NPL_PUBLIC_REVIEW===true;
+// Public preview deliberately excludes optional private human GLBs.
+// The view-only city never reads personal avatars or patient records.
 
 let nplEvidence={usable:false,reason:"no_public_dataset",entries:[]};
+let behaviorSession=startBehaviorSession();
+let brainRenderer=null,brainInspectPending=false,brainDecisionCount=0;
+function updateBrainPanel(){
+ const snapshot=publicBehaviorSnapshot(behaviorSession);
+ const title=$('nplActiveTitle'),description=$('nplActiveDescription'),metrics=$('nplLiveMetrics');
+ if(title)title.textContent=snapshot.selectedTitle;
+ if(description)description.textContent=snapshot.selectedBasis+'. '+snapshot.disclaimer+' '+snapshot.nextAction;
+ if(metrics)metrics.textContent='Recorrido '+snapshot.distanceMeters.toFixed(1)+' m · '+
+   'Cámara '+snapshot.steeringRadians.toFixed(1)+' rad · Decisiones '+snapshot.choices;
+ for(const button of document.querySelectorAll('#nplBrainProcesses [data-brain-process]'))
+   button.setAttribute('aria-pressed',String(button.dataset.brainProcess===snapshot.selected));
+ if(brainRenderer?.available)brainRenderer.update(snapshot.scores,snapshot.selected);
+ window.NPL_BRAIN3D={
+   mode:brainRenderer?.available?'REAL_INTERACTIVE_THREEJS':'ACCESSIBLE_FALLBACK',
+   ...snapshot,brainActivityMeasured:false,
+   onlyLocalObservedGameActions:true
+ };
+}
+function chooseBrainProcess(id){
+ behaviorSession=selectProcess(behaviorSession,id);
+ brainRenderer?.select?.(id);brainInspectPending=true;updateBrainPanel();
+}
 let nplMission=missionStart(nplEvidence);
 let lastMissionButtonsKey=null;
 const taskChoices=[
@@ -248,12 +270,12 @@ function refreshNPL(moving=false){
    if(!nplMission.completed){
      for(const [code,label] of taskChoices[nplMission.stage]){
        const btn=document.createElement('button');btn.type='button';btn.textContent=label;
-       btn.addEventListener('click',()=>{nplMission=missionStep(nplMission,code,nplEvidence);refreshNPL(moving);});
+       btn.addEventListener('click',()=>{brainDecisionCount++;nplMission=missionStep(nplMission,code,nplEvidence);refreshNPL(moving);});
        options.appendChild(btn);
      }
    }else{
      const reset=document.createElement('button');reset.type='button';reset.textContent='↻ Nueva misión de investigación';
-     reset.addEventListener('click',()=>{nplMission=missionStart(nplEvidence);refreshNPL(moving);});
+     reset.addEventListener('click',()=>{brainDecisionCount++;nplMission=missionStart(nplEvidence);refreshNPL(moving);});
      options.appendChild(reset);
    }
    lastMissionButtonsKey=key;
@@ -269,6 +291,7 @@ function refreshNPL(moving=false){
         ' ('+v.period+'). No demuestra causalidad.'
       : 'Fuente revisada, pero faltan comparaciones homologables para este territorio.';
  }
+ updateBrainPanel();
  window.NPL_MISSION={
     mode:nplMission.mode,stage:nplMission.stage,completed:nplMission.completed,
     publicEvidenceReady:nplEvidence.usable,noTracking:true,noSocialNetworking:true
@@ -292,9 +315,21 @@ let lastNplDraw=0;
 
 // Public city decor: original CC0 procedural asset library, never a private GLB.
 const visualTier=window.matchMedia?.('(pointer:coarse)')?.matches?'mobile':'desktop';
+brainRenderer=mountBrain3D({
+ canvas:$('nplBrainCanvas'),details:$('neurohud'),
+ tier:visualTier,
+ reducedMotion:window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches===true,
+ onSelect:chooseBrainProcess
+});
+for(const button of document.querySelectorAll('#nplBrainProcesses [data-brain-process]')){
+ button.addEventListener('click',()=>chooseBrainProcess(button.dataset.brainProcess));
+}
+if($('nplBrainStatus'))$('nplBrainStatus').textContent=brainRenderer.available?
+ 'Gira y selecciona regiones · analogía funcional':'Vista 3D no disponible · controles accesibles activos';
+updateBrainPanel();
 const urbanKit=publicPreview?buildUrbanKit({tier:visualTier}):null;
 const hedgeLayer=publicPreview?buildHedgeLayer(visualTier):null;
-let roadStatus=null,coastalWater=null;
+let roadStatus=null,coastalWater=null,stuccoStatus=null;
 if(urbanKit){decorGroup.add(urbanKit.group);palmCount=urbanKit.stats.palmCount;}
 if(hedgeLayer)decorGroup.add(hedgeLayer.group);
 
@@ -367,7 +402,9 @@ function enterPublicCity(){
  mode='first';
  $('cameraMode').textContent='Primera persona · ciudad pública';
  window.NPL_READY={cityMeshes:city?.children?.length||0,cityOnly:true,privateAvatarLoaded:false,
-  explanadaCoords:[38.34318,-0.48326],windows:windowCount,facadeStyle:'artistic_not_surveyed',palms:palmCount,urbanKit:urbanKit?.stats||null,hedges:hedgeLayer?.stats||null,roadSurface:roadStatus,water:coastalWater?{
+  explanadaCoords:[38.34318,-0.48326],windows:windowCount,facadeStyle:'artistic_not_surveyed',palms:palmCount,urbanKit:urbanKit?.stats||null,hedges:hedgeLayer?.stats||null,roadSurface:roadStatus,facadeMaterial:stuccoStatus?{
+   source:stuccoStatus.source,meshCount:stuccoStatus.meshCount,
+   photoMatched:stuccoStatus.photoMatched}:null,mosaic:mosaicKit.report,brain3D:{available:!!brainRenderer?.available,modelIsMetaphor:true},water:coastalWater?{
    waterMeshes:coastalWater.waterMeshes,addedSeaPlanes:coastalWater.addedSeaPlanes,
    sourceGeometryReplaced:coastalWater.sourceGeometryReplaced,
    reducedMotion:coastalWater.reducedMotion}:null,skins:0,clips:[]};
@@ -381,6 +418,9 @@ async function loadWorld(){
  try{
   const data=await model('./assets/alicante.glb');
   city=data.scene;scene.add(city);
+  // Source wall materials first; the following OSM tile mask will chain this
+  // shader without losing its clipping at recovered G19/V50 tile boundaries.
+  if(publicPreview)stuccoStatus=enhanceMappedBuildingFacades(city,{tier:visualTier});
   if(publicPreview)osmCover=installCoveredOSMMask(city);
   // The source-matched asphalt texture belongs on OSM highway ribbon meshes, not on invented roads.
   if(publicPreview)roadStatus=enhanceMappedOSMRoads(city,{mobile:visualTier==='mobile'});
@@ -455,6 +495,7 @@ const clock=new THREE.Clock();
 function frame(){
  requestAnimationFrame(frame);
  const dt=Math.min(clock.getDelta(),.045);
+ const beforeX=player.position.x,beforeZ=player.position.z,beforeYaw=lastBehaviorYaw;
  if(recoveredMaster?.manifest && !masterBusy && clock.elapsedTime>=masterNextUpdate){
    masterNextUpdate=clock.elapsedTime+1.2;masterBusy=true;
    recoveredMaster.update(player.position).then(()=>{
@@ -497,6 +538,19 @@ function frame(){
     avatar.rotation.y+=headingDelta*Math.min(1,dt*7);}
   // Lateral input remains strafe rather than forcing a 90-degree turn.
  }
+ // Every displayed NPL change follows ACTUAL movement/camera/choices in-session,
+ // never fabricated brain-state or a diagnosis based on a game input.
+ const actualDistance=Math.hypot(player.position.x-beforeX,player.position.z-beforeZ);
+ const deltaTurn=Math.abs(Math.atan2(Math.sin(yaw-beforeYaw),Math.cos(yaw-beforeYaw)));
+ behaviorSession=sampleBehavior(behaviorSession,{
+   dt,movementMeters:actualDistance,cameraTurnRadians:deltaTurn,
+   observed:brainInspectPending,
+   obstructed:moving&&actualDistance<.0001,
+   choices:brainDecisionCount,missionStage:nplMission.stage,
+   sourceVerified:nplEvidence.usable
+ });
+ brainInspectPending=false;
+ lastBehaviorYaw=yaw;
  if(mixer){animateState(moving?(fast?'run':'walk'):'idle');mixer.update(dt);}
  const target=player.position.clone().add(new THREE.Vector3(0,1.32,0));
  const actualYaw=mode==='face'?avatar?.rotation.y||0:yaw;
@@ -518,6 +572,7 @@ function frame(){
  sun.target.updateMatrixWorld();
  if(coastalWater)coastalWater.advance(clock.elapsedTime);
  renderer.render(scene,camera);
+ brainRenderer?.tick(clock.elapsedTime);
  if(Math.floor(clock.elapsedTime*3)!==Math.floor((clock.elapsedTime-dt)*3)){
    stat.textContent='x '+player.position.x.toFixed(0)+' m · z '+player.position.z.toFixed(0)+' m · '+mode;
  }
