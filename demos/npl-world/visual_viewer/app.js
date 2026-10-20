@@ -561,7 +561,10 @@ async function loadWorld(){
     geometryStillCanonical:true,artisticNotSurveyed:true,
     browserMeasuredNotCertified:true
   };
-  if(publicPreview || ownerWorldRequested)osmCover=installCoveredOSMMask(city);
+  // The public OSM-only viewer has NO G19 private architecture to clip against.
+  // Do not install an unnecessary replacement shader on the source building
+  // materials. Owner-only G19/V50 still gets the precise triangle occupancy.
+  if(ownerWorldRequested)osmCover=installCoveredOSMMask(city);
   // The source-matched asphalt texture belongs on OSM highway ribbon meshes, not on invented roads.
   if(publicPreview)roadStatus=enhanceMappedOSMRoads(city,{mobile:visualTier==='mobile'});
   if(publicPreview)coastalWater=enhanceSourceMappedWater(city,{
