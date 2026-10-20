@@ -1,0 +1,45 @@
+name: NeuroCity · real V50 mosaic surgery QA (PUBLIC CODE ONLY, NO DEPLOY)
+on:
+  push:
+    paths:
+      - 'tools/neurocity/explanada_mosaic/**'
+      - 'demos/npl-world/visual_viewer/city_tiles.mjs'
+      - 'demos/npl-world/visual_viewer/tests/mobile_mosaic_source_fallback.test.mjs'
+      - '.github/workflows/neurocity-v50-surgery-qa.yml'
+  pull_request:
+    paths:
+      - 'tools/neurocity/explanada_mosaic/**'
+      - 'demos/npl-world/visual_viewer/city_tiles.mjs'
+      - 'demos/npl-world/visual_viewer/tests/mobile_mosaic_source_fallback.test.mjs'
+      - '.github/workflows/neurocity-v50-surgery-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: neurocity-v50-surgery-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  synthetic-reconstruction-and-mobile-gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install free audited modelling dependencies
+        run: python -m pip install --disable-pip-version-check numpy scipy pillow trimesh
+      - name: Synthetic tests ONLY, private G19/V50 binary never on GitHub
+        run: python -m unittest discover -s tools/neurocity/explanada_mosaic -p 'test_v50_surgery.py' -v
+      - name: Mobile LOD source SHA and triangle budget
+        run: node --test demos/npl-world/visual_viewer/tests/mobile_mosaic_source_fallback.test.mjs
+      - name: Compile all Python source; forbid private asset packaging in repo
+        run: |
+          python -m compileall -q tools/neurocity/explanada_mosaic
+          python - <<'PY'
+          from pathlib import Path
+          for f in Path('tools/neurocity/explanada_mosaic').rglob('*'):
+              if f.suffix.lower() in {'.glb','.gltf','.zip','.png','.jpg','.jpeg'}:
+                  raise SystemExit('Private/binary artwork must stay out of public repository')
+          print('PASS: source-only QA, no model binary, no deploy')
+          PY
