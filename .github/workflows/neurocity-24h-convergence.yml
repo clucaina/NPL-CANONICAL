@@ -37,7 +37,7 @@ jobs:
           ref=$(gh api "repos/${REPO}/pulls?state=open&per_page=100" |
             jq -r --arg repo "$REPO" '[.[] |
               select(.head.repo.full_name==$repo) |
-              select(.head.ref | test("^(feat|fix)/neurocity-(v7|restore-real-npl)")) |
+              select(.head.ref | test("^(feat|fix)/neurocity-(v7|v8|restore-real-npl)")) |
               select(.draft==true) ] |
               sort_by(.number) | last | .head.ref // empty')
           if [ -z "$ref" ]; then
@@ -87,6 +87,17 @@ jobs:
                  "$ref:refs/remotes/origin/ci-$label" > "reports/fetch-$label.log" 2>&1; then
               printf 'BLOCKED: remote branch unavailable. See fetch log.\n\n' >> reports/REPORT.md
               blocked=1
+              continue
+            fi
+            # A peer capability already present byte-for-byte in the current
+            # descendant must not be merged again just to generate conflicts.
+            if [ "$label" = 'adaptive-G19' ] &&
+               git -C city-integrated cat-file -e HEAD:demos/npl-world/visual_viewer/frame_quality.mjs 2>/dev/null &&
+               git -C city-integrated cat-file -e HEAD:demos/npl-world/visual_viewer/bounded_loading.mjs 2>/dev/null &&
+               [ "$(git -C city-integrated rev-parse HEAD:demos/npl-world/visual_viewer/frame_quality.mjs)" = "$(git -C city-integrated rev-parse refs/remotes/origin/ci-$label:demos/npl-world/visual_viewer/frame_quality.mjs)" ] &&
+               [ "$(git -C city-integrated rev-parse HEAD:demos/npl-world/visual_viewer/bounded_loading.mjs)" = "$(git -C city-integrated rev-parse refs/remotes/origin/ci-$label:demos/npl-world/visual_viewer/bounded_loading.mjs)" ] &&
+               grep -q 'setLoadPressure(qualityGovernor.snapshot().tier)' city-integrated/demos/npl-world/visual_viewer/app.js; then
+              printf 'ALREADY PORTED: verified frame governor, bounded queue, source hook; skipping redundant merge.\n\n' >> reports/REPORT.md
               continue
             fi
             if git -C city-integrated merge --no-ff --no-edit \
