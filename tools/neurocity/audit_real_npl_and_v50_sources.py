@@ -78,7 +78,7 @@ def audit(npl_archive:Path,city_archive:Path):
     original_v50_surface_preserved=True,
     original_pbr_mobile_fallback=True,
     physical_grids_verified=len([x for x in city.namelist() if re.fullmatch(
-      r'world-master/geo/data/physical_r\\d{2}_(?:cm|c)\\d{2}\\.json',x)]),
+      r'world-master/geo/data/physical_r\d{2}_(?:cm|c)\d{2}\.json',x)]),
     new_city_meshes_rendered_in_WebGL=False)
  if report['physical_grids_verified']!=12:
   raise ValueError('G13 geometry/physical original source lost')
