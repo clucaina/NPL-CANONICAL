@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {assertTileManifest,planActiveTiles,plannedLayers,tileBounds,safeTilePath} from './city_tiles.mjs';
-import {matrixElementsForMaster,VERTICAL_DATUM_VERIFIED} from './geo_alignment.mjs';
+import {matrixElementsForTile,VERTICAL_DATUM_VERIFIED,MAX_SAMPLED_TILE_PROJECTION_ERROR_M} from './geo_alignment.mjs';
 import {instantiateMasterPalms} from './asset_instancing.mjs';
 
 /**
@@ -18,7 +18,9 @@ export class RecoveredMasterTiles {
    this.onVisibility=onVisibility;
    this.onCoverage=onCoverage;
    this.root=new THREE.Group();this.root.name='RECOVERED_G19_WORLD_MASTER';
-   this.root.matrix.fromArray(matrixElementsForMaster());
+   // Each 500m source tile uses its own higher-precision PROJ Jacobian.
+   // World root is identity; glTF children retain original ETRS89 geometry.
+   this.root.matrix.identity();
    this.root.matrixAutoUpdate=false;
    this.root.userData={crs:'EPSG:25830',verticalDatumVerified:VERTICAL_DATUM_VERIFIED,
      originalGameplayReplaced:false,source:'previous user-owned Drive world master'};
@@ -88,6 +90,8 @@ export class RecoveredMasterTiles {
    if(!tile)return false;
    const signal={cancelled:false};const group=new THREE.Group();
    group.name='WORLDMASTER_'+id;
+   group.matrix.fromArray(matrixElementsForTile(id));
+   group.matrixAutoUpdate=false;
    const state={id,group,signal,ready:false,loaded:0,errors:0,roles:new Set()};
    this.states.set(id,state);this.root.add(group);
    const layers=plannedLayers(tile,this.profile);
@@ -157,7 +161,9 @@ export class RecoveredMasterTiles {
      tiles:Array.from(this.states.values()).filter(x=>x.ready).map(x=>x.id),
      assetsLoaded:Array.from(this.states.values()).reduce((n,s)=>n+s.loaded,0),
      errors:this.errors.slice(-12),
-     georeferencedTo:'EPSG:3857_affine_approximate',
+     georeferencedTo:'EPSG:3857_per_tile_PROJ_500m',
+     maxSampledProjectionResidualM:MAX_SAMPLED_TILE_PROJECTION_ERROR_M,
+     sourceGeometryAccuracyNotCertified:true,
      millimetreFidelityCertified:false,verticalDatumVerified:false,
      privateAvatarsLoaded:false,publicRedistributionApproved:false
    };
