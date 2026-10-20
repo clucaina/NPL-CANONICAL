@@ -28,8 +28,10 @@ test('real Three.js mesh generation produces bounded instanced PBR geometry',()=
   assert.equal(group.userData.instances,stats.instances);
   assert.ok(stats.palmCount>=10);
   assert.equal(stats.usesInstanceMeshes,true);
-  assert.equal(stats.meshGroups,9);
-  assert.ok(stats.totalTriangles>0&&stats.totalTriangles<35000,stats.totalTriangles);
+  assert.equal(stats.meshGroups,11);
+  assert.equal(stats.palmSilhouettes,3);
+  assert.equal(new Set(planUrbanKit(tier).palms.map(p=>p.variant)).size,3);
+  assert.ok(stats.totalTriangles>0&&stats.totalTriangles<100000,stats.totalTriangles);
   assert.ok(group.children.every(o=>o.isInstancedMesh&&o.count>0&&o.geometry.boundingSphere));
   for(const mesh of group.children){
    const array=mesh.geometry.getAttribute('position').array;
