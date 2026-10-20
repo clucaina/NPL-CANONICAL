@@ -34,6 +34,11 @@ test('Original PNOA aerial and all real OSM streets survive a partial original-w
  wall.material.onBeforeCompile(shader);
  assert.match(shader.vertexShader,/ncMasterWorldXZ/);
  assert.match(shader.fragmentShader,/discard/);
+ // Actual Alicante's inverse map contains a negative xz coefficient; GLSL
+ // must use '-(-0.034...)' rather than an invalid '--0.034...' token.
+ assert.match(shader.fragmentShader,/-\(-0\.0346812900\)/);
+ assert.doesNotMatch(shader.fragmentShader,/--0\.0346812900/);
+ assert.doesNotMatch(shader.fragmentShader,/\+\-0\.0346812900/);
  assert.equal(shader.uniforms.ncMasterTileCount.value,1);
  assert.equal(shader.uniforms.ncMasterTileBoxes.value[0].z,1000);
  cover.update(['r02_c00','r02_c01']);
