@@ -23,7 +23,8 @@ try{
   const initialQuality=await page.evaluate(()=>window.NEUROCITY_RENDER_QUALITY);
   if(waterBefore.source!=='artistic_mediterranean_surface_not_surveyed' ||
     waterBefore.triangleCount!==2||waterBefore.textures!==0||waterBefore.geometrySurveyed!==false ||
-    waterBefore.programCount<1||initialQuality.high!==true||shaderErrors.length){
+    waterBefore.programCount<1||waterBefore.independentSeaLayer!==true||
+    initialQuality.high!==true||shaderErrors.length){
      throw Error('Procedural Mediterranean WebGL not ready: '+JSON.stringify({waterBefore,initialQuality,shaderErrors}));
   }
   // DPR=1 used to make the old fidelity toggle ineffective.
