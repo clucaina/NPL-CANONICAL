@@ -21,7 +21,7 @@ export function decodePhysicalGrid(raw,expectedId){
  if(!raw || !allowed.has(expectedId) ||raw.tile!==expectedId||raw.step!==2||
     raw.count!==PHYSICAL_TILE_CELLS||!Array.isArray(raw.originLocal)||
     raw.originLocal.length!==2)throw Error('Unexpected physical tile grid contract');
- const match=/^r(\\d\\d)_(?:c(\\d\\d)|cm(\\d\\d))$/.exec(expectedId);
+ const match=/^r(\d\d)_(?:c(\d\d)|cm(\d\d))$/.exec(expectedId);
  if(!match)throw Error('Invalid original source tile id');
  const ix=match[2]!==undefined?Number(match[2]):-Number(match[3]);
  const row=Number(match[1]);
