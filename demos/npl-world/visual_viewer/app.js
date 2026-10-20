@@ -7,6 +7,7 @@ import {RecoveredMasterTiles} from './world_master_loader.mjs';
 import {RecoveredPhysicalAtlas} from './world_physics.mjs';
 import {installCoveredOSMMask} from './osm_building_mask.mjs';
 import {buildCityWallCollision} from './city_collision.mjs';
+import {inspectPublicCityModel} from './city_geometry_qa.mjs';
 import {wantsRecoveredWorldmaster,shouldLoadOwnerArchive} from './owner_worldmaster_policy.mjs';
 import {createFrameGovernor} from './frame_quality.mjs';
 import {buildHedgeLayer} from './hedge_layer.mjs';
@@ -456,12 +457,23 @@ async function loadWorld(){
  try{
   const data=await model('./assets/alicante.glb');
   city=data.scene;scene.add(city);
+  // Inspect the actual loaded Three.js mesh topology, not only declarations
+  // from a Blender export manifest. No human / avatar GLBs are inspected.
+  if(publicPreview || ownerWorldRequested){
+    try{
+      window.NEUROCITY_CITY_MODEL_QA=inspectPublicCityModel(city);
+    }catch(error){
+      window.NEUROCITY_CITY_MODEL_QA={invalid:true,
+        error:String(error?.message||error).slice(0,200)};
+    }
+  }
   if(publicPreview || ownerWorldRequested){
     try{
       cityCollision=buildCityWallCollision(city);
       const stats=cityCollision.stats();
+      const physicalProbe=cityCollision.auditSourceWallBlocking({samples:48});
       window.NEUROCITY_COLLISION_QA={...stats,active:stats.wallSegments>0,
-        privateGLBsUsed:false,physicalAtlasPriority:true};
+        physicalProbe,privateGLBsUsed:false,physicalAtlasPriority:true};
     }catch(error){
       cityCollision=null;
       window.NEUROCITY_COLLISION_QA={active:false,wallSegments:0,
