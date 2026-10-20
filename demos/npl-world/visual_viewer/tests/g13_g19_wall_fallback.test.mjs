@@ -52,7 +52,7 @@ test('known walkable G13 has priority; source-wall fallback only checks missing 
  const result=atlas.move({x:5,z:-.8},0,.22,{
   fallbackCollision:()=>{calls++;return true;}
  });
- assert.equal(result.z,-.58);
+ assert.ok(Math.abs(result.z+.58)<1e-9);
  assert.equal(calls,0);
 });
 
