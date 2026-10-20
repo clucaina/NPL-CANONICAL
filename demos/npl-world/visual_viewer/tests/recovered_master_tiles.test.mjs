@@ -112,6 +112,10 @@ test('real Three scene uses local GLBs only; native loader and original city fal
  try{
    const streamer=new RecoveredMasterTiles({scene,loader,onVisibility:x=>visible.push(x)});
    await streamer.initialize();
+   assert.equal(streamer.status().assetQueue.concurrencyLimit,2);
+   assert.equal(streamer.setLoadPressure('economy').concurrencyLimit,1);
+   assert.equal(streamer.setLoadPressure('detail').concurrencyLimit,2);
+   assert.throws(()=>streamer.setLoadPressure('fake'),RangeError);
    const stats=await streamer.update({x:-10.664,z:113.546});
    assert.equal(stats.active,true);
    assert.ok(stats.tiles.includes('r02_c00'));
