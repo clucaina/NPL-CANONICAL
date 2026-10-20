@@ -56,7 +56,8 @@ def inspect_raster(raw):
             lo=float(valid.min());hi=float(valid.max())
             if not math.isfinite(lo) or not math.isfinite(hi) or lo < -100 or hi > 3500:
                 raise ValueError("Altitude values out of plausible Spanish mainland range")
-            return {"epsg":25830,"source_epsg":epsg,\n                    "utm_axis_mapping_verified":True,"bounds_m":list(map(float,(b.left,b.bottom,b.right,b.top))),
+            return {"epsg":25830,"source_epsg":epsg,
+                    "utm_axis_mapping_verified":True,"bounds_m":list(map(float,(b.left,b.bottom,b.right,b.top))),
                     "pixel_size_m":list(resolution),"raster_shape":[ds.height,ds.width],
                     "measured_valid_pixels":len(valid),"valid_fraction":round(len(valid)/data.size,4),
                     "elevation_min_m_ortho_candidate":round(lo,3),
