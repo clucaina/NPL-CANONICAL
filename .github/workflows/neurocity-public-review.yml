@@ -9,9 +9,11 @@ on:
       - 'tools/factory/**'
 permissions:
   contents: read
+# Each branch gets its own gate; new commits cancel obsolete expensive Blender runs.
+# Avoid one central 40-minute job blocking all other NeuroCity chats.
 concurrency:
-  group: neurocity-public-3d-review
-  cancel-in-progress: false
+  group: neurocity-public-3d-review-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   playable_review:
     runs-on: ubuntu-24.04
