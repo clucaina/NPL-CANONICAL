@@ -98,23 +98,46 @@ def review(repo, report):
         # Apply the known compatible Gameplay candidate first, but never
         # claim the ocean/Catastro candidates succeeded when Git flags conflicts.
         accepted=[]
+        review_pending=[]
+        # Known source conflict from the first REAL merge rehearsal.
+        # Do not invent a merge: preserve V50/G13 physical and coast safeguards
+        # for a synthetic compilation trial, and mark human review mandatory.
+        allowed_resolution={
+            "demos/npl-world/visual_viewer/city_tiles.mjs",
+            "demos/npl-world/visual_viewer/water_surface.mjs",
+            "demos/npl-world/visual_viewer/tests/water_surface.test.mjs"
+        }
         rank={"educational_gameplay":0,"sea":1,"cadastre":2}
         for name,ref in sorted(refs,key=lambda item:rank[item[0]]):
             outcome=try_merge(cwd,ref)
             outcome["candidate"]=name
             data["combined"].append(outcome)
             if not outcome["clean"]:
+                conflicts=set(outcome["conflicts"])
+                if name in ("sea","cadastre") and conflicts and conflicts<=allowed_resolution:
+                    # TEMPORARY CI-only resolution, not a PR merge approval.
+                    for filepath in sorted(conflicts):
+                        run("git","checkout","--ours","--",filepath,cwd=cwd,check=True)
+                        run("git","add","--",filepath,cwd=cwd,check=True)
+                    result=run("git","-c","user.name=NeuroCity CI","-c",
+                               "user.email=neurocity-ci@users.noreply.github.com",
+                               "commit","--no-edit",cwd=cwd)
+                    if result.returncode==0:
+                        outcome["source_resolved_for_tests"]=True
+                        outcome["human_review_required"]=sorted(conflicts)
+                        review_pending+=sorted(conflicts)
+                        accepted.append(name)
+                        continue
                 run("git","merge","--abort",cwd=cwd)
-                # Preserve previous successful ephemeral commits for a REAL
-                # partial game build in CI; do not silently resolve conflicts.
                 continue
             accepted.append(name)
         changed=run("git","diff","--name-only",baseline+"..HEAD",cwd=cwd,check=True).stdout.splitlines()
         data["combined_changed_files"]=len(changed)
         data["risky_paths"]=suspicious_paths(changed)
         data["accepted_source_modules"]=accepted
+        data["conflicts_resolved_only_for_qa"]=sorted(set(review_pending))
         data["ready_for_build"]=len(accepted)>0 and not data["risky_paths"]
-        data["ready_for_merge"]=len(accepted)==len(CANDIDATES) and not data["risky_paths"]
+        data["ready_for_merge"]=len(accepted)==len(CANDIDATES) and not data["risky_paths"] and not review_pending
     report=pathlib.Path(report)
     report.parent.mkdir(parents=True,exist_ok=True)
     report.write_text(json.dumps(data,indent=2,ensure_ascii=False)+"\n",encoding="utf8")
