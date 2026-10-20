@@ -19,7 +19,7 @@ SOURCES = (
     ("multi_source_rehearsal", "ci/neurocity-multi-source-unification-rehearsal-20261020", True),
     ("private_assembly_code_only", "tools/neurocity-private-world-reproducible-assembler-20261020", False),
 )
-UNSAFE_BYTES_PATTERN = re.compile(r"(^|/)(world-master|patient_data|private_glbs)/|\\.(glb|gml|blend|las|laz)$", re.I)
+UNSAFE_BYTES_PATTERN = re.compile(r"(^|/)(world-master|patient_data|private_glbs)/|\.(glb|gml|blend|las|laz)$", re.I)
 REQUIRED_AT_LEAST_ONE = {
     "public_city_viewer": "demos/npl-world/visual_viewer/app.js",
     "public_npl_contract": "demos/npl-world/visual_viewer/public_layers.mjs",
