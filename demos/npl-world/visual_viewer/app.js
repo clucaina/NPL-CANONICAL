@@ -8,6 +8,7 @@ import {RecoveredPhysicalAtlas} from './world_physics.mjs';
 import {installCoveredOSMMask} from './osm_building_mask.mjs';
 import {buildHedgeLayer} from './hedge_layer.mjs';
 import {createSurfaceTexture,enhanceMappedOSMRoads} from './road_surfaces.mjs';
+import {enhanceSourceMappedWater} from './water_surface.mjs';
 import {inspectDataset,compareObservation,missionStart,missionStep,cognitivePulse,STAGES} from './neuro_mission.mjs';
 
 // NPL WORLD - real GLB integration. No placeholder people, no pay-per-map API.
@@ -293,7 +294,7 @@ let lastNplDraw=0;
 const visualTier=window.matchMedia?.('(pointer:coarse)')?.matches?'mobile':'desktop';
 const urbanKit=publicPreview?buildUrbanKit({tier:visualTier}):null;
 const hedgeLayer=publicPreview?buildHedgeLayer(visualTier):null;
-let roadStatus=null;
+let roadStatus=null,coastalWater=null;
 if(urbanKit){decorGroup.add(urbanKit.group);palmCount=urbanKit.stats.palmCount;}
 if(hedgeLayer)decorGroup.add(hedgeLayer.group);
 
@@ -366,7 +367,10 @@ function enterPublicCity(){
  mode='first';
  $('cameraMode').textContent='Primera persona · ciudad pública';
  window.NPL_READY={cityMeshes:city?.children?.length||0,cityOnly:true,privateAvatarLoaded:false,
-  explanadaCoords:[38.34318,-0.48326],windows:windowCount,facadeStyle:'artistic_not_surveyed',palms:palmCount,urbanKit:urbanKit?.stats||null,hedges:hedgeLayer?.stats||null,roadSurface:roadStatus,skins:0,clips:[]};
+  explanadaCoords:[38.34318,-0.48326],windows:windowCount,facadeStyle:'artistic_not_surveyed',palms:palmCount,urbanKit:urbanKit?.stats||null,hedges:hedgeLayer?.stats||null,roadSurface:roadStatus,water:coastalWater?{
+   waterMeshes:coastalWater.waterMeshes,addedSeaPlanes:coastalWater.addedSeaPlanes,
+   sourceGeometryReplaced:coastalWater.sourceGeometryReplaced,
+   reducedMotion:coastalWater.reducedMotion}:null,skins:0,clips:[]};
  loading.remove();
  showLoad('Ciudad pública geográfica lista');
  display('Alicante 3D OSM: asfalto en calles cartografiadas y setos ilustrativos. Fachadas no fotogramétricas; geometría y FPS reales sin certificar.');
@@ -380,6 +384,9 @@ async function loadWorld(){
   if(publicPreview)osmCover=installCoveredOSMMask(city);
   // The source-matched asphalt texture belongs on OSM highway ribbon meshes, not on invented roads.
   if(publicPreview)roadStatus=enhanceMappedOSMRoads(city,{mobile:visualTier==='mobile'});
+  if(publicPreview)coastalWater=enhanceSourceMappedWater(city,{
+    tier:visualTier,reducedMotion:window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches===true
+  });
   // Public-only, bounded artistic facade detail on verifiable OSM wall geometry.
   // Never loads the optional private facade GLB.
   if(publicPreview)addFacadeDetail(city,170);
@@ -509,6 +516,7 @@ function frame(){
  sun.position.set(player.position.x-90,180,player.position.z+125);
  sun.target.position.set(player.position.x,0,player.position.z);
  sun.target.updateMatrixWorld();
+ if(coastalWater)coastalWater.advance(clock.elapsedTime);
  renderer.render(scene,camera);
  if(Math.floor(clock.elapsedTime*3)!==Math.floor((clock.elapsedTime-dt)*3)){
    stat.textContent='x '+player.position.x.toFixed(0)+' m · z '+player.position.z.toFixed(0)+' m · '+mode;
