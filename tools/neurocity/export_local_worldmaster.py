@@ -16,7 +16,7 @@ SCHEMA="neurocity.local-worldmaster-tiles.v1"
 SUPPORTED=("r02_c00","r02_c01","r01_c01","r01_c02")
 ROLES=("terrain","geo","urban","environment","driving","beach",
         "architecture","lod","palm_variants","facade","landmark",
-        "coast","mosaic","furniture","street")
+        "coast","mosaic","furniture","street","streetlamp")
 PREFAB="assets/source/ASSETS/G15/phoenix/Phoenix_DatePalm_Variant_{:02d}.glb"
 
 def compile_manifest(archive:Path):
