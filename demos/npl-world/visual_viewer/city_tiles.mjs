@@ -43,6 +43,17 @@ export function assertTileManifest(m){
           (a.triangle_estimate!==undefined && (!Number.isSafeInteger(a.triangle_estimate)||a.triangle_estimate<1||a.triangle_estimate>4_000_000)) ||
           (a.embedded_images!==undefined && (!Number.isSafeInteger(a.embedded_images)||a.embedded_images<0||a.embedded_images>1024)))
        throw new Error('Unsupported asset source, integrity claim or local-space transform');
+      if(a.mobile_fallback!==undefined){
+        const mob=a.mobile_fallback;
+        if(a.role!=='mosaic' || !mob || typeof mob!=='object' ||
+           !safeTilePath(mob.path) || mob.path===a.path ||
+           !/^[a-f0-9]{64}$/.test(mob.sha256||'') ||
+           !Number.isSafeInteger(mob.bytes) || mob.bytes<=0 || mob.bytes>90_000_000 ||
+           !Number.isSafeInteger(mob.triangle_estimate) || mob.triangle_estimate<1 ||
+           mob.triangle_estimate>4_000_000 ||
+           !Number.isSafeInteger(mob.embedded_images) || mob.embedded_images<0 || mob.embedded_images>1024)
+           throw new Error('Unsafe original V50 mobile mosaic fallback');
+      }
     }
   }
   return m;
@@ -67,7 +78,15 @@ export function plannedLayers(tile,profile='desktop'){
   const candidates=tile.assets.filter(a=>{
     if(profile==='desktop')return !(a.role==='streetlamp'&&hasV50Furniture);
     return !['facade','furniture'].includes(a.role);
-  })
+  }).map(a=>{
+        // The modelled 10k-stone V50 patch is for desktop detail only.
+        // Mobile explicitly reuses the ORIGINAL smaller V50 GLB, with hash.
+        if(profile!=='mobile'||a.role!=='mosaic'||!a.mobile_fallback)return a;
+        const f=a.mobile_fallback;
+        return {...a,path:f.path,sha256:f.sha256,bytes:f.bytes,
+          triangle_estimate:f.triangle_estimate,embedded_images:f.embedded_images,
+          mobileFallbackApplied:true};
+      })
       .sort((a,b)=>(priority[a.role]??99)-(priority[b.role]??99)||a.path.localeCompare(b.path));
   // Original 2026 checkpoint: r02_c00 alone has >600k triangles. Loading
   // every old GLB on low-end mobile without LOD is NOT acceptable.
@@ -81,7 +100,10 @@ export function plannedLayers(tile,profile='desktop'){
     const imageCost=asset.embedded_images ?? 1;
     const mustKeep=['terrain','geo','urban','architecture','mosaic'].includes(asset.role);
     if(profile==='mobile' && ['environment','driving','lod'].includes(asset.role))continue;
-    if(!mustKeep&&(triangles+cost>cap||images+imageCost>(profile==='mobile'?30:140)))continue;
+    // Previously mustKeep bypassed the cap entirely: mobile could exceed 290k.
+    // Fail closed and let geographic OSM fallback work instead of claiming LOD.
+    if(profile==='mobile'&&(triangles+cost>cap||images+imageCost>30))continue;
+    if(!mustKeep&&(triangles+cost>cap||images+imageCost>140))continue;
     selected.push(asset);triangles+=cost;images+=imageCost;
   }
   return selected;
