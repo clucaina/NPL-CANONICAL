@@ -8,6 +8,7 @@ import {RecoveredPhysicalAtlas} from './world_physics.mjs';
 import {installCoveredOSMMask} from './osm_building_mask.mjs';
 import {buildCityWallCollision} from './city_collision.mjs';
 import {wantsRecoveredWorldmaster,shouldLoadOwnerArchive} from './owner_worldmaster_policy.mjs';
+import {createFrameGovernor} from './frame_quality.mjs';
 import {buildHedgeLayer} from './hedge_layer.mjs';
 import {createSurfaceTexture,enhanceMappedOSMRoads} from './road_surfaces.mjs';
 import {enhanceSourceMappedWater} from './water_surface.mjs';
@@ -47,6 +48,39 @@ sun.shadow.camera.top=66;sun.shadow.camera.bottom=-66;
 sun.shadow.camera.near=.5;sun.shadow.camera.far=500;
 sun.shadow.bias=-.000035;
 scene.add(sun,sun.target);
+const qualityGovernor=createFrameGovernor({
+ mobile:window.matchMedia?.('(pointer:coarse)')?.matches===true,
+ devicePixelRatio:window.devicePixelRatio||1
+});
+let qualityPlanActive=null,webglLost=false;
+const fidelityButton=$('fidelity');
+function applyRenderBudget(force=false){
+ const state=qualityGovernor.snapshot(),plan=state.plan;
+ if(!force&&qualityPlanActive?.tier===plan.tier)return;
+ renderer.setPixelRatio(plan.pixelRatio);
+ if(sun.shadow.mapSize.x!==plan.shadowSize){
+   sun.shadow.mapSize.set(plan.shadowSize,plan.shadowSize);
+   sun.shadow.map?.dispose();sun.shadow.map=null;
+ }
+ qualityPlanActive=plan;
+ fidelityButton.textContent='◈ '+(state.mode==='auto'?'Auto':state.mode==='detail'?'Detalle':'Ahorro');
+ fidelityButton.title='Calidad: '+state.tier+
+   '. Pulsa para cambiar Auto → Detalle → Ahorro. No modifica modelos 3D.';
+ window.NEUROCITY_PERFORMANCE_QA={
+   ...state,rendererDrawingBudgetApplied:true,webglContextLost:webglLost,
+   browserMeasuredNotCertified:true
+ };
+}
+view.addEventListener('webglcontextlost',event=>{
+ event.preventDefault();webglLost=true;
+ display('Se ha perdido el contexto 3D; se conservará la escena mientras se recupera.',true);
+ window.NEUROCITY_PERFORMANCE_QA={...qualityGovernor.snapshot(),webglContextLost:true};
+});
+view.addEventListener('webglcontextrestored',()=>{
+ webglLost=false;applyRenderBudget(true);
+ display('Motor 3D recuperado. No se han sustituido modelos originales.');
+});
+applyRenderBudget(true);
 const origin=new THREE.Vector3(0,0,0);
 sun.target.position.copy(origin);
 
@@ -374,6 +408,7 @@ function startRecoveredMasterIfRequested(){
    },
    onCoverage:(tileIds)=>{osmCover?.update(showingArchivedMaster?tileIds:[]);}
  });
+ recoveredMaster.setLoadPressure(qualityGovernor.snapshot().tier);
  recoveredMaster.initialize().then(()=>recoveredMaster.update(player.position)).then(()=>{
    makeSourceComparisonControl();
    // SOURCE G13–G16 physics is local-only, hashed and independent of archived 3D.
@@ -459,7 +494,7 @@ async function loadWorld(){
   showLoad('Alicante 3D cargada: edificios reales y calle a nivel humano. Cargando cuerpo humano animado…');
  }catch(err){display('No se ha podido cargar la ciudad GLB: '+(err?.message||err),true);showLoad('ERROR: falta assets/alicante.glb');return;}
  if(publicPreview){enterPublicCity();startRecoveredMasterIfRequested();return;}
- // Previously private avatar mode returned without ever loading the 86 owner GLBs.
+ // Owner-only V8 original 86 GLB source archive is opt-in, not a public download.
  if(ownerWorldRequested)startRecoveredMasterIfRequested();
  try{
   const data=await model('./assets/maya.glb');
@@ -509,9 +544,19 @@ function animateState(key){
  current=next;
 }
 const clock=new THREE.Clock();
+let nextPerformanceReportSec=0,nextPositionHudSec=0;
 function frame(){
  requestAnimationFrame(frame);
- const dt=Math.min(clock.getDelta(),.045);
+ const rawDt=clock.getDelta();
+ const dt=Math.min(rawDt,.045);
+ if(qualityGovernor.sample(rawDt*1000,clock.elapsedTime,{
+   visible:document.hidden!==true&&!webglLost
+ })){
+   applyRenderBudget();
+   recoveredMaster?.setLoadPressure(qualityGovernor.snapshot().tier);
+ }
+ // Never infer low FPS from background throttling or lost WebGL context.
+ if(document.hidden||webglLost)return;
  const beforeX=player.position.x,beforeZ=player.position.z,beforeYaw=lastBehaviorYaw;
  if(recoveredMaster?.manifest && !masterBusy && clock.elapsedTime>=masterNextUpdate){
    masterNextUpdate=clock.elapsedTime+1.2;masterBusy=true;
@@ -597,7 +642,24 @@ function frame(){
  sun.target.updateMatrixWorld();
  if(coastalWater)coastalWater.advance(clock.elapsedTime);
  renderer.render(scene,camera);
- if(Math.floor(clock.elapsedTime*3)!==Math.floor((clock.elapsedTime-dt)*3)){
+ if(clock.elapsedTime>=nextPerformanceReportSec){
+   nextPerformanceReportSec=clock.elapsedTime+1;
+   const state=qualityGovernor.snapshot();
+   window.NEUROCITY_PERFORMANCE_QA={
+     ...state,rendererDrawingBudgetApplied:true,webglContextLost:false,
+     renderCalls:renderer.info.render.calls,
+     triangleCountSubmitted:renderer.info.render.triangles,
+     geometriesHeld:renderer.info.memory.geometries,
+     texturesHeld:renderer.info.memory.textures,
+     browserMeasuredNotCertified:true,privateModelInfoExcluded:true
+   };
+   fidelityButton.title='Auto ajusta calidad según fluidez observada aquí; '+(
+     state.observedFrameRateApprox===null?'midiendo...':
+       state.observedFrameRateApprox+' FPS estimados')+
+     '. Mallas 3D intactas. Pulsa: Auto → Detalle → Ahorro.';
+ }
+ if(clock.elapsedTime>=nextPositionHudSec){
+   nextPositionHudSec=clock.elapsedTime+1/3;
    stat.textContent='x '+player.position.x.toFixed(0)+' m · z '+player.position.z.toFixed(0)+' m · '+mode;
  }
 }
@@ -657,6 +719,11 @@ view.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(1.85,Math.min
 const cycleCamera=()=>{mode=nextCameraMode(mode,!!avatar);$('cameraMode').textContent=mode==='back'?'Tercera persona':mode==='face'?'Inspección facial':'Primera persona · ciudad pública';};
 $('cam').onclick=cycleCamera;
 $('reset').onclick=()=>{player.position.set(-10.664,0,113.546);yaw=-.65;mode=avatar?'back':'first';};
-$('fidelity').onclick=()=>{let hi=renderer.getPixelRatio()<1.7;renderer.setPixelRatio(hi?Math.min(devicePixelRatio,2):1);sun.shadow.mapSize.set(hi?2048:1024,hi?2048:1024);sun.shadow.map?.dispose();sun.shadow.map=null;};
+$('fidelity').onclick=()=>{
+ const mode=qualityGovernor.snapshot().mode;
+ qualityGovernor.setMode(mode==='auto'?'detail':mode==='detail'?'economy':'auto');
+ applyRenderBudget(true);
+ recoveredMaster?.setLoadPressure(qualityGovernor.snapshot().tier);
+};
 frame();
 loadWorld();
