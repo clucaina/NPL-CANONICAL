@@ -85,3 +85,16 @@ Fuente documental original: [IGN/CNIG MDT05](https://api-coverages.idee.es/colle
 ### Bloqueos que NO se declaran resueltos
 
 (1) Contrastar cotas MDT05 vs referencia vertical real del sistema G19/V50 y navegación; (2) integración Catastro/agua/G19 PR #49: seis conflictos sin merge, no borrar mejoras anteriores; (3) escenarios LiDAR más recientes y fachadas reales requieren archivos y procedencia precisos; (4) integración controladores/avatares G16 sin duplicar lógica; (5) E2E WebGL privado, FPS GPU y aprobación visual de Alicante. Un artefacto generado exitosamente no equivale a una ciudad jugable terminada.
+
+### Corrección adicional verificada: eje Z G19 y aceptación vertical conservadora
+
+La primera generación MDT05 real (SHA código `49f0b4c...`) era **VERTICALMENTE NO APROBADA** y además usaba Z creciente hacia el norte, en conflicto con `geo_alignment.mjs`, cuyo master G19 define `z=4248300-northing` (sur positivo). **No reutilizar los hashes de GLB v1 ni cargar esos candidatos.** La segunda generación invirtió Z, rehízo el winding de los triángulos para normales Y+ y añadió regresión que lee los bytes de posiciones/índices del GLB. El código y seis tests LOD quedaron en SHA `3b91efdea751cf1ffa88fae1e37bfcd0bf776ba8`, GitHub Actions [39466603931](https://github.com/clucaina/NPL-CANONICAL/actions/runs/39466603931) **SUCCESS** ambos jobs (12 + 7 + **6** = **25 tests**).
+
+- **LOD0 v2:** SHA `3809b410f42582d790707150ec4ea0f1fc2a30aaa5224d93cfca70b3c33fc661`, 10.000 vértices, 19.602 caras, 476.848 bytes.
+- **LOD1 v2:** SHA `1e5603f2f427c0ededc55f01602551bfcc57c2f0418c0b7e141a403dcd00001e`, 2.500 vértices, 4.802 caras, 119.244 bytes.
+- **LOD2 v2:** SHA `9813cbaf8eb8b3191ddb98ddce43d8614fdc6a749d5277e9cd9192b2c93286e9`, 625 vértices, 1.152 caras, 30.436 bytes.
+- Persistencia protegida en `NeuroCity/CONTROL_CANONICO_GITHUB/NEUROCITY_R01_C02_MDT05_G19_Z_SUR_LOD0-2_CANDIDATO_V2.zip`; readback Drive: 219.371 bytes. Contiene solo DEM derivado de IGN + licencia CC-BY; no archivos G19.
+- Auditoría privada adicional sobre 5.646 vértices del terreno G19 r01_c02: 5.491 quedan dentro de la interpolación MDT05; diferencia G19 - IGN **mediana +0,416 m**, RMSE **1,419 m**, percentil 95 **+3,309 m**, máxima absoluta **7,077 m**. Métricas agregadas, no geometrías privadas. Guardado en Biblioteca privada `/NeuroEcosistema/NeuroCity/G19_IGN_MDT05_VERTICAL_CONFLICT_QA_OWNER_ONLY_20261020.json`.
+- **Bloqueo residual real:** datum/cota G19-V50 y origen de diferencias no validados, especialmente orilla y cierres de muelle. Instalar automáticamente la nueva malla podría crear escalones de hasta varios metros. Sin merge a Gameplay, sin sustitución de edificios/colisiones, sin 60 FPS verificados.
+
+Los 1.883 Kenney localizados permanecen candidatos; el público y el archivo restringido se separan mediante procedencia. Nunca fusionar ni desplegar esta rama automáticamente.
