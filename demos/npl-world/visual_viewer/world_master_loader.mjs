@@ -3,6 +3,7 @@ import {assertTileManifest,planActiveTiles,plannedLayers,tileBounds,safeTilePath
 import {matrixElementsForTile,VERTICAL_DATUM_VERIFIED,MAX_SAMPLED_TILE_PROJECTION_ERROR_M} from './geo_alignment.mjs';
 import {instantiateMasterPalms,instantiateArchivedStreetlights} from './asset_instancing.mjs';
 import {hideCarbonellG19Duplicate} from './g14_carbonell_dedup.mjs';
+import {createBoundedAssetQueue} from './bounded_loading.mjs';
 
 /**
  * Optional local GLB recovery layer compatible with Three.js r169.
@@ -28,6 +29,9 @@ export class RecoveredMasterTiles {
    this.states=new Map();this.inflight=new Map();
    this.errors=[];this.manifest=null;this.disposed=false;this.recoveredVisible=false;
    this.lastRequested=[];this.epoch=0;
+   // One bounded queue across ALL active G19 tiles: independent tile Promise.all
+   // must never expand to 3 tiles × 3 simultaneously parsed heavyweight GLBs.
+   this.assetQueue=createBoundedAssetQueue({concurrency:profile==='mobile'?1:2});
  }
  async initialize(){
    if(this.disposed)throw new Error('Layer disposed');
@@ -71,7 +75,8 @@ export class RecoveredMasterTiles {
    // The prior viewer trusted manifest digests but never compared the actual
    // fetched bytes. Do so BEFORE decoding or displaying any private/local GLB.
    if(!globalThis.crypto?.subtle?.digest)throw Error('SHA-256 unavailable in insecure browser context');
-   const response=await fetch(parsed.href,{credentials:'omit',cache:'force-cache'});
+   const response=await fetch(parsed.href,{credentials:'omit',cache:'force-cache',
+     signal:signal.abortController.signal});
    if(!response.ok)throw Error('Tile bytes missing: HTTP '+response.status);
    const cap=Math.min(90_000_000,asset.bytes);
    const stated=Number(response.headers?.get?.('content-length'));
@@ -90,7 +95,7 @@ export class RecoveredMasterTiles {
    if(this.states.has(id))return this.states.get(id).promise;
    const tile=this.manifest.tiles.find(t=>t.id===id);
    if(!tile)return false;
-   const signal={cancelled:false};const group=new THREE.Group();
+   const signal={cancelled:false,abortController:new AbortController()};const group=new THREE.Group();
    group.name='WORLDMASTER_'+id;
    group.matrix.fromArray(matrixElementsForTile(id));
    group.matrixAutoUpdate=false;
@@ -102,9 +107,15 @@ export class RecoveredMasterTiles {
    const batch=async(list)=>{
      for(let n=0;n<list.length&&!signal.cancelled;n+=3){
        const segment=list.slice(n,n+3);
-       const loaded=await Promise.all(segment.map(asset=>this._loadAsset(asset,id,signal)
-           .catch(e=>{state.errors++;this.errors.push({tile:id,role:asset.role,
-                  reason:String(e?.message||e).slice(0,160)});return null;})));
+       const loaded=await Promise.all(segment.map(asset=>this.assetQueue.schedule(
+         ()=>this._loadAsset(asset,id,signal),{cancelled:()=>signal.cancelled}
+       ).catch(e=>{
+         if(!signal.cancelled){
+           state.errors++;this.errors.push({tile:id,role:asset.role,
+             reason:String(e?.message||e).slice(0,160)});
+         }
+         return null;
+       })));
        loaded.forEach((node,i)=>{
          if(!node||signal.cancelled)return;
          node.visible=segment[i].role!=='lod';group.add(node);
@@ -137,9 +148,18 @@ export class RecoveredMasterTiles {
    })();
    return state.promise;
  }
+ setLoadPressure(tier='balanced'){
+   if(!['economy','balanced','detail'].includes(tier))throw RangeError('Unknown rendering pressure tier');
+   const max=tier==='economy'?1:(this.profile==='mobile'&&tier!=='detail'?1:2);
+   this.assetQueue.setConcurrency(max);
+   return this.assetQueue.stats();
+ }
  _retire(id){
    const s=this.states.get(id);if(!s)return;
-   s.signal.cancelled=true;this.root.remove(s.group);
+   s.signal.cancelled=true;
+   s.signal.abortController.abort(); // Stops stale in-flight downloads where supported.
+   this.assetQueue.discardCancelled();
+   this.root.remove(s.group);
    // GLB clones do not share cached renderer assets across tiles in this module.
    s.group.traverse(n=>{
      if(n.isMesh){n.geometry?.dispose?.();
@@ -172,7 +192,7 @@ export class RecoveredMasterTiles {
      tiles:Array.from(this.states.values()).filter(x=>x.ready).map(x=>x.id),
      assetsLoaded:Array.from(this.states.values()).reduce((n,s)=>n+s.loaded,0),
      verifiedG14HiddenOldBuildingMeshes:Array.from(this.states.values()).reduce((n,s)=>n+(s.hiddenLegacyCarbonell||0),0),
-     errors:this.errors.slice(-12),
+     errors:this.errors.slice(-12),assetQueue:this.assetQueue.stats(),
      georeferencedTo:'EPSG:3857_per_tile_PROJ_500m',
      maxSampledProjectionResidualM:MAX_SAMPLED_TILE_PROJECTION_ERROR_M,
      sourceGeometryAccuracyNotCertified:true,
@@ -184,6 +204,7 @@ export class RecoveredMasterTiles {
    if(this.disposed)return;
    this.disposed=true;
    for(const id of [...this.states.keys()])this._retire(id);
+   this.assetQueue.close();
    this.scene.remove(this.root);
    this.onVisibility(false);
    this.onCoverage([]);
