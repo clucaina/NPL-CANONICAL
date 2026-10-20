@@ -1,0 +1,27 @@
+name: Neurohuerto Data Discovery — safety & regression tests (NO DEPLOY)
+on:
+  push:
+    paths:
+      - 'cloud_factory/source_expander.py'
+      - 'cloud_factory/test_source_expander.py'
+      - 'cloud_factory/data_garden.py'
+      - '.github/workflows/neurohuerto-source-discovery*.yml'
+  pull_request:
+    paths:
+      - 'cloud_factory/source_expander.py'
+      - 'cloud_factory/test_source_expander.py'
+      - 'cloud_factory/data_garden.py'
+      - '.github/workflows/neurohuerto-source-discovery*.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test safe public discovery and no data exfiltration
+        run: |
+          python3 -m unittest discover -s cloud_factory -p 'test_source_expander.py' -v
+          python3 -m unittest discover -s cloud_factory -p 'test_data_garden.py' -v
+          python3 -m compileall -q cloud_factory/source_expander.py
