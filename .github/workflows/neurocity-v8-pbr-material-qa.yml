@@ -1,0 +1,57 @@
+name: NeuroCity V8 · source-wall PBR microrelief & visual comparison QA (NO DEPLOY)
+on:
+  push:
+    paths:
+      - 'demos/npl-world/visual_viewer/facade_microrelief.mjs'
+      - 'demos/npl-world/visual_viewer/tests/facade_microrelief.test.mjs'
+      - 'demos/npl-world/visual_viewer/app.js'
+      - 'demos/npl-world/visual_viewer/index.html'
+      - '.github/workflows/neurocity-v8-pbr-material-qa.yml'
+  pull_request:
+    paths:
+      - 'demos/npl-world/visual_viewer/facade_microrelief.mjs'
+      - 'demos/npl-world/visual_viewer/tests/facade_microrelief.test.mjs'
+      - 'demos/npl-world/visual_viewer/app.js'
+      - 'demos/npl-world/visual_viewer/index.html'
+      - '.github/workflows/neurocity-v8-pbr-material-qa.yml'
+permissions:
+  contents: read
+concurrency:
+  group: neurocity-v8-pbr-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  source-3d-material:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned Three.js WebGL materials
+        working-directory: demos/npl-world/visual_viewer
+        run: npm install --no-audit --no-fund
+      - name: Run actual Three.js shading composition, no fake green tests
+        working-directory: demos/npl-world/visual_viewer
+        run: |
+          node --test tests/facade_microrelief.test.mjs
+          node --test tests/*.test.mjs
+          npm run build
+          node --check dist/game.js
+          test -s dist/game.js
+      - name: Ensure no private human/archival asset added to public repo
+        run: |
+          git diff --name-only HEAD~1 HEAD | grep -E '\.(glb|zip|p12|pem|key)$' && exit 1 || true
+          python3 - <<'PY'
+          from pathlib import Path
+          src=Path('demos/npl-world/visual_viewer/facade_microrelief.mjs').read_text()
+          app=Path('demos/npl-world/visual_viewer/app.js').read_text()
+          html=Path('demos/npl-world/visual_viewer/index.html').read_text()
+          assert 'textureDownloads:0' in src
+          assert 'worldmasterGeometryModified:false' in src
+          assert 'scientificallyMatchedFacades:false' in src
+          assert 'pbrMicrorelief' in app and 'pbrMicrorelief' in html
+          print('Source-wall opt-in visual material only; geometry and private people untouched')
+          PY
