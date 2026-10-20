@@ -53,3 +53,21 @@ export function instantiateMasterPalms(scene,placements,{mobile=false}={}){
  group.userData={...report};
  return {group,report};
 }
+
+/**
+ * Additional REAL archived 4-metre globe-lamp prefab discovered in the source
+ * SHA manifest. Its GLB coordinates are Z-UP (unlike our Y-UP Phoenix source).
+ * Convert source-axis orientation BEFORE the authored, provisional G16 pose.
+ * No claim that the 5 fixture positions/style exactly match Alicante street lamps.
+ */
+export function instantiateArchivedStreetlights(scene,placements,{mobile=false}={}){
+ if(!scene?.isObject3D)throw new TypeError('Source archived lamp scene required');
+ const axis=new THREE.Group();axis.name='SOURCE_Z_UP_TO_THREE_Y_UP';
+ axis.rotation.x=-Math.PI/2;
+ axis.add(scene);
+ const {group,report}=instantiateMasterPalms(axis,placements,{mobile});
+ group.name='RECOVERED_ARCHIVED_GLOBE_LAMPS_GPU';
+ for(const mesh of group.children)mesh.name=mesh.name.replace('PHOENIX','ORIGINAL_STREETLAMP');
+ return {group,report:{...report,modelClass:'archived_globe_lamp',
+    sourceAxis:'Z_UP_TO_Y_UP',locationSurveyed:false,originalDesignPreserved:true}};
+}
