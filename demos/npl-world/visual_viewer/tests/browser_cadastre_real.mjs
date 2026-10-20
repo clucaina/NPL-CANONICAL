@@ -45,6 +45,12 @@ try{
     initial.collision?.spatialCells<10||
     initial.collision?.source!=='Blender_real_OSM_and_official_Catastro_wall_mesh')
     throw Error('Real building wall collisions missing: '+JSON.stringify(initial.collision));
+ if(initial.collision?.physicalProbe?.examined<16||
+    initial.collision?.physicalProbe?.allSampledBlocked!==true||
+    initial.collision.physicalProbe.failed!==0||
+    initial.collision.physicalProbe.blocked!==initial.collision.physicalProbe.examined)
+    throw Error('Actual geographic wall penetration still possible: '+
+      JSON.stringify(initial.collision?.physicalProbe));
  if(!initial.ready.cityOnly||initial.ready.privateAvatarLoaded!==false||
      initial.model.privateAvatarObjects!==0||initial.model.invalidGeometry!==0)
     throw Error('Private avatar or invalid mesh material in public scene');
