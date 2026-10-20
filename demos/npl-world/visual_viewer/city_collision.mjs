@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {sweptCircleHitsSegment} from './collision_sweep.mjs';
+import {sweptCircleHitsSegment,pointSegmentDistance} from './collision_sweep.mjs';
 
 const CELL_SIZE_M=12;
 const COLLISION_RADIUS_M=0.58;
@@ -91,7 +91,42 @@ export function buildCityWallCollision(root,{cellSize=CELL_SIZE_M,radius=COLLISI
   if(!hitsWall(x,z,x,z+dz))return {x,z:z+dz,collided:true};
   return {x,z,collided:true};
  }
- return {move,hitsWall,stats:()=>Object.freeze({
+ // Transfer the existing source-wall acceptance from PR #41 to the
+ // canonical G19/V50 swept-physics owner. Do not revert to the older
+ // endpoint-only collision that missed full wall crossings.
+ function auditSourceWallBlocking({samples=48}={}){
+  if(!Number.isInteger(samples)||samples<1||samples>256)
+   throw new RangeError('Invalid bounded source-wall audit budget');
+  let examined=0,blocked=0,failed=0,fullCrossingsBlocked=0;
+  const before=blockedMoves;
+  for(const e of edges){
+   if(examined>=samples)break;
+   const vx=e.bx-e.ax,vz=e.bz-e.az;
+   const length=Math.hypot(vx,vz);
+   if(length<1.6)continue;
+   const nx=-vz/length,nz=vx/length;
+   const mx=(e.ax+e.bx)*.5,mz=(e.az+e.bz)*.5;
+   const sx=mx+nx*(radius+.35),sz=mz+nz*(radius+.35);
+   const near=move(sx,sz,-nx*.47,-nz*.47);
+   const remaining=pointSegmentDistance(near.x,near.z,e.ax,e.az,e.bx,e.bz);
+   const nearBlocked=near.collided&&remaining>=radius-1e-4;
+   // Regression unavailable on the PR #41 branch: a one-frame crossing
+   // from either wall side must be stopped by the PR #46 continuous sweep.
+   const crossing=hitsWall(mx-nx*.45,mz-nz*.45,mx+nx*.55,mz+nz*.55);
+   examined++;
+   if(nearBlocked&&crossing){blocked++;fullCrossingsBlocked++;}
+   else failed++;
+  }
+  blockedMoves=before; // QA must never inflate actual player movement.
+  return Object.freeze({
+   source:'actual_loaded_blender_wall_geometry',
+   originalOwner:'G19_V50_swept_collision',
+   samplesRequested:samples,examined,blocked,failed,fullCrossingsBlocked,
+   allSampledBlocked:examined>0&&failed===0,
+   physicalHardwareCertified:false,simulatedNotPhysicalHardware:true
+  });
+ }
+ return {move,hitsWall,auditSourceWallBlocking,stats:()=>Object.freeze({
   source:'Blender_real_OSM_and_official_Catastro_wall_mesh',
   wallMeshes,trianglesScanned:trianglesSeen,wallSegments:edges.length,
   spatialCells:grid.size,cellSizeMeters:cellSize,

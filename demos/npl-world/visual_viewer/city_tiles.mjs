@@ -98,7 +98,10 @@ export function plannedLayers(tile,profile='desktop'){
     const imageCost=asset.embedded_images ?? 1;
     const mustKeep=['terrain','geo','urban','architecture','mosaic'].includes(asset.role);
     if(profile==='mobile' && ['environment','driving','lod'].includes(asset.role))continue;
-    if(!mustKeep&&(triangles+cost>cap||images+imageCost>(profile==='mobile'?30:140)))continue;
+    // Enforce one exact GPU proxy budget for ALL layers (including mandatory).
+    // If this excludes a required source layer, tile.ready stays false and
+    // georeferenced OSM keeps rendering rather than faking a complete city.
+    if(triangles+cost>cap||images+imageCost>(profile==='mobile'?30:140))continue;
     selected.push(asset);triangles+=cost;images+=imageCost;
   }
   return selected;

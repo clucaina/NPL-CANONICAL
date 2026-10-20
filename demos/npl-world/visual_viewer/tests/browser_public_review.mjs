@@ -7,7 +7,7 @@ const browser=await chromium.launch({
 });
 const page=await browser.newPage({viewport:{width:1440,height:900},deviceScaleFactor:1});
 const consoleErrors=[],failedRequests=[];
-page.on('pageerror',error=>consoleErrors.push(error.message));
+page.on('pageerror',error=>consoleErrors.push(String(error.stack||error.message).slice(0,2400)));
 page.on('requestfailed',request=>failedRequests.push(request.url()));
 let report={};
 try{
@@ -80,7 +80,47 @@ try{
   if(await page.locator('#nplBrainCanvas').count())
     throw Error('Fake brain canvas regressed into canonical NeuroCity');
   await page.waitForTimeout(300);
+  // Actual Three.js canvas remains interactive while users cycle the
+  // session-only dynamic rendering budget: no GLB/model geometry is replaced.
+  reportCopy.errorsBeforeQualityToggle=consoleErrors.slice();
+  const perfAtStart=await page.evaluate(()=>window.NEUROCITY_PERFORMANCE_QA);
+  if(perfAtStart?.mode!=='auto'||perfAtStart?.plan?.geometryUnchanged!==true||
+     perfAtStart?.privateModelInfoExcluded!==true||
+     perfAtStart?.rendererDrawingBudgetApplied!==true)
+    throw Error('Renderer quality governor did not start on live WebGL');
+  await page.locator('#fidelity').click();
+  const detail=await page.evaluate(()=>window.NEUROCITY_PERFORMANCE_QA);
+  if(detail?.mode!=='detail'||detail?.plan?.tier!=='detail')
+    throw Error('Manual quality DETAIL control did not affect live renderer');
+  await page.locator('#fidelity').click();
+  const low=await page.evaluate(()=>window.NEUROCITY_PERFORMANCE_QA);
+  if(low?.mode!=='economy'||low?.plan?.shadowSize!==512)
+    throw Error('Manual economy mode or draw-call budget unavailable');
+  await page.locator('#fidelity').click();
+  const restored=await page.evaluate(()=>window.NEUROCITY_PERFORMANCE_QA);
+  if(restored?.mode!=='auto'||restored?.plan?.geometryUnchanged!==true||
+     restored?.telemetryNetwork!==false)
+    throw Error('Restored AUTO mode mutated private 3D models or opened telemetry');
+  reportCopy.adaptive_quality={start:perfAtStart.mode,detail:detail.plan,
+    economy:low.plan,restored:restored.mode,geometryProtected:true};
   await page.screenshot({path:'demos/npl-world/visual_viewer/dist/QA_BROWSER_REAL_CHROME.png',fullPage:true});
+  // Not four invented photos: four actual WebGL camera frames at one source
+  // starting point, to make facade/coast rendering regressions reviewable.
+  const cameraBox=await page.locator('#game').boundingBox();
+  if(!cameraBox)throw Error('No 3D canvas to inspect from multiple headings');
+  const cx=cameraBox.x+cameraBox.width/2,cy=cameraBox.y+cameraBox.height/2;
+  const views=[['RIGHT',170,0],['LEFT',-340,0],['UP',170,-90]];
+  const captures=[];
+  for(const [name,dx,dy] of views){
+    await page.mouse.move(cx,cy);
+    await page.mouse.down();
+    await page.mouse.move(cx+dx,cy+dy,{steps:12});
+    await page.mouse.up();
+    await page.waitForTimeout(180);
+    await page.screenshot({path:'demos/npl-world/visual_viewer/dist/QA_CAMERA_'+name+'.png',fullPage:true});
+    captures.push({name,dragPixels:[dx,dy],type:'REAL_WEBGL_NO_PHOTOGRAMMETRIC_VERIFICATION'});
+  }
+  reportCopy.cameraCaptures=captures;
   report={status:consoleErrors.length?'BROWSER_READY_WITH_SCRIPT_ERRORS':'BROWSER_READY',...reportCopy};
   if(consoleErrors.length) throw new Error('JavaScript console errors detected');
 } catch(error) {
