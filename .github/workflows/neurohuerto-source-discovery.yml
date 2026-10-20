@@ -1,0 +1,76 @@
+name: Neurohuerto · Public Data Discovery & Contract Nursery (NO DEPLOY)
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '51 */6 * * *'
+  push:
+    paths:
+      - '.github/workflows/neurohuerto-source-discovery.yml'
+      - 'cloud_factory/source_expander.py'
+      - 'cloud_factory/test_source_expander.py'
+permissions:
+  contents: write
+concurrency:
+  group: neurohuerto-source-discovery-single-writer
+  cancel-in-progress: false
+jobs:
+  discover:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: true
+      - name: Prove safe discovery and source curation boundaries
+        run: |
+          python3 -m unittest discover -s cloud_factory -p 'test_source_expander.py' -v
+          python3 -m unittest discover -s cloud_factory -p 'test_data_garden.py' -v
+          python3 -m compileall -q cloud_factory/source_expander.py
+      - name: Restore last independent public-metadata proposal branch
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin 'refs/heads/factory/data-candidates:refs/remotes/origin/factory/data-candidates' || true
+          scratch="$(mktemp -d)"
+          if git show-ref --quiet refs/remotes/origin/factory/data-candidates; then
+            git worktree add --detach "$scratch" refs/remotes/origin/factory/data-candidates
+          else
+            git worktree add --detach "$scratch" HEAD
+          fi
+          echo "CANDIDATE_WORKTREE=$scratch" >> "$GITHUB_ENV"
+      - name: Discover at most four unreviewed real public source batches
+        run: |
+          set -euo pipefail
+          python3 cloud_factory/source_expander.py \
+            --catalog cloud_factory/data_garden_catalog.json \
+            --prior "$CANDIDATE_WORKTREE/review/index.json" \
+            --out "$CANDIDATE_WORKTREE/review/sources" --limit 4
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          a=Path(os.environ['CANDIDATE_WORKTREE'])/'review/index.json'
+          j=json.loads(a.read_text(encoding='utf-8'))
+          assert j["schema"]=="neurohuerto.candidate_ledger.v1"
+          assert j["publication_authorized"] is False
+          assert all(c["release_gate"]=="NO_AUTO_IMPORT_NO_AUTO_DEPLOY" for c in j["candidates"])
+          print("Candidate contracts:",len(j["candidates"]))
+          PY
+      - name: Commit only new source metadata into its separate branch
+        run: |
+          set -euo pipefail
+          git -C "$CANDIDATE_WORKTREE" config user.name 'neurohuerto-data[bot]'
+          git -C "$CANDIDATE_WORKTREE" config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C "$CANDIDATE_WORKTREE" add review/
+          if git -C "$CANDIDATE_WORKTREE" diff --cached --quiet; then
+            echo "No new evidence; existing proposals preserved." >> "$GITHUB_STEP_SUMMARY"
+          else
+            git -C "$CANDIDATE_WORKTREE" commit -m "data(factory): register new unreviewed public source contracts"
+            git -C "$CANDIDATE_WORKTREE" push origin HEAD:refs/heads/factory/data-candidates
+          fi
+      - name: Explain downstream PP safety handoff
+        run: |
+          echo '### Neurohuerto Data Nursery' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Only GitHub public metadata is staged in factory/data-candidates.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Licenses, methods and values have NOT been verified or published.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Psychología Política must independently revalidate each candidate; no cross-repository token is used.' >> "$GITHUB_STEP_SUMMARY"
