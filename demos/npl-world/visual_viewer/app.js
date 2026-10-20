@@ -202,6 +202,7 @@ let recoveredMaster=null,masterNextUpdate=0,masterBusy=false;
 const keys=new Set();
 const touchStick={forward:0,strafe:0};
 let yaw=-.65,pitch=.14,zoom=2.95,mode='back',actorHeading=0,moving=false;
+let lastBehaviorYaw=yaw;
 const loader=new GLTFLoader();
 const model=(url)=>new Promise((resolve,reject)=>loader.load(url,resolve,undefined,reject));
 const showLoad=(text)=>{progress.textContent=text;};
@@ -488,7 +489,7 @@ const clock=new THREE.Clock();
 function frame(){
  requestAnimationFrame(frame);
  const dt=Math.min(clock.getDelta(),.045);
- const beforeX=player.position.x,beforeZ=player.position.z,beforeYaw=yaw;
+ const beforeX=player.position.x,beforeZ=player.position.z,beforeYaw=lastBehaviorYaw;
  if(recoveredMaster?.manifest && !masterBusy && clock.elapsedTime>=masterNextUpdate){
    masterNextUpdate=clock.elapsedTime+1.2;masterBusy=true;
    recoveredMaster.update(player.position).then(()=>{
@@ -543,6 +544,7 @@ function frame(){
    sourceVerified:nplEvidence.usable
  });
  brainInspectPending=false;
+ lastBehaviorYaw=yaw;
  if(mixer){animateState(moving?(fast?'run':'walk'):'idle');mixer.update(dt);}
  const target=player.position.clone().add(new THREE.Vector3(0,1.32,0));
  const actualYaw=mode==='face'?avatar?.rotation.y||0:yaw;
