@@ -8,6 +8,7 @@ import concurrent.futures
 import hashlib
 import json
 import math
+import os
 import shutil
 import subprocess
 import tempfile
@@ -15,6 +16,7 @@ from time import sleep
 from pathlib import Path
 
 from catastro_grid import compile_grid,source_plan
+from private_playable_review import run_playable_review
 from catastro_live_probe import OSM,BBOX_OSM,CENTER,R,receive
 
 PUBLIC_QA=Path('/tmp/neurocity-cadastre-public-evidence')
@@ -151,9 +153,15 @@ def run():
                 'original_osm_modified':hashlib.sha256(osm.read_bytes()).hexdigest()!=initial_osm_sha
             })
             if report['original_osm_modified']:raise ValueError('OSM source unexpectedly changed')
+            if os.environ.get('NEUROCITY_PRIVATE_WEBGL_QA')=='1':
+                # The inspected GML and GLB live in the same temporary directory:
+                # Chromium must consume THIS real official Blender GLB before deletion.
+                run_playable_review(work,scene_qa,report)
         except Exception as exc:
-            report['source_status']='BLOCKED_REAL_3D_EXPORT'
+            report['source_status']='BLOCKED_REAL_3D_EXPORT_OR_WEBGL'
             report['export_blocker_class']=type(exc).__name__
+            if os.environ.get('NEUROCITY_PRIVATE_WEBGL_QA')=='1':
+                report['private_webgl_qa']='FAIL_OR_BLOCKED'
     return report
 
 if __name__=='__main__':
