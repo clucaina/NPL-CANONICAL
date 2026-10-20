@@ -50,3 +50,21 @@ test('empty source falls back safely and unsafe nonlocal jumps fail',()=>{
  assert.throws(()=>buildCityWallCollision(wall(),{radius:25}),RangeError);
  assert.throws(()=>c.move(NaN,0,0,0),RangeError);
 });
+
+test('real Three wall mesh with >2m local floor mismatch cannot become an active collider',()=>{
+ const displaced=wall();
+ displaced.children[0].position.y=-2.2;
+ const c=buildCityWallCollision(displaced,{localGroundY:-.1});
+ assert.equal(c.stats().wallMeshes,1);
+ assert.equal(c.stats().wallSegments,0);
+ assert.equal(c.stats().verticalMismatchTriangles,1);
+ assert.equal(c.stats().verticalDatumVerified,false);
+ assert.equal(c.hitsWall(5,-.9,5,-.4),false);
+});
+test('aligned local wall remains interactive without pretending geodetic height verification',()=>{
+ const c=buildCityWallCollision(wall(),{localGroundY:0});
+ assert.equal(c.stats().wallSegments,1);
+ assert.equal(c.stats().localVerticalFilterOnly,true);
+ assert.equal(c.stats().sourceFloorHeightsMeasured,false);
+ assert.equal(c.move(5,-.45,0,1).collided,true);
+});

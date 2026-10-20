@@ -1,27 +1,23 @@
 import * as THREE from 'three';
+import {sweptCircleHitsSegment,withinLocalFloorTolerance} from './collision_sweep.mjs';
 
 const CELL_SIZE_M=12;
 const COLLISION_RADIUS_M=0.58;
 const MAX_WALL_TRIANGLES=120000;
 const MAX_SEGMENTS=90000;
+const MAX_LOCAL_VERTICAL_ERROR_M=2;
 
 const num=v=>Number.isFinite(v);
 const snap=n=>Math.round(n*20)/20;
-function distToEdge(x,z,e){
- const dx=e.bx-e.ax,dz=e.bz-e.az,den=dx*dx+dz*dz;
- if(den<1e-6)return Infinity;
- const t=Math.max(0,Math.min(1,((x-e.ax)*dx+(z-e.az)*dz)/den));
- return Math.hypot(x-(e.ax+t*dx),z-(e.az+t*dz));
-}
 function edgeKey(e){
  const a=snap(e.ax)+','+snap(e.az),b=snap(e.bx)+','+snap(e.bz);
  return a<b?a+'|'+b:b+'|'+a;
 }
-function extractWallSegments(root){
+function extractWallSegments(root,{localGroundY}={}){
  if(!root?.traverse||!root?.updateMatrixWorld)throw new TypeError('Three city scene required');
  root.updateMatrixWorld(true);
  const edges=[],unique=new Set();
- let trianglesSeen=0,wallMeshes=0;
+ let trianglesSeen=0,wallMeshes=0,verticalMismatchTriangles=0;
  const verts=[new THREE.Vector3(),new THREE.Vector3(),new THREE.Vector3()];
  root.traverse(n=>{
   if(!n.isMesh||!n.name.startsWith('OSM_Real_Building_Walls'))return;
@@ -39,7 +35,10 @@ function extractWallSegments(root){
    }
    const sorted=[...verts].sort((a,b)=>a.y-b.y);
    if(Math.abs(sorted[0].y-sorted[1].y)>.18||sorted[2].y-sorted[1].y<1.2)continue;
-   if(sorted[0].y>1.15||sorted[1].y < -2.5)continue;
+   // A local-frame sanity check, not a LiDAR datum or a certified altitude.
+   if(!withinLocalFloorTolerance(sorted[0].y,localGroundY,MAX_LOCAL_VERTICAL_ERROR_M)){
+    verticalMismatchTriangles++;continue;
+   }
    const a=sorted[0],b=sorted[1];
    const len=Math.hypot(a.x-b.x,a.z-b.z);
    if(len<.25||len>120)continue;
@@ -51,13 +50,13 @@ function extractWallSegments(root){
    if(edges.length>MAX_SEGMENTS)throw Error('Too many collidable walls');
   }
  });
- return {edges,wallMeshes,trianglesSeen};
+ return {edges,wallMeshes,trianglesSeen,verticalMismatchTriangles};
 }
 
-export function buildCityWallCollision(root,{cellSize=CELL_SIZE_M,radius=COLLISION_RADIUS_M}={}){
- if(!(num(cellSize)&&cellSize>=4&&cellSize<=40&&num(radius)&&radius>=.3&&radius<=1.2))
+export function buildCityWallCollision(root,{cellSize=CELL_SIZE_M,radius=COLLISION_RADIUS_M,localGroundY=0}={}){
+ if(!(num(cellSize)&&cellSize>=4&&cellSize<=40&&num(radius)&&radius>=.3&&radius<=1.2&&num(localGroundY)))
    throw new RangeError('Unsafe collision indexing settings');
- const {edges,wallMeshes,trianglesSeen}=extractWallSegments(root);
+ const {edges,wallMeshes,trianglesSeen,verticalMismatchTriangles}=extractWallSegments(root,{localGroundY});
  const grid=new Map();
  const cell=x=>Math.floor(x/cellSize);
  for(let i=0;i<edges.length;i++){
@@ -81,11 +80,9 @@ export function buildCityWallCollision(root,{cellSize=CELL_SIZE_M,radius=COLLISI
  }
  function hitsWall(x,z,toX,toZ){
   if(![x,z,toX,toZ].every(num))throw new RangeError('Nonfinite player motion');
+  if(Math.hypot(toX-x,toZ-z)>1.0)throw new RangeError('Only one physics simulation step allowed');
   for(const id of candidates(x,z,toX,toZ)){
-   const edge=edges[id];
-   const fromDist=distToEdge(x,z,edge),toDist=distToEdge(toX,toZ,edge);
-   // Allow escaping an already-overlapping wall but never entering one.
-   if(toDist<radius&&(fromDist>=radius||toDist<fromDist-.012))return true;
+   if(sweptCircleHitsSegment(x,z,toX,toZ,edges[id],radius))return true;
   }
   return false;
  }
@@ -105,6 +102,8 @@ export function buildCityWallCollision(root,{cellSize=CELL_SIZE_M,radius=COLLISI
   spatialCells:grid.size,cellSizeMeters:cellSize,
   collisionRadiusMeters:radius,blockedMoves,
   inventedBarriers:0,
+  verticalMismatchTriangles,localGroundY,localVerticalThresholdMeters:MAX_LOCAL_VERTICAL_ERROR_M,
+  localVerticalFilterOnly:true,verticalDatumVerified:false,
   sourceFloorHeightsMeasured:false
  })};
 }
