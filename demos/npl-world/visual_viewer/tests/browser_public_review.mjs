@@ -6,14 +6,43 @@ const browser=await chromium.launch({
   args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']
 });
 const page=await browser.newPage({viewport:{width:1440,height:900},deviceScaleFactor:1});
-const consoleErrors=[],failedRequests=[];
-page.on('pageerror',error=>consoleErrors.push(error.message));
+const consoleErrors=[],failedRequests=[],shaderErrors=[];
+page.on('pageerror',error=>consoleErrors.push(String(error.stack||error.message).slice(0,1100)));
+page.on('console',message=>{
+ if(message.type()==='error' && /WebGLProgram|shader.{0,35}(error|compile)|VALIDATE_STATUS/i.test(message.text()))
+   shaderErrors.push(message.text().slice(0,300));
+});
 page.on('requestfailed',request=>failedRequests.push(request.url()));
 let report={};
 try{
   await page.goto(url,{waitUntil:'domcontentloaded',timeout:40000});
-  await page.waitForFunction(()=>window.NPL_READY?.cityOnly===true,null,{timeout:60000});
+  try {
+    await page.waitForFunction(()=>window.NPL_READY?.cityOnly===true,null,{timeout:30000});
+  } catch(error) {
+    throw new Error('City startup blocked: '+String(error)+'; first runtime exceptions='+JSON.stringify(consoleErrors.slice(0,3)));
+  }
   await page.waitForTimeout(1200);
+  await page.waitForFunction(()=>window.NEUROCITY_WATER_QA?.programCount>0,null,{timeout:15000});
+  const waterBefore=await page.evaluate(()=>window.NEUROCITY_WATER_QA);
+  const initialQuality=await page.evaluate(()=>window.NEUROCITY_RENDER_QUALITY);
+  if(waterBefore.source!=='artistic_mediterranean_surface_not_surveyed' ||
+    waterBefore.triangleCount!==2||waterBefore.textures!==0||waterBefore.geometrySurveyed!==false ||
+    waterBefore.programCount<1||waterBefore.independentSeaLayer!==true||
+    initialQuality.high!==true||shaderErrors.length){
+     throw Error('Procedural Mediterranean WebGL not ready: '+JSON.stringify({waterBefore,initialQuality,shaderErrors}));
+  }
+  // DPR=1 used to make the old fidelity toggle ineffective.
+  await page.locator('#fidelity').click();
+  const qualityLow=await page.evaluate(()=>window.NEUROCITY_RENDER_QUALITY);
+  if(qualityLow.high!==false||qualityLow.shadowSize!==512||qualityLow.waterDetail!==0||
+    await page.locator('#fidelity').getAttribute('aria-pressed')!=='false')
+    throw Error('Quality-low toggle is not applied at DPR=1');
+  await page.waitForFunction(()=>window.NEUROCITY_WATER_QA?.detail===0,null,{timeout:5000});
+  await page.locator('#fidelity').click();
+  const qualityHigh=await page.evaluate(()=>window.NEUROCITY_RENDER_QUALITY);
+  if(qualityHigh.high!==true||qualityHigh.shadowSize!==2048||qualityHigh.waterDetail!==1||
+    await page.locator('#fidelity').getAttribute('aria-pressed')!=='true')
+    throw Error('Quality-high restore is not applied');
   const state=await page.evaluate(()=>({
     ready:window.NPL_READY||null,
     webglCanvas:!!document.querySelector('canvas#game'),
@@ -42,7 +71,8 @@ try{
   await page.locator('#nplOptions button').filter({hasText:'Nueva misión'}).click();
   if(await page.evaluate(()=>window.NPL_MISSION.stage)!==0)throw new Error('Mission restart failed');
   const reportCopy={
-    ...state,mission_start:starting,mission_completed:completed,consoleErrors,failedRequests,
+    ...state,waterBefore,initialQuality,qualityLow,qualityHigh,shaderErrors,
+    mission_start:starting,mission_completed:completed,consoleErrors,failedRequests,
     frame:'REAL_CHROMIUM_SOFTWARE_WEBGL_SCREENSHOT_NOT_PERFORMANCE_BENCHMARK',
     preview_url:'local-only'
   };
@@ -59,7 +89,8 @@ try{
   }
   await page.screenshot({path:'demos/npl-world/visual_viewer/dist/QA_BROWSER_REAL_CHROME.png',fullPage:true});
   report={status:consoleErrors.length?'BROWSER_READY_WITH_SCRIPT_ERRORS':'BROWSER_READY',...reportCopy};
-  if(consoleErrors.length) throw new Error('JavaScript console errors detected');
+  if(consoleErrors.length||shaderErrors.length)
+    throw new Error('JavaScript or shader console errors detected');
 } catch(error) {
   report={status:'BROWSER_QA_FAILED',error:String(error),consoleErrors,failedRequests,...report};
   await page.screenshot({path:'demos/npl-world/visual_viewer/dist/QA_BROWSER_ERROR.png'}).catch(()=>{});

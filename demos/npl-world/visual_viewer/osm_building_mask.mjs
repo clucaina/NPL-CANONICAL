@@ -7,10 +7,14 @@ import {tileBounds,ALLOWED_TILES} from './city_tiles.mjs';
 const NAMES=['OSM_Real_Building_Walls_UNTEXTURED','OSM_Real_Building_Roofs'];
 const det=A.xx*A.zz-A.xz*A.zx;
 const f=x=>Number(x).toFixed(10);
+// Parenthesize signed coefficients. The Alicante affine has xz < 0:
+// concatenating "-"+negative produced "--0.0346812900" and a real GLSL
+// fragment shader compilation failure on Chromium/SwiftShader.
+const scalar=x=>'('+f(x)+')';
 const glslProjection='vec2 ncViewerToMaster(vec2 p){'+
-  'vec2 d=p-vec2('+f(A.tx)+','+f(A.tz)+');'+
-  'return vec2(('+f(A.zz)+'*d.x-'+f(A.xz)+'*d.y)/'+f(det)+
-  ',(-'+f(A.zx)+'*d.x+'+f(A.xx)+'*d.y)/'+f(det)+');}';
+  'vec2 d=p-vec2('+scalar(A.tx)+','+scalar(A.tz)+');'+
+  'return vec2(('+scalar(A.zz)+'*d.x-'+scalar(A.xz)+'*d.y)/'+scalar(det)+
+  ',(-'+scalar(A.zx)+'*d.x+'+scalar(A.xx)+'*d.y)/'+scalar(det)+');}';
 export function maskableOSMName(name){
  return typeof name==='string'&&NAMES.some(n=>name===n||name.startsWith(n+'.'));
 }

@@ -3,6 +3,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { nextCameraMode, canNavigate } from './navigation_policy.mjs';
 import {normalizedStick,combineMovement} from './mobile_navigation.mjs';
 import {buildUrbanKit} from './urban_kit.mjs';
+import {createWaterSurface,advanceWaterSurface} from './water_surface.mjs';
+import {qualityProfile} from './render_quality_policy.mjs';
 import {RecoveredMasterTiles} from './world_master_loader.mjs';
 import {installCoveredOSMMask} from './osm_building_mask.mjs';
 import {buildHedgeLayer} from './hedge_layer.mjs';
@@ -15,8 +17,15 @@ const $=id=>document.getElementById(id);
 const loading=$('loading'), info=$('info'), stat=$('stat'), progress=$('progress');
 const view=$('game');
 const display=(message,problem=false)=>{$('messageText').textContent=message;info.classList.toggle('error',problem)};
+// The same visual quality state controls resolution, sun shadows and ocean detail.
+const visualTier=window.matchMedia?.('(pointer:coarse)')?.matches?'mobile':'desktop';
+const reducedMotion=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches===true;
+let highQuality=true;
+const deviceRatio=Number(window.devicePixelRatio)||1;
+let currentQuality=qualityProfile({high:highQuality,coarse:visualTier==='mobile',devicePixelRatio:deviceRatio});
 const renderer=new THREE.WebGLRenderer({canvas:view, antialias:true,alpha:false,powerPreference:'high-performance'});
-renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));
+renderer.setPixelRatio(currentQuality.pixelRatio);
+window.NEUROCITY_RENDER_QUALITY={...currentQuality};
 renderer.shadowMap.enabled=true;
 renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.outputColorSpace=THREE.SRGBColorSpace;
@@ -31,7 +40,7 @@ scene.add(ambient);
 const sun=new THREE.DirectionalLight(0xffe5b8,2.1);
 sun.position.set(-90,180,125);
 sun.castShadow=true;
-sun.shadow.mapSize.set(1024,1024);
+sun.shadow.mapSize.set(currentQuality.shadowSize,currentQuality.shadowSize);
 sun.shadow.camera.left=-66;sun.shadow.camera.right=66;
 sun.shadow.camera.top=66;sun.shadow.camera.bottom=-66;
 sun.shadow.camera.near=.5;sun.shadow.camera.far=500;
@@ -80,11 +89,10 @@ for(let z=-160;z<125;z+=10){
  const dash=new THREE.Mesh(new THREE.BoxGeometry(.13,.013,3.2),new THREE.MeshStandardMaterial({color:0xe6dcd0}));
  dash.position.set(18,-.047,z);scene.add(dash);
 }
-// Clean horizon above the marina, not a false aerial replacement.
-const sea=new THREE.Mesh(new THREE.PlaneGeometry(750,1050),new THREE.MeshPhysicalMaterial({
- color:0x06738a,metalness:.02,roughness:.23,clearcoat:1,clearcoatRoughness:.16
-}));
-sea.rotation.x=-Math.PI/2;sea.position.set(395,-.17,-15);scene.add(sea);
+// Optical sea is illustrative; coast/bathymetry are NOT surveyed geometry.
+const sea=createWaterSurface({tier:visualTier,reducedMotion});
+sea.material.uniforms.uDetail.value=currentQuality.waterDetail;
+scene.add(sea);
 const matIron=new THREE.MeshStandardMaterial({color:0x1b2528,metalness:.72,roughness:.32});
 const matLamp=new THREE.MeshStandardMaterial({color:0xfff1ca,roughness:.38,emissive:0xffc673,emissiveIntensity:.13});
 function cityLamp(x,z){
@@ -192,6 +200,13 @@ for(const ob of scene.children.slice(decorStart)){scene.remove(ob);decorGroup.ad
 decorGroup.rotation.y=EXPLANADA_BEARING;
 decorGroup.position.copy(ESPLANADA_CENTER);
 scene.add(decorGroup);
+// The Mediterranean is a geographic layer, not a removable street prop:
+// preserve the exact decorated world transform while keeping the sea visible
+// when recovered city tiles temporarily hide illustrative OSM decorations.
+decorGroup.updateMatrixWorld(true);
+decorGroup.remove(sea);
+sea.applyMatrix4(decorGroup.matrixWorld);
+scene.add(sea);
 const player=new THREE.Group();scene.add(player);
 player.position.set(-10.664,0,113.546);
 let avatar=null, city=null,mixer=null,animations={},current=null;
@@ -288,7 +303,6 @@ loadNPLOpenData();
 let lastNplDraw=0;
 
 // Public city decor: original CC0 procedural asset library, never a private GLB.
-const visualTier=window.matchMedia?.('(pointer:coarse)')?.matches?'mobile':'desktop';
 const urbanKit=publicPreview?buildUrbanKit({tier:visualTier}):null;
 const hedgeLayer=publicPreview?buildHedgeLayer(visualTier):null;
 let roadStatus=null;
@@ -431,9 +445,11 @@ function animateState(key){
  current=next;
 }
 const clock=new THREE.Clock();
+let lastWaterReportSecond=-1;
 function frame(){
  requestAnimationFrame(frame);
  const dt=Math.min(clock.getDelta(),.045);
+ advanceWaterSurface(sea,clock.elapsedTime);
  if(recoveredMaster?.manifest && !masterBusy && clock.elapsedTime>=masterNextUpdate){
    masterNextUpdate=clock.elapsedTime+1.2;masterBusy=true;
    recoveredMaster.update(player.position).then(()=>{
@@ -480,6 +496,15 @@ function frame(){
  sun.target.position.set(player.position.x,0,player.position.z);
  sun.target.updateMatrixWorld();
  renderer.render(scene,camera);
+ if(Math.floor(clock.elapsedTime)!==lastWaterReportSecond){
+   lastWaterReportSecond=Math.floor(clock.elapsedTime);
+   window.NEUROCITY_WATER_QA={...sea.userData.waterQA,
+     elapsed:sea.material.uniforms.uTime.value,
+     detail:sea.material.uniforms.uDetail.value,
+     programCount:renderer.info.programs?.length||0,
+     independentSeaLayer:sea.parent===scene,
+     pixelRatio:renderer.getPixelRatio()};
+ }
  if(Math.floor(clock.elapsedTime*3)!==Math.floor((clock.elapsedTime-dt)*3)){
    stat.textContent='x '+player.position.x.toFixed(0)+' m · z '+player.position.z.toFixed(0)+' m · '+mode;
  }
@@ -540,6 +565,17 @@ view.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(1.85,Math.min
 const cycleCamera=()=>{mode=nextCameraMode(mode,!!avatar);$('cameraMode').textContent=mode==='back'?'Tercera persona':mode==='face'?'Inspección facial':'Primera persona · ciudad pública';};
 $('cam').onclick=cycleCamera;
 $('reset').onclick=()=>{player.position.set(-10.664,0,113.546);yaw=-.65;mode=avatar?'back':'first';};
-$('fidelity').onclick=()=>{let hi=renderer.getPixelRatio()<1.7;renderer.setPixelRatio(hi?Math.min(devicePixelRatio,2):1);sun.shadow.mapSize.set(hi?2048:1024,hi?2048:1024);sun.shadow.map?.dispose();sun.shadow.map=null;};
+$('fidelity').setAttribute('aria-pressed','true');
+$('fidelity').onclick=()=>{
+ highQuality=!highQuality;
+ currentQuality=qualityProfile({high:highQuality,coarse:visualTier==='mobile',devicePixelRatio:deviceRatio});
+ renderer.setPixelRatio(currentQuality.pixelRatio);
+ sun.shadow.mapSize.set(currentQuality.shadowSize,currentQuality.shadowSize);
+ sun.shadow.map?.dispose();sun.shadow.map=null;
+ sea.material.uniforms.uDetail.value=currentQuality.waterDetail;
+ $('fidelity').setAttribute('aria-pressed',String(highQuality));
+ window.NEUROCITY_RENDER_QUALITY={...currentQuality};
+ resize();
+};
 frame();
 loadWorld();
