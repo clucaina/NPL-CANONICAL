@@ -26,7 +26,7 @@ def inspect_raster(raw):
         with source.open() as ds:
             epsg=ds.crs.to_epsg() if ds.crs else None
             if epsg!=25830:
-                raise ValueError("Wrong or missing verified EPSG:25830")
+                raise ValueError("Unexpected CRS: "+str(ds.crs)+"; bounds="+str(tuple(round(v,2) for v in (ds.bounds.left,ds.bounds.bottom,ds.bounds.right,ds.bounds.top)))+"; shape="+str((ds.height,ds.width)))
             b=ds.bounds
             if not (abs(b.left-BBOX[0])<=12 and abs(b.bottom-BBOX[1])<=12 and
                     abs(b.right-BBOX[2])<=12 and abs(b.top-BBOX[3])<=12):
