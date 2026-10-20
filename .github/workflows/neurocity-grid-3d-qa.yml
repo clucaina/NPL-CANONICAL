@@ -21,7 +21,9 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: neurocity-alicante-grid-qa
+  # Isolate each experimental branch: a physical-collision QA should never
+  # cancel/queue an unrelated source geometry run from a different PR.
+  group: neurocity-alicante-grid-qa-${{ github.ref_name }}
   cancel-in-progress: false
 jobs:
   nine_zone_city:
