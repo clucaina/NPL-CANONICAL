@@ -15,6 +15,7 @@ import {createSurfaceTexture,enhanceMappedOSMRoads} from './road_surfaces.mjs';
 import {enhanceSourceMappedWater} from './water_surface.mjs';
 import {createExplanadaMosaic} from './explanada_mosaic.mjs';
 import {enhanceMappedBuildingFacades} from './facade_stucco.mjs';
+import {enhanceRealOSMWallMicrorelief} from './facade_microrelief.mjs';
 import {attachCanonicalNPLDialog,CANONICAL_NPL} from './canonical_npl_contract.mjs';
 import {startBehaviorSession,selectProcess,sampleBehavior,publicBehaviorSnapshot,NPL_PROCESS_IDS} from './npl_behavior.mjs';
 import {inspectDataset,compareObservation,missionStart,missionStep,cognitivePulse,STAGES} from './neuro_mission.mjs';
@@ -366,7 +367,7 @@ window.NPL_CANONICAL_STATUS={
 updateBrainPanel();
 const urbanKit=publicPreview?buildUrbanKit({tier:visualTier}):null;
 const hedgeLayer=publicPreview?buildHedgeLayer(visualTier):null;
-let roadStatus=null,coastalWater=null,stuccoStatus=null;
+let roadStatus=null,coastalWater=null,stuccoStatus=null;let wallMicroreliefStatus=null;
 if(urbanKit){decorGroup.add(urbanKit.group);palmCount=urbanKit.stats.palmCount;}
 if(hedgeLayer)decorGroup.add(hedgeLayer.group);
 
@@ -488,6 +489,14 @@ async function loadWorld(){
   // Source wall materials first; the following OSM tile mask will chain this
   // shader without losing its clipping at recovered G19/V50 tile boundaries.
   if(publicPreview)stuccoStatus=enhanceMappedBuildingFacades(city,{tier:visualTier});
+  // Add physically lit original plaster micro-relief on SOURCE OSM geometry.
+  // The later G19 architecture mask keeps precedence and is never bypassed.
+  if(publicPreview)wallMicroreliefStatus=enhanceRealOSMWallMicrorelief(city,{tier:visualTier});
+  if(publicPreview)window.NEUROCITY_MATERIAL_QA={
+    ...(wallMicroreliefStatus||{}),
+    geometryStillCanonical:true,artisticNotSurveyed:true,
+    browserMeasuredNotCertified:true
+  };
   if(publicPreview || ownerWorldRequested)osmCover=installCoveredOSMMask(city);
   // The source-matched asphalt texture belongs on OSM highway ribbon meshes, not on invented roads.
   if(publicPreview)roadStatus=enhanceMappedOSMRoads(city,{mobile:visualTier==='mobile'});
