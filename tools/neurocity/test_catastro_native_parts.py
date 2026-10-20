@@ -26,7 +26,6 @@ class IndependentOfficialParts(unittest.TestCase):
         native,stats=collect_native_parts(source,[],ORIGIN,BBOX)
         self.assertEqual(len(native),1)
         self.assertEqual(stats['overlapping_other_official_sections'],2)
-        self.assertEqual(native[0]['ring'][0],[120.0,80.0]) if False else None
     def test_rejects_beyond_geographically_original_city(self):
         native,stats=collect_native_parts([part(700,700,720,720)],[],ORIGIN,BBOX)
         self.assertEqual(native,[])
