@@ -8,8 +8,8 @@ varying vec3 vBasisY;
 varying vec3 vBasisN;
 #include <fog_pars_vertex>
 void main(){
- vLocal=position.xy;
  vWorld=(modelMatrix*vec4(position,1.0)).xyz;
+ vLocal=vWorld.xz;
  vBasisX=normalize((modelMatrix*vec4(1.0,0.0,0.0,0.0)).xyz);
  vBasisY=normalize((modelMatrix*vec4(0.0,1.0,0.0,0.0)).xyz);
  vBasisN=normalize((modelMatrix*vec4(0.0,0.0,1.0,0.0)).xyz);
@@ -37,7 +37,7 @@ void main(){
   slope+=vec2(.61,-.37)*(.006*cos(c));
   swell+=sin(c)*.08;
  }
- vec3 n=normalize(vBasisN-3.0*slope.x*vBasisX-3.0*slope.y*vBasisY);
+ vec3 n=normalize(vec3(-3.0*slope.x,1.0,-3.0*slope.y));
  vec3 eye=normalize(cameraPosition-vWorld);
  vec3 sun=normalize(vec3(-.38,.75,.53));
  float fresnel=.035+.77*pow(1.0-clamp(dot(n,eye),0.0,1.0),5.0);
@@ -77,4 +77,56 @@ export function advanceWaterSurface(mesh,elapsedSeconds){
  if(!Number.isFinite(elapsedSeconds)||elapsedSeconds<0)throw new RangeError('Invalid elapsed time');
  if(!mesh.userData.waterQA.reducedMotion)mesh.material.uniforms.uTime.value=elapsedSeconds%2048;
  return mesh.material.uniforms.uTime.value;
+}
+
+/**
+ * Crucial peer-chat integration: reuse the existing source-georeferenced OSM
+ * water polygon, rather than adding a synthetic 750×1050 metre sea plane.
+ * Waves are artistic shading only. No new topology, coast, boat or bathymetry.
+ */
+export const VERIFIED_WATER_NAME='OSM_REAL_water_polygon_source_only';
+export function enhanceSourceMappedWater(city,{tier='desktop',reducedMotion=false}={}){
+ if(!city?.traverse)throw new TypeError('Need actual source OSM city scene');
+ if(!['desktop','mobile'].includes(tier)||typeof reducedMotion!=='boolean')
+   throw new RangeError('Invalid accessibility or water LOD');
+ const original=[];
+ const waves=[];
+ let preservedVertices=0;
+ city.traverse(mesh=>{
+   if(!mesh.isMesh || !(mesh.name===VERIFIED_WATER_NAME ||
+       mesh.name.startsWith(VERIFIED_WATER_NAME+'.')))return;
+   const old=mesh.material;
+   const builder=createWaterSurface({tier,reducedMotion});
+   const material=builder.material;
+   builder.geometry.dispose();
+   mesh.material=material;
+   mesh.castShadow=false;
+   mesh.receiveShadow=false;
+   mesh.userData.waterQA=Object.freeze({
+     source:WATER_SOURCE,tier,reducedMotion,
+     attachedToRealOSMPolygon:true,terrainSurveyed:false,
+     OSMOriginalGeometryPreserved:true,originalFaceCount:
+       mesh.geometry.index?mesh.geometry.index.count/3:mesh.geometry.getAttribute('position').count/3,
+     geometrySurveyed:false,noPrivateAssets:true
+   });
+   preservedVertices+=mesh.geometry.getAttribute('position').count;
+   original.push({mesh,material:old});waves.push(mesh);
+ });
+ return {
+   source:'real_OSM_water_polygon_artistic_optics',
+   waterMeshes:waves.length,originalVertices:preservedVertices,
+   sourceGeometryReplaced:false,addedSeaPlanes:0,boatsInvented:0,
+   reducedMotion,tier,
+   advance(seconds){
+     if(!Number.isFinite(seconds)||seconds<0)throw new RangeError('Bad water time');
+     for(const mesh of waves)advanceWaterSurface(mesh,seconds);
+   },
+   restore(){
+     for(const entry of original){
+       entry.mesh.material.dispose();
+       entry.mesh.material=entry.material;
+       delete entry.mesh.userData.waterQA;
+     }
+   }
+ };
 }
