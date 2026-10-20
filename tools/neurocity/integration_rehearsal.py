@@ -73,7 +73,7 @@ def review(repo, report):
     digest=lambda s:hashlib.sha256(s.encode()).hexdigest()
     data={"schema":"neurocity.integration-rehearsal.v1","baseline":baseline,
           "never_push":True,"private_bytes_loaded":False,"origin_repo":"clucaina/NPL-CANONICAL",
-          "isolated":[],"combined":[],"ready_for_merge":False,"runtime_webgl_verified":False}
+          "isolated":[],"combined":[],"ready_for_merge":False,"runtime_webgl_verified":False,"ready_for_build":False}
     refs=[]
     for name,num in CANDIDATES:
         ref="refs/remotes/neurocity-ci/pr"+num
@@ -95,18 +95,26 @@ def review(repo, report):
             entry["source_only_candidate"]=not entry["risky_added_paths"]
         clean_checkout(cwd,baseline)
     if len(refs)==len(CANDIDATES):
-        for name,ref in refs:
+        # Apply the known compatible Gameplay candidate first, but never
+        # claim the ocean/Catastro candidates succeeded when Git flags conflicts.
+        accepted=[]
+        rank={"educational_gameplay":0,"sea":1,"cadastre":2}
+        for name,ref in sorted(refs,key=lambda item:rank[item[0]]):
             outcome=try_merge(cwd,ref)
             outcome["candidate"]=name
             data["combined"].append(outcome)
             if not outcome["clean"]:
-                clean_checkout(cwd,baseline)
-                break
-        else:
-            changed=run("git","diff","--name-only",baseline+"..HEAD",cwd=cwd,check=True).stdout.splitlines()
-            data["combined_changed_files"]=len(changed)
-            data["risky_paths"]=suspicious_paths(changed)
-            data["ready_for_merge"]=not data["risky_paths"]
+                run("git","merge","--abort",cwd=cwd)
+                # Preserve previous successful ephemeral commits for a REAL
+                # partial game build in CI; do not silently resolve conflicts.
+                continue
+            accepted.append(name)
+        changed=run("git","diff","--name-only",baseline+"..HEAD",cwd=cwd,check=True).stdout.splitlines()
+        data["combined_changed_files"]=len(changed)
+        data["risky_paths"]=suspicious_paths(changed)
+        data["accepted_source_modules"]=accepted
+        data["ready_for_build"]=len(accepted)>0 and not data["risky_paths"]
+        data["ready_for_merge"]=len(accepted)==len(CANDIDATES) and not data["risky_paths"]
     report=pathlib.Path(report)
     report.parent.mkdir(parents=True,exist_ok=True)
     report.write_text(json.dumps(data,indent=2,ensure_ascii=False)+"\n",encoding="utf8")
