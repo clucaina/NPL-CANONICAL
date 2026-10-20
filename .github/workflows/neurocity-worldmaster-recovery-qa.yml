@@ -9,6 +9,11 @@ on:
       - 'tools/neurocity/test_render_worldmaster_cpu.py'
       - 'tools/neurocity/recover_worldmaster_sidecars.py'
       - 'tools/neurocity/test_recover_worldmaster_sidecars.py'
+      - 'tools/neurocity/continuity_gate.py'
+      - 'tools/neurocity/test_continuity_gate.py'
+      - 'tools/factory/coast_inventory.py'
+      - 'tools/factory/test_coast_inventory.py'
+      - 'demos/npl-world/open_city_pipeline/build_blender.py'
       - 'tools/neurocity/export_local_worldmaster.py'
       - 'tools/neurocity/test_worldmaster_recovery.py'
       - 'tools/neurocity/spain_tile_factory.py'
@@ -42,6 +47,9 @@ jobs:
           python3 -m unittest discover -s tools/neurocity -p 'test_spain_tile_factory.py' -v
           python3 -m unittest discover -s tools/neurocity -p 'test_render_worldmaster_cpu.py' -v
           python3 -m unittest discover -s tools/neurocity -p 'test_recover_worldmaster_sidecars.py' -v
+          python3 -m unittest discover -s tools/neurocity -p 'test_continuity_gate.py' -v
+          python3 -m unittest discover -s tools/factory -p 'test_coast_inventory.py' -v
+          python3 tools/neurocity/continuity_gate.py --repo-root . --output /tmp/NEUROCITY_CONTINUITY_QA.json
       - name: Prove Alicante regional 500m plan refuses unsupported measurements and brands
         run: |
           python3 tools/neurocity/spain_tile_factory.py --city-spec tools/neurocity/examples/alicante_4tile_production_input.json --output /tmp/neurocity-alicante-4tiles.json --max-tiles 4
