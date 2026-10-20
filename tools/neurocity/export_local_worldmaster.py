@@ -38,7 +38,10 @@ def compile_manifest(archive:Path):
                 if h and (h["sha256"]!=digest or h["size"]!=len(raw)):
                     raise ValueError("Inherited source mismatch")
                 seen[path]={"sha256":digest,"bytes":len(raw),
-                    "source_hash_record":bool(h),"drawable_primitives":qa["drawable_primitives"]}
+                    "source_hash_record":bool(h),"drawable_primitives":qa["drawable_primitives"],
+                    "triangle_estimate":qa["triangle_estimate"],
+                    "embedded_images":qa["embedded_images"],
+                    "mesh_count":qa["meshes"]}
             asset={"role":role,"path":path,**seen[path]}
             if local:asset["local"]=True
             if placements:
