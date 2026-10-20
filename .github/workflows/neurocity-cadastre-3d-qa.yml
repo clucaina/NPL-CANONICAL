@@ -7,6 +7,7 @@ on:
       - 'tools/neurocity/catastro_parts.py'
       - 'tools/neurocity/test_catastro_parts.py'
       - 'tools/neurocity/catastro_blender_smoke.py'
+      - 'tools/neurocity/catastro_live_probe.py'
       - 'demos/npl-world/open_city_pipeline/build_blender.py'
 permissions:
   contents: read
@@ -49,6 +50,10 @@ jobs:
           assert Path('output/Alicante_REAL_OSM_PNOA.glb').stat().st_size>1000
           print('PASS: real Blender 3D mesh export; one validated public official-style geometry; one original OSM fallback')
           PY
+      - name: Probe one bounded official Alicante WFS tile (no derived scene published)
+        run: |
+          python3 tools/neurocity/catastro_live_probe.py
+          python3 -m json.tool /tmp/neurocity-cadastre-public-evidence/OFFICIAL_WFS_ACCESS_PROBE.json > /dev/null
       - name: Persist public-safe facts only, never raw cadastral or original GLB files
         if: always()
         run: |
