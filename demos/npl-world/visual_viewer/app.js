@@ -6,6 +6,7 @@ import {buildUrbanKit} from './urban_kit.mjs';
 import {RecoveredMasterTiles} from './world_master_loader.mjs';
 import {RecoveredPhysicalAtlas} from './world_physics.mjs';
 import {installCoveredOSMMask} from './osm_building_mask.mjs';
+import {buildCityWallCollision} from './city_collision.mjs';
 import {buildHedgeLayer} from './hedge_layer.mjs';
 import {createSurfaceTexture,enhanceMappedOSMRoads} from './road_surfaces.mjs';
 import {enhanceSourceMappedWater} from './water_surface.mjs';
@@ -197,6 +198,7 @@ scene.add(decorGroup);
 const player=new THREE.Group();scene.add(player);
 player.position.set(-10.664,0,113.546);
 let avatar=null, city=null,mixer=null,animations={},current=null;
+let cityCollision=null; // Public OSM walls; verified G13 physics takes priority.
 let osmCover=null;
 let physicalAtlas=null,physicalPrefetchBusy=false,physicalLastPrefetch=0;
 let recoveredMaster=null,masterNextUpdate=0,masterBusy=false;
@@ -417,6 +419,18 @@ async function loadWorld(){
  try{
   const data=await model('./assets/alicante.glb');
   city=data.scene;scene.add(city);
+  if(publicPreview){
+    try{
+      cityCollision=buildCityWallCollision(city);
+      const stats=cityCollision.stats();
+      window.NEUROCITY_COLLISION_QA={...stats,active:stats.wallSegments>0,
+        privateGLBsUsed:false,physicalAtlasPriority:true};
+    }catch(error){
+      cityCollision=null;
+      window.NEUROCITY_COLLISION_QA={active:false,wallSegments:0,
+        inventedBarriers:0,error:String(error?.message||error).slice(0,160)};
+    }
+  }
   // Source wall materials first; the following OSM tile mask will chain this
   // shader without losing its clipping at recovered G19/V50 tile boundaries.
   if(publicPreview)stuccoStatus=enhanceMappedBuildingFacades(city,{tier:visualTier});
@@ -528,6 +542,14 @@ function frame(){
     player.position.z=Math.max(-411,Math.min(304,moved.z));
     window.NPL_LAST_PHYSICS_MOVE={blockedSubsteps:moved.blockedSubsteps,
       fallbackSubsteps:moved.fallbackSubsteps,verticalDatumVerified:false};
+  }else if(cityCollision?.stats().wallSegments>0){
+    // OSM source wall collisions when signed G13 grid is not authoritative.
+    const next=cityCollision.move(player.position.x,player.position.z,deltaX,deltaZ);
+    player.position.x=Math.max(-318,Math.min(402,next.x));
+    player.position.z=Math.max(-411,Math.min(304,next.z));
+    if(next.collided)window.NEUROCITY_COLLISION_QA={
+      ...cityCollision.stats(),active:true,privateGLBsUsed:false,
+      physicalAtlasPriority:true};
   }else{
     player.position.x=Math.max(-318,Math.min(402,player.position.x+deltaX));
     player.position.z=Math.max(-411,Math.min(304,player.position.z+deltaZ));
