@@ -7,6 +7,7 @@ import {RecoveredMasterTiles} from './world_master_loader.mjs';
 import {RecoveredPhysicalAtlas} from './world_physics.mjs';
 import {installCoveredOSMMask} from './osm_building_mask.mjs';
 import {buildCityWallCollision} from './city_collision.mjs';
+import {wantsRecoveredWorldmaster,shouldLoadOwnerArchive} from './owner_worldmaster_policy.mjs';
 import {buildHedgeLayer} from './hedge_layer.mjs';
 import {createSurfaceTexture,enhanceMappedOSMRoads} from './road_surfaces.mjs';
 import {enhanceSourceMappedWater} from './water_surface.mjs';
@@ -22,6 +23,7 @@ const $=id=>document.getElementById(id);
 const loading=$('loading'), info=$('info'), stat=$('stat'), progress=$('progress');
 const view=$('game');
 const publicPreview=window.NPL_PUBLIC_REVIEW===true;
+const ownerWorldRequested=shouldLoadOwnerArchive(publicPreview,location.search);
 const display=(message,problem=false)=>{$('messageText').textContent=message;info.classList.toggle('error',problem)};
 const renderer=new THREE.WebGLRenderer({canvas:view, antialias:true,alpha:false,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));
@@ -362,7 +364,7 @@ function makeSourceComparisonControl(){
  return button;
 }
 function startRecoveredMasterIfRequested(){
- if(!publicPreview || new URLSearchParams(location.search).get('worldmaster')!=='1')return;
+ if(!wantsRecoveredWorldmaster(location.search))return;
  recoveredMaster=new RecoveredMasterTiles({
    scene,loader:new GLTFLoader(),profile:visualTier,
    onVisibility:(active)=>{
@@ -419,7 +421,7 @@ async function loadWorld(){
  try{
   const data=await model('./assets/alicante.glb');
   city=data.scene;scene.add(city);
-  if(publicPreview){
+  if(publicPreview || ownerWorldRequested){
     try{
       cityCollision=buildCityWallCollision(city);
       const stats=cityCollision.stats();
@@ -434,7 +436,7 @@ async function loadWorld(){
   // Source wall materials first; the following OSM tile mask will chain this
   // shader without losing its clipping at recovered G19/V50 tile boundaries.
   if(publicPreview)stuccoStatus=enhanceMappedBuildingFacades(city,{tier:visualTier});
-  if(publicPreview)osmCover=installCoveredOSMMask(city);
+  if(publicPreview || ownerWorldRequested)osmCover=installCoveredOSMMask(city);
   // The source-matched asphalt texture belongs on OSM highway ribbon meshes, not on invented roads.
   if(publicPreview)roadStatus=enhanceMappedOSMRoads(city,{mobile:visualTier==='mobile'});
   if(publicPreview)coastalWater=enhanceSourceMappedWater(city,{
@@ -457,6 +459,8 @@ async function loadWorld(){
   showLoad('Alicante 3D cargada: edificios reales y calle a nivel humano. Cargando cuerpo humano animado…');
  }catch(err){display('No se ha podido cargar la ciudad GLB: '+(err?.message||err),true);showLoad('ERROR: falta assets/alicante.glb');return;}
  if(publicPreview){enterPublicCity();startRecoveredMasterIfRequested();return;}
+ // Previously private avatar mode returned without ever loading the 86 owner GLBs.
+ if(ownerWorldRequested)startRecoveredMasterIfRequested();
  try{
   const data=await model('./assets/maya.glb');
   avatar=data.scene;
