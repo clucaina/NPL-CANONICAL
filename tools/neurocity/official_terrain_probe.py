@@ -85,7 +85,7 @@ def download_bounded():
     return raw
 
 
-def probe(output, fetch=download_bounded):
+def probe(output, fetch=download_bounded, mesh_output_dir=None):
     result={"schema":"neurocity.ign-real-terrain-probe.v1","tile":TILE,
             "official_collection":COLLECTION,"bbox_epsg_25830":list(BBOX),
             "licensed_as":"IGN/CNIG source family CC-BY 4.0; exact tile attribution pending",
@@ -95,6 +95,17 @@ def probe(output, fetch=download_bounded):
         raster=fetch()
         result.update(inspect_raster(raster))
         result["status"]="OFFICIAL_RASTER_PIXELS_VALIDATED_DATUM_PENDING"
+        if mesh_output_dir is not None:
+            try:
+                from official_terrain_lod import candidate_lods
+                manifest=candidate_lods(raster,mesh_output_dir,result)
+                result["mesh_candidate_status"]="PRODUCED_UNAPPROVED"
+                result["mesh_candidate_lod_count"]=len(manifest["lods"])
+                result["mesh_candidates_license"]=manifest["license"]
+            except Exception as mesh_error:
+                result["mesh_candidate_status"]="BLOCKED_MESH_QA"
+                result["mesh_reason_type"]=type(mesh_error).__name__
+                result["mesh_reason"]=str(mesh_error)[:180]
     except Exception as e:
         result["status"]="BLOCKED_REAL_SOURCE_NOT_VALIDATED"
         result["reason_type"]=type(e).__name__
@@ -105,7 +116,13 @@ def probe(output, fetch=download_bounded):
 
 if __name__=="__main__":
     target=os.environ.get("NEUROCITY_TERRAIN_REPORT","_neurocity_source_qa/real_terrain_r01_c02.json")
-    report=probe(target)
+    import argparse
+    p=argparse.ArgumentParser()
+    p.add_argument("--mesh-output",default=None)
+    args=p.parse_args()
+    report=probe(target,mesh_output_dir=args.mesh_output)
     print(json.dumps(report,ensure_ascii=False,indent=2))
     if report["status"]!="OFFICIAL_RASTER_PIXELS_VALIDATED_DATUM_PENDING":
         raise SystemExit(3)
+    if args.mesh_output and report.get("mesh_candidate_status")!="PRODUCED_UNAPPROVED":
+        raise SystemExit(4)
