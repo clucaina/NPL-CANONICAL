@@ -82,7 +82,7 @@ def probe():
           'matching':review['matching']})
         # Full real-world Blender 3D export, but ONLY into a temporary folder.
         # Never publish the government-provided GML or this unreleased GLB.
-        if report['matched_osm_count']>0:
+        if review['matched_osm_count']>0:
             work=p/'scene'
             scene_input=work/'input'
             scene_input.mkdir(parents=True)
