@@ -3,10 +3,10 @@ import {viewerToMaster} from './geo_alignment.mjs';
 export const TILEPACK_SCHEMA='neurocity.local-worldmaster-tiles.v1';
 export const TILE_SPAN_M=500;
 export const ROLES=Object.freeze(['terrain','geo','urban','environment','driving','beach',
-   'architecture','lod','palm_variants','facade','landmark','coast','mosaic','furniture','street']);
+   'architecture','lod','palm_variants','facade','landmark','coast','mosaic','furniture','street','streetlamp']);
 export const ALLOWED_TILES=Object.freeze(['r02_c00','r02_c01','r01_c01','r01_c02']);
 export const ASSET_ROOT='world-master/';
-const SAFE_PATH=/^(assets\/(?:selected|source\/ASSETS\/(?:tiles|G14|G15|G17))\/[A-Za-z0-9_./-]+)\.glb$/;
+const SAFE_PATH=/^(assets\/(?:selected|prefabs|source\/ASSETS\/(?:tiles|G14|G15|G17))\/[A-Za-z0-9_./-]+)\.glb$/;
 export function safeTilePath(path){
   return typeof path==='string' && path.length<220 && SAFE_PATH.test(path) &&
       !path.split('/').includes('..') && !path.startsWith('/') && !path.includes('//');
@@ -38,6 +38,7 @@ export function assertTileManifest(m){
       if(!a||!ROLES.includes(a.role)||!safeTilePath(a.path)||
           typeof a.sha256!=='string'||!/^[a-f0-9]{64}$/.test(a.sha256)||
           !Number.isSafeInteger(a.bytes)||a.bytes<=0||a.bytes>90_000_000||
+          (a.role==='streetlamp'&&a.path!=='assets/prefabs/Farola_Globo_Simple_4m.glb')||
           (a.local===true&&!['terrain','geo','street','beach','coast'].includes(a.role)) ||
           (a.triangle_estimate!==undefined && (!Number.isSafeInteger(a.triangle_estimate)||a.triangle_estimate<1||a.triangle_estimate>4_000_000)) ||
           (a.embedded_images!==undefined && (!Number.isSafeInteger(a.embedded_images)||a.embedded_images<0||a.embedded_images>1024)))
@@ -60,7 +61,7 @@ export function planActiveTiles(manifest,viewerX,viewerZ,profile='desktop'){
 export function plannedLayers(tile,profile='desktop'){
   if(!tile?.assets||!['mobile','desktop'].includes(profile))throw RangeError('Invalid layer request');
   const priority={terrain:0,geo:1,mosaic:2,street:3,coast:4,beach:5,
-    architecture:6,landmark:7,facade:8,palm_variants:9,urban:10,
+    architecture:6,landmark:7,facade:8,palm_variants:9,streetlamp:9,urban:10,
     driving:11,environment:12,lod:13,furniture:14};
   const candidates=tile.assets.filter(a=>profile==='desktop'||!['facade','furniture'].includes(a.role))
       .sort((a,b)=>(priority[a.role]??99)-(priority[b.role]??99)||a.path.localeCompare(b.path));
