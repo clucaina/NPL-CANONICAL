@@ -27,6 +27,14 @@ on:
       - 'demos/npl-world/visual_viewer/water_surface.mjs'
       - 'demos/npl-world/visual_viewer/tests/water_source_integration.test.mjs'
       - 'demos/npl-world/visual_viewer/tests/water_surface.test.mjs'
+      - 'demos/npl-world/visual_viewer/explanada_mosaic.mjs'
+      - 'demos/npl-world/visual_viewer/urban_kit_layout.mjs'
+      - 'demos/npl-world/visual_viewer/urban_kit.mjs'
+      - 'demos/npl-world/visual_viewer/npl_behavior.mjs'
+      - 'demos/npl-world/visual_viewer/npl_brain3d.mjs'
+      - 'demos/npl-world/visual_viewer/facade_stucco.mjs'
+      - 'demos/npl-world/visual_viewer/tests/mosaic_brain.test.mjs'
+      - 'demos/npl-world/visual_viewer/tests/facade_stucco.test.mjs'
       - 'demos/npl-world/visual_viewer/asset_instancing.mjs'
       - 'demos/npl-world/visual_viewer/tests/asset_instancing.test.mjs'
       - 'demos/npl-world/visual_viewer/osm_building_mask.mjs'
@@ -71,7 +79,7 @@ jobs:
         working-directory: demos/npl-world/visual_viewer
         run: |
           npm install --no-audit --no-fund
-          node --test tests/recovered_master_tiles.test.mjs tests/asset_instancing.test.mjs tests/osm_building_mask.test.mjs tests/world_physics.test.mjs tests/water_surface.test.mjs tests/water_source_integration.test.mjs
+          node --test tests/recovered_master_tiles.test.mjs tests/asset_instancing.test.mjs tests/osm_building_mask.test.mjs tests/world_physics.test.mjs tests/water_surface.test.mjs tests/water_source_integration.test.mjs tests/mosaic_brain.test.mjs tests/facade_stucco.test.mjs tests/urban_kit.test.mjs
       - name: Confirm city game compiles WITHOUT restored user Drive binaries
         working-directory: demos/npl-world/visual_viewer
         run: npm run build
