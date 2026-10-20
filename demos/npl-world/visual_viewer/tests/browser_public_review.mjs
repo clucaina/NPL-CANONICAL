@@ -30,20 +30,19 @@ try{
       !starting.summary.includes('ES30') ){
     throw new Error('NPL/source binding failed: '+JSON.stringify(starting));
   }
-  const brainStatus=await page.evaluate(()=>window.NPL_BRAIN3D);
-  if(brainStatus?.mode!=='REAL_INTERACTIVE_THREEJS'||brainStatus?.brainActivityMeasured!==false ||
-     !brainStatus?.onlyLocalObservedGameActions||brainStatus?.patientData!==false){
-     throw new Error('3D NPL brain not live or methodologically safe: '+JSON.stringify(brainStatus));
-  }
-  await page.locator('#nplBrainProcesses [data-brain-process="attention"]').click();
-  await page.waitForFunction(()=>window.NPL_BRAIN3D?.selected==='attention',null,{timeout:6000});
-  const surface=await page.locator('#nplBrainCanvas').boundingBox();
-  if(!surface||surface.width<220||surface.height<150)
-    throw Error('NPL 3D scene is too small to interact with');
-  // Detailed evidence mission is deliberately collapsed behind 3D brain UI.
-  if(await page.locator('#nplMethods').evaluate(el=>el.open))
-    throw Error('Old textual mission is still the primary right-side UI');
-  await page.locator('#nplMethods summary').click();
+  // The protected 437-structure NPL brain is intentionally NOT in PUBLIC CI.
+  // No synthetic 2-sphere renderer may pretend to replace it.
+  const newAtlas=await page.evaluate(()=>window.NPL_READY?.brain3D);
+  if(newAtlas?.available!==false||newAtlas?.neverProcedural!==true||
+     newAtlas?.expectedStructures!==437)
+     throw Error('Public preview fabricated a second pseudo-brain');
+  await page.locator('#nplCanonicalOpen').click();
+  await page.waitForFunction(()=>window.NPL_CANONICAL_STATUS?.state===
+    'SOURCE_NOT_PRESENT_OR_INTEGRITY_FAILED',null,{timeout:11000});
+  const sourceGuard=await page.locator('#nplCanonicalStatus').innerText();
+  if(!sourceGuard.includes('not installed')||await page.locator('#nplCanonicalFrame').isVisible())
+    throw Error('Expected no public original NPL or misleading fake fallback');
+  await page.locator('#neurohud > summary').click();
   const missionChoices=['Comprobar procedencia','Comparar mismo periodo','Explorar hipótesis','Proponer y evaluar'];
   for(const choice of missionChoices){
     await page.locator('#nplOptions button').filter({hasText:choice}).click();
@@ -67,22 +66,20 @@ try{
      state.ready?.urbanKit?.scope!=='illustrative_placement_not_surveyed' ||
      state.ready?.urbanKit?.palmSilhouettes!==3 ||
      state.ready?.mosaic?.estimatedPieces<5000 ||
-     state.ready?.brain3D?.available!==true ||
+     state.ready?.brain3D?.neverProcedural!==true ||
      state.ready?.hedges?.count<190 || state.ready?.hedges?.meshGroups!==5 ||
      !state.ready?.roadSurface?.asphaltMaterialApplied ||
      state.ready?.roadSurface?.source!=='OSM_centerline_width_estimated_not_surveyed' ||
      !state.selectedCamera.includes('Primera persona')){
     throw new Error('Public review did not load expected geo scene: '+JSON.stringify(reportCopy));
   }
-  // Evidence remains accessible, but the normal game-first experience must
-  // show the selectable 3D brain, not the old text mission by default.
-  await page.locator('#nplMethods > summary').click();
-  if(await page.locator('#nplMethods').evaluate(el=>el.open))
-    throw Error('Evidence lesson still covers the game after closing');
+  await page.locator('#neurohud > summary').click();
+  await page.locator('#nplCanonicalClose').click();
+  if(await page.locator('#nplCanonicalDialog').isVisible())
+    throw Error('Atlas modal cannot close and restore 3D city navigation');
+  if(await page.locator('#nplBrainCanvas').count())
+    throw Error('Fake brain canvas regressed into canonical NeuroCity');
   await page.waitForTimeout(300);
-  await page.locator('#nplBrainScene').screenshot({
-    path:'demos/npl-world/visual_viewer/dist/QA_NPL_REAL_THREE_CORTEX.png'
-  });
   await page.screenshot({path:'demos/npl-world/visual_viewer/dist/QA_BROWSER_REAL_CHROME.png',fullPage:true});
   report={status:consoleErrors.length?'BROWSER_READY_WITH_SCRIPT_ERRORS':'BROWSER_READY',...reportCopy};
   if(consoleErrors.length) throw new Error('JavaScript console errors detected');
