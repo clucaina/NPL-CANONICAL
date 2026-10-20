@@ -50,6 +50,17 @@ class TestPrivateAssembler(unittest.TestCase):
   first=m.assemble(self.base,self.compiled,self.output)
   second=m.assemble(self.base,self.compiled,self.root/'second.zip')
   self.assertEqual(first['sha256'],second['sha256'])
+ def test_private_local_launchers_are_sanitized(self):
+  with zipfile.ZipFile(self.base) as z: files={k:z.read(k) for k in z.namelist()}
+  files['INICIAR_WINDOWS.bat']=b'@echo off\r\npy -3 -m http.server 8766\r\n'
+  files['INICIAR_LINUX_MAC.sh']=b'#!/bin/sh\npython3 -m http.server 8766\n'
+  with zipfile.ZipFile(self.base,'w') as z:
+   for name,data in files.items(): z.writestr(name,data)
+  report=m.assemble(self.base,self.compiled,self.output)['audit']
+  self.assertEqual(len(report['security_fixed_local_only_launchers']),2)
+  with zipfile.ZipFile(self.output) as z:
+   for name in ['INICIAR_WINDOWS.bat','INICIAR_LINUX_MAC.sh']:
+    self.assertIn(b'--bind 127.0.0.1',z.read(name))
  def test_tampered_model_fails(self):
   self.manifest['tiles'][0]['assets'][0]['sha256']='f'*64;self.base_build()
   with self.assertRaisesRegex(ValueError,'hash/size'):
