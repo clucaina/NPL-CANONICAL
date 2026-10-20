@@ -491,7 +491,10 @@ function enterPublicCity(){
  mode='first';
  $('cameraMode').textContent='Primera persona · ciudad pública';
  window.NPL_READY={cityMeshes:city?.children?.length||0,cityOnly:true,privateAvatarLoaded:false,
-  explanadaCoords:[38.34318,-0.48326],windows:windowCount,facadeStyle:'artistic_not_surveyed',palms:palmCount,urbanKit:urbanKit?.stats||null,hedges:hedgeLayer?.stats||null,roadSurface:roadStatus,facadeMaterial:stuccoStatus?{
+  explanadaCoords:[38.34318,-0.48326],windows:windowCount,
+  decorativeWindowSourceVerified:false,
+  artificialFacadeGeometryDefaultOff:window.NEUROCITY_WINDOW_ORIGIN_QA?.defaultIllustrativeWindowsDisabled===true,
+  facadeStyle:'artistic_not_surveyed',palms:palmCount,urbanKit:urbanKit?.stats||null,hedges:hedgeLayer?.stats||null,roadSurface:roadStatus,facadeMaterial:stuccoStatus?{
    source:stuccoStatus.source,meshCount:stuccoStatus.meshCount,
    photoMatched:stuccoStatus.photoMatched}:null,mosaic:mosaicKit.report,brain3D:{available:false,source:CANONICAL_NPL.source,
   expectedStructures:437,lazyOriginalViewer:true,neverProcedural:true},water:coastalWater?{
@@ -552,9 +555,20 @@ async function loadWorld(){
   if(publicPreview)coastalWater=enhanceSourceMappedWater(city,{
     tier:visualTier,reducedMotion:window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches===true
   });
-  // Public-only, bounded artistic facade detail on verifiable OSM wall geometry.
-  // Never loads the optional private facade GLB.
-  if(publicPreview)addFacadeDetail(city,170);
+  // Independent screenshot QA proved hundreds of guessed black window boxes
+  // create unnatural card-like facades. Retain the historic algorithm ONLY as
+  // an explicit public comparison option; default uses actual OSM 3D wall
+  // surfaces with conservative shader styling, never invented balconies.
+  const decorativeWindowsOptIn=publicPreview&&
+    new URLSearchParams(location.search).get('windowStudy')==='illustrative';
+  if(decorativeWindowsOptIn)addFacadeDetail(city,170);
+  if(publicPreview)window.NEUROCITY_WINDOW_ORIGIN_QA={
+    defaultIllustrativeWindowsDisabled:!decorativeWindowsOptIn,
+    artificialWindowsDrawn:windowCount,
+    OSMBuildingGeometryUnmodified:true,
+    surveyedWindowsClaimed:false,
+    historicDemonstrationPreservedAsOptIn:true
+  };
   // v11 architectural detail baked on exactly 150 ACTUAL OSM building-wall edges.
   // Geometry intentionally separate from the PNOA georeferenced base.
   if(!publicPreview) try {
