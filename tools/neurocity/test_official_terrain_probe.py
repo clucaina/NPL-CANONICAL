@@ -26,6 +26,37 @@ class OfficialTerrainProbeTests(unittest.TestCase):
             self.assertFalse(r["game_runtime_modified"])
             self.assertEqual(json.loads(p.read_text())["reason_type"],"ConnectionError")
 
+    @staticmethod
+    def _synthetic_cog(epsg=3042):
+        import numpy as np
+        from rasterio.io import MemoryFile
+        from rasterio.transform import from_origin
+        src=np.full((101,101),42,dtype="float32")
+        with MemoryFile() as f:
+            with f.open(driver="GTiff",height=101,width=101,count=1,
+                        dtype="float32",crs="EPSG:"+str(epsg),
+                        transform=from_origin(720700,4247800,5,5),
+                        nodata=-9999) as image:
+                image.write(src,1)
+            return f.read()
+
+    def test_05_accept_3042_only_after_utm_axis_reconciliation(self):
+        d=inspect_raster(self._synthetic_cog(3042))
+        self.assertEqual(d["source_epsg"],3042)
+        self.assertEqual(d["epsg"],25830)
+        self.assertTrue(d["utm_axis_mapping_verified"])
+        self.assertFalse(d["vertical_datum_validated_against_local_benchmark"])
+        self.assertEqual(d["measured_valid_pixels"],101*101)
+
+    def test_06_accept_original_epsg_25830(self):
+        d=inspect_raster(self._synthetic_cog(25830))
+        self.assertEqual(d["source_epsg"],25830)
+        self.assertEqual(d["epsg"],25830)
+
+    def test_07_reject_any_crs_besides_verified_etrs89_utm30(self):
+        with self.assertRaisesRegex(ValueError,"Unexpected CRS"):
+            inspect_raster(self._synthetic_cog(4326))
+
     def test_04_no_silent_accept_of_empty_cog(self):
         with tempfile.TemporaryDirectory() as d:
             r=probe(Path(d)/"qa.json",fetch=lambda:b"")
