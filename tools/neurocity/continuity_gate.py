@@ -25,6 +25,9 @@ CONTRACTS={
    'InstancedMesh','HEDGE_SOURCE']),
  'G13_signed_walking_physics':('demos/npl-world/visual_viewer/world_physics.mjs',[
    'PHYSICAL_TILES','canOccupy','SHA256 mismatch','PHYSICAL_WALKABLE']),
+ 'mediterranean_water_optics_from_peer_branch':('demos/npl-world/visual_viewer/water_surface.mjs',[
+   'enhanceSourceMappedWater','VERIFIED_WATER_NAME','addedSeaPlanes:0',
+   'reducedMotion']),
  'coast_osm_source_audit':('tools/factory/coast_inventory.py',[
    'coastline_geometry_source_available','piers_source_available',
    'coastal_rendering_verified']),
