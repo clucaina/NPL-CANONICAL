@@ -11,6 +11,7 @@ import math
 import shutil
 import subprocess
 import tempfile
+from time import sleep
 from pathlib import Path
 
 from catastro_grid import compile_grid,source_plan
@@ -64,6 +65,22 @@ def run():
             for tile,count,error in pool.map(request,plan):
                 if error:failures[tile['id']]=error
                 else:successes.append((tile['id'],tile['url'],folder/tile['name']))
+        report['initial_retrieved_tiles']=len(successes)
+        # DG Catastro sometimes disconnects an otherwise valid WFS BBOX.
+        # A second PASS only re-fetches missing cells, serially and politely;
+        # no global retries, no infinite loop and no duplicates.
+        recovered=[]
+        for tile in plan:
+            if tile['id'] not in failures:continue
+            sleep(6)
+            candidate,bytes_count,error=request(tile)
+            if error:
+                failures[tile['id']]=error
+                continue
+            successes.append((candidate['id'],candidate['url'],folder/candidate['name']))
+            recovered.append(candidate['id'])
+            del failures[candidate['id']]
+        report['recovered_after_backoff']=recovered
         report['retrieved_tiles']=len(successes)
         report['unavailable_tile_ids']=sorted(failures)
         report['unavailable_by_error_type']={t:sum(1 for e in failures.values() if e==t) for t in set(failures.values())}
