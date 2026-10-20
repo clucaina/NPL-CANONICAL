@@ -59,9 +59,11 @@ def discover(catalog,existing,fetch_json,fetch_batch,limit=LIMIT):
                 "id":stem,"source_repository":REPO,"source_ref":REF,
                 "source_path":file["path"],"source_blob_sha":file["source_blob_sha"],
                 "raw_sha256":digest,"data_quality":quality["status"],
+                "candidate_kind":"DOCUMENT_ONLY" if quality["status"]=="REJECTED_FORMAT" else "STATISTICAL_CANDIDATE",
+                "independent_statistical_review_allowed":quality["status"]!="REJECTED_FORMAT",
                 "rows_automatically_examined":quality["rows"],
                 "quality_flags":quality.get("flags",{}),
-                "review_state":"NEEDS_INDEPENDENT_LICENSE_AND_METHOD_REVIEW",
+                "review_state":"DOCUMENT_EXCLUDED" if quality["status"]=="REJECTED_FORMAT" else "NEEDS_INDEPENDENT_LICENSE_AND_METHOD_REVIEW",
                 "release_gate":"NO_AUTO_IMPORT_NO_AUTO_DEPLOY",
                 "raw_values_copied":False,
                 "source_exists_in_catalog":False

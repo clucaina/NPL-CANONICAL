@@ -38,12 +38,22 @@ class PublicDiscoveryTests(unittest.TestCase):
   first=list(result["candidates"].values())[0]
   self.assertEqual(first["id"],"T26_VULNERABILIDAD_SEGURIDAD_2025")
   self.assertFalse(first["raw_values_copied"])
+  self.assertEqual(first["candidate_kind"],"STATISTICAL_CANDIDATE")
+  self.assertTrue(first["independent_statistical_review_allowed"])
   self.assertEqual(first["review_state"],"NEEDS_INDEPENDENT_LICENSE_AND_METHOD_REVIEW")
   self.assertNotIn("27.4",json.dumps(result))
   self.assertFalse(first["source_exists_in_catalog"])
   again=discover(catalog(),result["candidates"],lambda _:listing(),fetch,limit=5)
   self.assertEqual(again["new_candidates"],1)
   self.assertEqual(again["candidates"]["T30_ABANDONO_2025"]["data_quality"],"REVIEW_REQUIRED")
+ def test_non_statistical_file_never_enters_independent_statistical_review(self):
+  result=discover(catalog(),{},lambda _:listing(),
+    lambda _:({"batch_id":"T26_VULNERABILIDAD_SEGURIDAD_2025","editorial_cards":[1,2]}, "b"*64), limit=1)
+  c=result["candidates"]["T26_VULNERABILIDAD_SEGURIDAD_2025"]
+  self.assertEqual(c["candidate_kind"],"DOCUMENT_ONLY")
+  self.assertEqual(c["review_state"],"DOCUMENT_EXCLUDED")
+  self.assertFalse(c["independent_statistical_review_allowed"])
+  self.assertEqual(c["data_quality"],"REJECTED_FORMAT")
  def test_network_errors_are_redacted(self):
   result=discover(catalog(),{},lambda _:listing(),
     lambda url:(_ for _ in ()).throw(ValueError("token secret patient")),limit=1)
