@@ -50,11 +50,12 @@ test('background tabs and scheduling stalls never produce fake low FPS promotion
  const g=createFrameGovernor();
  for(let i=0;i<300;i++)g.sample(1000,i/60,{visible:false});
  assert.equal(g.snapshot().frameSamples,0);
- g.sample(800,6);
+ g.sample(16,6); // Resume sample resets the invisible scheduling window.
+ g.sample(800,7); // Genuine foreground stall is counted, not treated as 1 FPS.
  assert.equal(g.snapshot().unclassifiedStalls,1);
  assert.equal(g.snapshot().observedFrameRateApprox,null);
  assert.equal(g.snapshot().tier,'balanced');
- stream(g,{fps:30,start:7,seconds:1});
+ stream(g,{fps:30,start:8,seconds:1});
  assert.equal(g.snapshot().tier,'balanced');
  assert.throws(()=>g.sample(NaN,10),RangeError);
  assert.throws(()=>g.sample(16,-1),RangeError);
