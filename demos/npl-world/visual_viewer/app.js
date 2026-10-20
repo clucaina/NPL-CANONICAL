@@ -386,7 +386,10 @@ async function loadWorld(){
     window.NEUROCITY_CITY_MODEL_QA=inspectPublicCityModel(city);
     try{
       cityCollision=buildCityWallCollision(city);
-      window.NEUROCITY_COLLISION_QA=cityCollision.stats();
+      const physicalProbe=cityCollision.auditSourceWallBlocking({samples:48});
+      window.NEUROCITY_COLLISION_QA={
+        ...cityCollision.stats(),physicalProbe
+      };
     }catch(error){
       // Preserve navigation on malformed source, but make the failure visible
       // to browser QA. Never fabricate collision geometry.
@@ -492,7 +495,12 @@ function frame(){
     const next=cityCollision.move(player.position.x,player.position.z,
       targetX-player.position.x,targetZ-player.position.z);
     player.position.x=next.x;player.position.z=next.z;
-    if(next.collided)window.NEUROCITY_COLLISION_QA=cityCollision.stats();
+    if(next.collided){
+      window.NEUROCITY_COLLISION_QA={
+        ...window.NEUROCITY_COLLISION_QA,
+        ...cityCollision.stats()
+      };
+    }
   }else{
     player.position.x=targetX;player.position.z=targetZ;
   }

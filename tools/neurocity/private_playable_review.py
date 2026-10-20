@@ -79,6 +79,9 @@ def run_playable_review(work,qa,report):
         report['private_webgl_triangles']=browser_qa['model']['triangleCount']
         report['private_webgl_collision_segments']=browser_qa['collision']['wallSegments']
         report['private_webgl_collision_cells']=browser_qa['collision']['spatialCells']
+        report['private_webgl_physical_samples']=browser_qa['collision']['physicalProbe']['examined']
+        report['private_webgl_physical_blocked']=browser_qa['collision']['physicalProbe']['blocked']
+        report['private_webgl_physical_failures']=browser_qa['collision']['physicalProbe']['failed']
         report['private_webgl_official_building_parts']=(
             public_qa['matched_official_parts']+public_qa['native_official_parts'])
         report['private_webgl_npl_mission']=browser_qa['nplMissionVerified']

@@ -99,7 +99,43 @@ export function buildCityWallCollision(root,{cellSize=CELL_SIZE_M,radius=COLLISI
   if(!hitsWall(x,z,x,z+dz))return {x,z:z+dz,collided:true};
   return {x,z,collided:true};
  }
- return {move,hitsWall,stats:()=>Object.freeze({
+ // This is a deterministic physical acceptance check against *the exact wall
+ // geometry loaded in the viewer*, not an OSM count or a mock city.
+ // It exercises actual attempted penetration through sampled low wall edges.
+ // No vertex coordinates are logged, stored or sent to a service.
+ function auditSourceWallBlocking({samples=48}={}){
+  if(!Number.isInteger(samples)||samples<1||samples>256)
+    throw new RangeError('Invalid bounded source-wall audit budget');
+  let examined=0,blocked=0,failed=0;
+  const liveMovementCounter=blockedMoves;
+  for(const e of edges){
+   if(examined>=samples)break;
+   const vx=e.bx-e.ax,vz=e.bz-e.az;
+   const length=Math.hypot(vx,vz);
+   if(length<1.6)continue;
+   const nx=-vz/length,nz=vx/length;
+   const midX=(e.ax+e.bx)*.5,midZ=(e.az+e.bz)*.5;
+   const approachX=midX+nx*(radius+.35);
+   const approachZ=midZ+nz*(radius+.35);
+   const deltaX=-nx*.47,deltaZ=-nz*.47;
+   const actual=move(approachX,approachZ,deltaX,deltaZ);
+   // The tested point must be rejected or safely redirected, NOT permitted
+   // to enter the collision capsule surrounding this real Blender wall.
+   const capsule=distToEdge(actual.x,actual.z,e);
+   examined++;
+   if(actual.collided&&capsule>=radius-1e-4)blocked++;
+   else failed++;
+  }
+  // Audit attempts are not actual user walks: restore gameplay counters.
+  blockedMoves=liveMovementCounter;
+  return Object.freeze({
+   source:'actual_loaded_blender_wall_geometry',
+   sampleBudget:samples,examined,blocked,failed,
+   allSampledBlocked:examined>0&&blocked===examined,
+   simulatedNotPhysicalHardware:true
+  });
+ }
+ return {move,hitsWall,auditSourceWallBlocking,stats:()=>Object.freeze({
   source:'Blender_real_OSM_and_official_Catastro_wall_mesh',
   wallMeshes,trianglesScanned:trianglesSeen,wallSegments:edges.length,
   spatialCells:grid.size,cellSizeMeters:cellSize,
