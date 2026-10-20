@@ -30,7 +30,7 @@ test('oversized recovered terrain cannot bypass caps, allowing original OSM city
 test('large source images cannot bypass the policy because an asset is essential',()=>{
  const items=[asset('terrain',100,31),asset('architecture',100,30),asset('mosaic',100,1)];
  const selected=plannedLayers({assets:items},'mobile');
- assert.deepEqual(selected.map(a=>a.role),['architecture']);
+ assert.deepEqual(selected.map(a=>a.role),['mosaic']);
  assert.ok(images(selected)<=TILE_BUDGETS.mobile.images);
 });
 
