@@ -80,8 +80,6 @@ test('3D cortex is a genuine selectable triangle mesh with 5 independently adjus
    const brain=buildBrainModel({tier});
    assert.equal(brain.hemispheres.length,2);
    assert.equal(brain.nodes.size,5);
-   assert.equal(brain.metadata.brainActivityMeasured,undefined);
-   assert.equal(brain.metadata.brainActivityMeasured,undefined);
    assert.equal(brain.metadata.anatomyValidated,false);
    assert.equal(brain.metadata.brainActivityMeasured,false);
    assert.equal(brain.metadata.source,BRAIN3D_STATUS);
