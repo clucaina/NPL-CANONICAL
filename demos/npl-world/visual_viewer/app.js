@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { nextCameraMode, canNavigate } from './navigation_policy.mjs';
 
 // NPL WORLD - real GLB integration. No placeholder people, no pay-per-map API.
 // Local public cartographic geometry + separate PRIVATE human GLB. Offline runtime.
 const $=id=>document.getElementById(id);
 const loading=$('loading'), info=$('info'), stat=$('stat'), progress=$('progress');
 const view=$('game');
-const display=(message,problem=false)=>{info.textContent=message;info.classList.toggle('error',problem)};
+const display=(message,problem=false)=>{$('messageText').textContent=message;info.classList.toggle('error',problem)};
 const renderer=new THREE.WebGLRenderer({canvas:view, antialias:true,alpha:false,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));
 renderer.shadowMap.enabled=true;
@@ -187,6 +188,21 @@ let yaw=-.65,pitch=.14,zoom=2.95,mode='back',actorHeading=0,moving=false;
 const loader=new GLTFLoader();
 const model=(url)=>new Promise((resolve,reject)=>loader.load(url,resolve,undefined,reject));
 const showLoad=(text)=>{progress.textContent=text;};
+// Public preview deliberately excludes optional props and private avatars.
+// Do not expose personal/biometric models through a GitHub artifact.
+const publicPreview=window.NPL_PUBLIC_REVIEW===true;
+function enterPublicCity(){
+ $('face').disabled=true;
+ $('face').title='Solo disponible cuando exista un avatar privado local';
+ mode='first';
+ $('cameraMode').textContent='Primera persona · ciudad pública';
+ window.NPL_READY={cityMeshes:city?.children?.length||0,cityOnly:true,privateAvatarLoaded:false,
+  explanadaCoords:[38.34318,-0.48326],windows:windowCount,palms:palmCount,skins:0,clips:[]};
+ loading.remove();
+ showLoad('Ciudad pública geográfica lista');
+ display('Alicante 3D con edificios cartografiados y alturas parcialmente estimadas. Navegación experimental; realismo y FPS sin certificar.');
+}
+
 async function loadWorld(){
  showLoad('Cargando modelo geográfico real de Alicante…');
  try{
@@ -194,17 +210,18 @@ async function loadWorld(){
   city=data.scene;scene.add(city);
   // v11 architectural detail baked on exactly 150 ACTUAL OSM building-wall edges.
   // Geometry intentionally separate from the PNOA georeferenced base.
-  try {
+  if(!publicPreview) try {
     const decorData=await model('./assets/facades.glb');
     const facades=decorData.scene;
     facades.traverse(n=>{if(n.isMesh){n.castShadow=false;n.receiveShadow=true;}});
     scene.add(facades);
     windowCount=3679;
   }catch(err){display('Los edificios base se han cargado, pero falta el detalle GLB: '+err.message,true);}
-  await addRealPalmObjects();
+  if(!publicPreview) await addRealPalmObjects();
   city.traverse(n=>{if(n.isMesh){n.receiveShadow=true;n.castShadow=true;if(n.material?.name?.includes('NO_photo')) n.material.roughness=.9;}});
   showLoad('Alicante 3D cargada: edificios reales y calle a nivel humano. Cargando cuerpo humano animado…');
  }catch(err){display('No se ha podido cargar la ciudad GLB: '+(err?.message||err),true);showLoad('ERROR: falta assets/alicante.glb');return;}
+ if(publicPreview){enterPublicCity();return;}
  try{
   const data=await model('./assets/maya.glb');
   avatar=data.scene;
@@ -238,7 +255,12 @@ async function loadWorld(){
   loading.remove();
   window.NPL_READY={cityMeshes:city.children.length,facadeDetailsLoaded:windowCount>0,explanadaCoords:[38.34318,-0.48326],windows:windowCount,palms:palmCount,skins:avatar.children.length,clips:data.animations.map(a=>a.name)};
   display('Alicante 3D con 614 edificios reales OSM, detalles arquitectónicos artísticos, palmeras CC0 y avatar privado v11. Fotorrealismo aún sin alcanzar.');
- }catch(err){display('No se ha podido cargar el avatar GLB: '+(err?.message||err),true);showLoad('Modelo femenino 3D ausente. Debe existir assets/maya.glb');return;}
+ }catch(err){
+  // PUBLIC, NON-PERSONAL city navigation remains possible without private maya.glb.
+  // No invented avatar and no personal mesh is ever pulled into a public artifact.
+  enterPublicCity();
+  return;
+ }
 }
 function animateState(key){
  const next=animations[key]||animations.walk||animations.idle;
@@ -254,7 +276,7 @@ function frame(){
  const forward=Number(keys.has('KeyW')||keys.has('ArrowUp'))-Number(keys.has('KeyS')||keys.has('ArrowDown'));
  const strafe=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft'));
  const total=Math.hypot(forward,strafe);
- moving=total>0.01 && !!avatar;
+ moving=total>0.01 && canNavigate(city);
  const fast=keys.has('ShiftLeft')||keys.has('ShiftRight');
  if(moving){
   const speed=(fast?6.6:2.6)*dt/total;
@@ -263,7 +285,7 @@ function frame(){
   player.position.x=Math.max(-318,Math.min(402,player.position.x+dx*speed));
   player.position.z=Math.max(-411,Math.min(304,player.position.z+dz*speed));
   actorHeading=Math.atan2(Math.sin(yaw)*Math.sign(forward),Math.cos(yaw)*Math.sign(forward));
-  if(Math.abs(forward)>.05){const headingDelta=Math.atan2(Math.sin(actorHeading-avatar.rotation.y),Math.cos(actorHeading-avatar.rotation.y));
+  if(avatar&&Math.abs(forward)>.05){const headingDelta=Math.atan2(Math.sin(actorHeading-avatar.rotation.y),Math.cos(actorHeading-avatar.rotation.y));
     avatar.rotation.y+=headingDelta*Math.min(1,dt*7);}
   // Lateral input remains strafe rather than forcing a 90-degree turn.
  }
@@ -306,9 +328,9 @@ view.addEventListener('pointermove',e=>{if(!dragging)return;
  const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;
  yaw+=dx*.006;pitch=Math.max(-.08,Math.min(.92,pitch+dy*.004));});
 view.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(1.85,Math.min(28,zoom+Math.sign(e.deltaY)*.65));},{passive:false});
-const cycleCamera=()=>{mode=mode==='back'?'face':mode==='face'?'first':'back';$('cameraMode').textContent=mode==='back'?'Tercera persona':mode==='face'?'Inspección facial':'Primera persona';};
+const cycleCamera=()=>{mode=nextCameraMode(mode,!!avatar);$('cameraMode').textContent=mode==='back'?'Tercera persona':mode==='face'?'Inspección facial':'Primera persona · ciudad pública';};
 $('cam').onclick=cycleCamera;
-$('reset').onclick=()=>{player.position.set(-10.664,0,113.546);yaw=-.65;mode='back';};
+$('reset').onclick=()=>{player.position.set(-10.664,0,113.546);yaw=-.65;mode=avatar?'back':'first';};
 $('fidelity').onclick=()=>{let hi=renderer.getPixelRatio()<1.7;renderer.setPixelRatio(hi?Math.min(devicePixelRatio,2):1);sun.shadow.mapSize.set(hi?2048:1024,hi?2048:1024);sun.shadow.map?.dispose();sun.shadow.map=null;};
 frame();
 loadWorld();

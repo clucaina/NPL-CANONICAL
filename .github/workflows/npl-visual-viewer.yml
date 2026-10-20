@@ -19,6 +19,9 @@ jobs:
       - name: Install pinned open-source graphics runtime
         working-directory: demos/npl-world/visual_viewer
         run: npm install --no-audit --no-fund
+      - name: Run isolated camera/privacy fallback regression tests
+        working-directory: demos/npl-world/visual_viewer
+        run: node --test tests/*.test.mjs
       - name: Build single bundled WebGL script
         working-directory: demos/npl-world/visual_viewer
         run: npm run build
