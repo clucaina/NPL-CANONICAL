@@ -96,7 +96,7 @@ jobs:
           assert state['nearSourceWallQA']['source']=='OSM_REAL_BUILDING_WALLS_PUBLIC_GEOMETRY'
           assert state['foliageGPU']['canopyGroups']==3
           assert all((p/n).stat().st_size>1000 for n in
-            ['QA_FACADE_CLOSEUP_ORIGINAL.png','QA_FACADE_CLOSEUP_PBR.png',
+            ['QA_FACADE_CLOSEUP_RAW_GLB.png','QA_FACADE_CLOSEUP_ORIGINAL.png','QA_FACADE_CLOSEUP_PBR.png',
              'QA_FACADE_ORIGINAL_SAME_CAMERA.png','QA_FACADE_PBR_SAME_CAMERA.png'])
           mobile=json.loads((p/'QA_BROWSER_MOBILE.json').read_text())
           assert mobile['status']=='PASS'
@@ -110,6 +110,7 @@ jobs:
           path: |
             demos/npl-world/visual_viewer/dist/QA_BROWSER.json
             demos/npl-world/visual_viewer/dist/QA_BROWSER_MOBILE.json
+            demos/npl-world/visual_viewer/dist/QA_FACADE_CLOSEUP_RAW_GLB.png
             demos/npl-world/visual_viewer/dist/QA_FACADE_CLOSEUP_ORIGINAL.png
             demos/npl-world/visual_viewer/dist/QA_FACADE_CLOSEUP_PBR.png
             demos/npl-world/visual_viewer/dist/QA_FACADE_ORIGINAL_SAME_CAMERA.png
