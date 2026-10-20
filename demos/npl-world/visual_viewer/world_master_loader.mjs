@@ -76,21 +76,33 @@ export class RecoveredMasterTiles {
    const state={id,group,signal,ready:false,loaded:0,errors:0,roles:new Set()};
    this.states.set(id,state);this.root.add(group);
    const layers=plannedLayers(tile,this.profile);
-   state.promise=(async()=>{
-     // Batch assets, max 3 parallel network decodes. Geometry is never edited.
-     for(let n=0;n<layers.length&&!signal.cancelled;n+=3){
-       const segment=layers.slice(n,n+3);
+   const core=layers.filter(a=>['terrain','geo','architecture','mosaic','urban'].includes(a.role));
+   const details=layers.filter(a=>!core.includes(a));
+   const batch=async(list)=>{
+     for(let n=0;n<list.length&&!signal.cancelled;n+=3){
+       const segment=list.slice(n,n+3);
        const loaded=await Promise.all(segment.map(asset=>this._loadAsset(asset,id,signal)
            .catch(e=>{state.errors++;this.errors.push({tile:id,role:asset.role,
                   reason:String(e?.message||e).slice(0,160)});return null;})));
        loaded.forEach((node,i)=>{
          if(!node||signal.cancelled)return;
-         node.visible=segment[i].role!=='lod';group.add(node);state.loaded++;state.roles.add(segment[i].role);
+         node.visible=segment[i].role!=='lod';group.add(node);
+         state.loaded++;state.roles.add(segment[i].role);
        });
      }
+   };
+   state.promise=(async()=>{
+     // Geometry first: the starter region can become navigable before the large
+     // original V50 mosaic, decoration and 24 optional architectural frontages.
+     await batch(core);
      state.ready=!signal.cancelled && state.roles.has('terrain') &&
        (state.roles.has('architecture')||state.roles.has('mosaic')||state.roles.has('urban'));
-     // Never hide the verified fallback city after a partial/failed master load.
+     // No fake success if only a few assets load. Original OSM remains fallback.
+     if(state.ready){
+       state.detailsPromise=batch(details).catch(e=>{
+         state.errors++;this.errors.push({tile:id,role:'details',reason:String(e).slice(0,160)});
+       });
+     }
      return state.ready;
    })();
    return state.promise;
