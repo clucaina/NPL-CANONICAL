@@ -90,7 +90,11 @@ def append_building(pts,h):
     roof_triangles=tessellate_polygon([polygon])
     if len(roof_triangles)<1:raise RuntimeError("Building roof cannot be tessellated")
     for tri in roof_triangles:
-        q=len(roofvs);roofvs.extend([(v.x,v.y,v.z) for v in tri])
+        # Blender 4.0 returns vertex indices; previous Blender APIs also
+        # documented Vector triangles. Handle either without silent wrong roofs.
+        vertices=[polygon[v] if isinstance(v,int) else v for v in tri]
+        if len(vertices)!=3:raise RuntimeError("Non-triangular tessellation")
+        q=len(roofvs);roofvs.extend([(v.x,v.y,v.z) for v in vertices])
         rooff.append((q,q+1,q+2))
 def height(tags):
     try:
