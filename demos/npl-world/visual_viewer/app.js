@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { nextCameraMode, canNavigate } from './navigation_policy.mjs';
 import {normalizedStick,combineMovement} from './mobile_navigation.mjs';
 import {buildUrbanKit} from './urban_kit.mjs';
+import {RecoveredMasterTiles} from './world_master_loader.mjs';
 import {buildHedgeLayer} from './hedge_layer.mjs';
 import {createSurfaceTexture,enhanceMappedOSMRoads} from './road_surfaces.mjs';
 import {inspectDataset,compareObservation,missionStart,missionStep,cognitivePulse,STAGES} from './neuro_mission.mjs';
@@ -193,6 +194,7 @@ scene.add(decorGroup);
 const player=new THREE.Group();scene.add(player);
 player.position.set(-10.664,0,113.546);
 let avatar=null, city=null,mixer=null,animations={},current=null;
+let recoveredMaster=null,masterNextUpdate=0,masterBusy=false;
 const keys=new Set();
 const touchStick={forward:0,strafe:0};
 let yaw=-.65,pitch=.14,zoom=2.95,mode='back',actorHeading=0,moving=false;
@@ -290,6 +292,28 @@ const hedgeLayer=publicPreview?buildHedgeLayer(visualTier):null;
 let roadStatus=null;
 if(urbanKit){decorGroup.add(urbanKit.group);palmCount=urbanKit.stats.palmCount;}
 if(hedgeLayer)decorGroup.add(hedgeLayer.group);
+
+// Loading older Drive GEO is strictly LOCAL and opt-in; public artifacts NEVER
+// fetch/copy privately-held geometry or replace native game actors/controllers.
+function startRecoveredMasterIfRequested(){
+ if(!publicPreview || new URLSearchParams(location.search).get('worldmaster')!=='1')return;
+ recoveredMaster=new RecoveredMasterTiles({
+   scene,loader:new GLTFLoader(),profile:visualTier,
+   onVisibility:(active)=>{
+     if(city)city.visible=!active;
+     decorGroup.visible=!active;
+   }
+ });
+ recoveredMaster.initialize().then(()=>recoveredMaster.update(player.position)).then(()=>{
+   window.NPL_RECOVERED_GEO=recoveredMaster.status();
+   if(recoveredMaster.status().active)
+      display('Mundo maestro Drive recuperado: mosaico V50, fachada y vegetación original por teselas. Alturas y licencias pendientes de aprobación pública.');
+ }).catch(err=>{
+   window.NPL_RECOVERED_GEO={installed:false,error:String(err?.message||err).slice(0,160)};
+   if(city)city.visible=true;decorGroup.visible=true;
+   display('Mundo Drive opcional no instalado o no validado. Continúa Alicante OSM: '+String(err?.message||err).slice(0,110));
+ });
+}
 function enterPublicCity(){
  $('face').disabled=true;
  $('face').title='Solo disponible cuando exista un avatar privado local';
@@ -325,7 +349,7 @@ async function loadWorld(){
   city.traverse(n=>{if(n.isMesh){n.receiveShadow=true;n.castShadow=true;if(n.material?.name?.includes('NO_photo')) n.material.roughness=.9;}});
   showLoad('Alicante 3D cargada: edificios reales y calle a nivel humano. Cargando cuerpo humano animado…');
  }catch(err){display('No se ha podido cargar la ciudad GLB: '+(err?.message||err),true);showLoad('ERROR: falta assets/alicante.glb');return;}
- if(publicPreview){enterPublicCity();return;}
+ if(publicPreview){enterPublicCity();startRecoveredMasterIfRequested();return;}
  try{
   const data=await model('./assets/maya.glb');
   avatar=data.scene;
@@ -377,6 +401,12 @@ const clock=new THREE.Clock();
 function frame(){
  requestAnimationFrame(frame);
  const dt=Math.min(clock.getDelta(),.045);
+ if(recoveredMaster?.manifest && !masterBusy && clock.elapsedTime>=masterNextUpdate){
+   masterNextUpdate=clock.elapsedTime+1.2;masterBusy=true;
+   recoveredMaster.update(player.position).then(()=>{
+      window.NPL_RECOVERED_GEO=recoveredMaster.status();
+   }).catch(()=>{}).finally(()=>{masterBusy=false;});
+ }
  const input=combineMovement(
   Number(keys.has('KeyW')||keys.has('ArrowUp'))-Number(keys.has('KeyS')||keys.has('ArrowDown')),
   Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft')),

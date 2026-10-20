@@ -1,0 +1,42 @@
+{
+  "city": "alicante",
+  "crs": 25830,
+  "bbox_projected_m": [
+    719000,
+    4247000,
+    720000,
+    4248000
+  ],
+  "sources": {
+    "osm": {
+      "verified": false,
+      "license_approved": false,
+      "sha256": null
+    },
+    "orthophoto": {
+      "verified": false,
+      "license_approved": false,
+      "sha256": null
+    },
+    "lidar": {
+      "verified": false,
+      "license_approved": false,
+      "sha256": null
+    },
+    "street_photos": {
+      "verified": false,
+      "license_approved": false,
+      "sha256": null
+    },
+    "interiors": {
+      "verified": false,
+      "license_approved": false,
+      "sha256": null
+    },
+    "verified_shop_names": {
+      "verified": false,
+      "license_approved": false,
+      "sha256": null
+    }
+  }
+}
