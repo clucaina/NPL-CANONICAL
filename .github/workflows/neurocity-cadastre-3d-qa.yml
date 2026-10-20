@@ -54,6 +54,19 @@ jobs:
         run: |
           python3 tools/neurocity/catastro_live_probe.py
           python3 -m json.tool /tmp/neurocity-cadastre-public-evidence/OFFICIAL_WFS_ACCESS_PROBE.json > /dev/null
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          q=json.loads(Path('/tmp/neurocity-cadastre-public-evidence/OFFICIAL_WFS_ACCESS_PROBE.json').read_text())
+          if q['real_geometries_verified']:
+              assert q['probe_status']=='OFFICIAL_GML_PARSED',q
+              assert q['actual_city_models_generated']==1,q
+              assert q['real_official_buildings_replaced_in_temporary_3d']==q['matched_osm_count'],q
+              assert q['real_official_building_parts_rendered']==q['matched_bu_part_count'],q
+              print('PASS: real public Catastro/OSM 3D export, temporary only, no original GML published')
+          else:
+              print('BLOCKED: real Catastro source unverified; only synthetic Blender export certified')
+          PY
       - name: Persist public-safe facts only, never raw cadastral or original GLB files
         if: always()
         run: |
