@@ -238,6 +238,7 @@ scene.add(decorGroup);
 const player=new THREE.Group();scene.add(player);
 player.position.set(-10.664,0,113.546);
 let avatar=null, city=null,mixer=null,animations={},current=null;
+let publicSourceWalls=[];
 let nearFacadeQA=null;
 if(publicPreview){
   window.NEUROCITY_FACADE_INSPECT={
@@ -511,6 +512,17 @@ async function loadWorld(){
  try{
   const data=await model('./assets/alicante.glb');
   city=data.scene;scene.add(city);
+  // Keep references only to the PUBLIC GLB wall materials before any visual
+  // decoration; a diagnostic can render raw geometry to isolate shader failures.
+  if(publicPreview){
+    publicSourceWalls=[];
+    city.traverse(mesh=>{
+      if(mesh.isMesh&&(mesh.name==='OSM_Real_Building_Walls_UNTEXTURED'||
+          mesh.name.startsWith('OSM_Real_Building_Walls_UNTEXTURED.'))){
+        publicSourceWalls.push({mesh,rawMaterial:mesh.material});
+      }
+    });
+  }
   // Inspect the actual loaded Three.js mesh topology, not only declarations
   // from a Blender export manifest. No human / avatar GLBs are inspected.
   if(publicPreview || ownerWorldRequested){
@@ -562,6 +574,28 @@ async function loadWorld(){
   const decorativeWindowsOptIn=publicPreview&&
     new URLSearchParams(location.search).get('windowStudy')==='illustrative';
   if(decorativeWindowsOptIn)addFacadeDetail(city,170);
+  if(publicPreview){
+    let showingRaw=false;
+    window.NEUROCITY_SOURCE_WALL_QA={
+      source:'PUBLIC_OSM_GLB_ORIGINAL_MATERIAL',
+      originalWallMeshes:publicSourceWalls.length,
+      setRaw(value){
+        if(typeof value!=='boolean')throw TypeError('Raw wall comparison must be boolean');
+        for(const wall of publicSourceWalls){
+          if(value&&!showingRaw){
+            wall.decoratedMaterial=wall.mesh.material;
+            wall.mesh.material=wall.rawMaterial;
+          }else if(!value&&showingRaw){
+            wall.mesh.material=wall.decoratedMaterial;
+          }
+        }
+        showingRaw=value;
+        return {raw:showingRaw,meshCount:publicSourceWalls.length,
+          sourceGeometryUnchanged:true,ownerArchiveIgnored:true};
+      },
+      status(){return {raw:showingRaw,sourceMeshes:publicSourceWalls.length};}
+    };
+  }
   if(publicPreview)window.NEUROCITY_WINDOW_ORIGIN_QA={
     defaultIllustrativeWindowsDisabled:!decorativeWindowsOptIn,
     artificialWindowsDrawn:windowCount,
