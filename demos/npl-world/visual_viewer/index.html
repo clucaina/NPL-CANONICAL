@@ -96,6 +96,20 @@ button:hover{background:#2e6474}button:disabled{opacity:.45;cursor:not-allowed}
  .npl-canonical-header p{display:none}
  #nplCanonicalDialog #neurohud{max-height:22vh}
  #nplCanonicalClose{font-size:11px;padding:7px}}
+
+/* A single compact mobile tool row leaves the Alicante 3D viewport unobstructed.
+   The previous 5-button wrapping bar hid the NeuroCity title on 390px phones. */
+@media(max-width:680px){
+ #panelControls{position:absolute;top:8px;left:8px;right:8px;display:grid;
+   grid-template-columns:repeat(5,minmax(0,1fr));max-width:none;width:auto;
+   gap:5px;padding:7px 8px;flex-wrap:initial}
+ #panelControls button{font-size:11px;line-height:1.2;min-width:0;
+   height:42px;padding:5px 2px;white-space:nowrap}
+ header.panel{top:76px;left:8px;width:calc(100% - 16px);max-width:calc(100% - 16px);
+   padding:9px 12px}
+ header.panel strong{font-size:18px}
+ header.panel p{font-size:12px;margin:3px 0 0}
+}
 </style></head><body>
 <canvas id="game"></canvas>
 <header class="panel"><strong>N✦ NPL WORLD</strong><p>Explanada de Alicante · Edificios OSM y escena 3D con vestuario y paisaje mediterráneo.<br><small>Ciudad y semejanza facial aún no fotogramétricas.</small></p></header>
@@ -117,6 +131,14 @@ button:hover{background:#2e6474}button:disabled{opacity:.45;cursor:not-allowed}
 <div id="loading"><h2>Cargando recursos locales 3D</h2><p id="progress">Preparando motor gráfico…</p><p>No se descargan personas ni edificios al abrir. Los modelos ya están en el paquete.</p></div>
 <div id="stat" class="panel">0,0 m</div><div id="info" class="panel"><span id="messageText">W/S avanzar y retroceder · A/D lateral · Mayús correr · ratón cámara</span> · <span id="cameraMode">Tercera persona</span></div>
 <script>
+// Compact labels keep all five tools on one phone row without hiding the title.
+if(window.matchMedia?.('(max-width:680px)')?.matches){
+ const compact={cam:'◉ Cámara',face:'◎ Rostro',nplCanonicalOpen:'◎ Atlas',reset:'↻ Centro'};
+ for(const [id,label] of Object.entries(compact)){
+   const button=document.getElementById(id);
+   if(button){button.setAttribute('aria-label',button.textContent.trim());button.textContent=label;}
+ }
+}
 // Navigation remains usable on phones: a learning panel must not cover the 3D city by default.
 // NPL is an optional immersive atlas, not a fixed panel covering Alicante.
 document.querySelector('#neurohud').open=false;
