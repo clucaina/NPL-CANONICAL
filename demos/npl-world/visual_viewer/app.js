@@ -406,6 +406,7 @@ function startRecoveredMasterIfRequested(){
    },
    onCoverage:(tileIds)=>{osmCover?.update(showingArchivedMaster?tileIds:[]);}
  });
+ recoveredMaster.setLoadPressure(qualityGovernor.snapshot().tier);
  recoveredMaster.initialize().then(()=>recoveredMaster.update(player.position)).then(()=>{
    makeSourceComparisonControl();
    // SOURCE G13–G16 physics is local-only, hashed and independent of archived 3D.
@@ -545,7 +546,10 @@ function frame(){
  const dt=Math.min(rawDt,.045);
  if(qualityGovernor.sample(rawDt*1000,clock.elapsedTime,{
    visible:document.hidden!==true&&!webglLost
- }))applyRenderBudget();
+ })){
+   applyRenderBudget();
+   recoveredMaster?.setLoadPressure(qualityGovernor.snapshot().tier);
+ }
  // Never infer low FPS from background throttling or lost WebGL context.
  if(document.hidden||webglLost)return;
  const beforeX=player.position.x,beforeZ=player.position.z,beforeYaw=lastBehaviorYaw;
@@ -712,6 +716,7 @@ $('fidelity').onclick=()=>{
  const mode=qualityGovernor.snapshot().mode;
  qualityGovernor.setMode(mode==='auto'?'detail':mode==='detail'?'economy':'auto');
  applyRenderBudget(true);
+ recoveredMaster?.setLoadPressure(qualityGovernor.snapshot().tier);
 };
 frame();
 loadWorld();
