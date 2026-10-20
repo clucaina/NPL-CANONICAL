@@ -70,7 +70,7 @@ def fetch_public_repo(repo,opener=urlopen):
         obj=json.loads(result.stdout)
     else:
         with opener(req,timeout=18) as res:
-            obj=json.loads(res.read(130000))
+            obj=json.loads(res.read(1000000))
     data=obj.get("workflow_runs",[])
     if not isinstance(data,list):raise ValueError("GitHub runs are malformed")
     runs=[]
