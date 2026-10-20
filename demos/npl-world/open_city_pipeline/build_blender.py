@@ -118,6 +118,86 @@ for k in roadverts:
     add("OSM_REAL_"+k+"_ways_not_surveyed_width",roadverts[k],roadfaces[k],roadmat[k])
 print("Road OSM segments",roadcounts,flush=True)
 
+# Physical positions sourced from mapped OSM tags. Dimensions and foliage
+# remain illustrative: not surveyed, no ships invented, no fake marinas.
+extra_counts={"pier_segments":0,"barrier_segments":0,"mapped_tree_nodes":0,
+              "water_polygons":0,"scrub_polygons":0}
+pierverts=[];pierfaces=[];fenceverts=[];fencefaces=[];waterverts=[];waterfaces=[]
+scrubverts=[];scrubfaces=[];barkverts=[];barkfaces=[];leafverts=[];leaffaces=[]
+piermat=material("OSM_mapped_piers_width_estimated",(.52,.49,.46))
+fencemat=material("OSM_mapped_fences_height_estimated",(.29,.31,.31))
+watermat=material("OSM_mapped_water_polygons_only",(.13,.31,.4))
+leafmat=material("OSM_tree_positions_with_illustrative_foliage",(.23,.39,.24))
+barkmat=material("OSM_tree_positions_with_illustrative_trunks",(.39,.27,.17))
+scrubmat=material("OSM_mapped_scrub_polygons_only",(.31,.45,.29))
+def strip_geom(targetv,targetf,a,b,width,z0,z1):
+    dx,dy=b[0]-a[0],b[1]-a[1]
+    L=math.hypot(dx,dy)
+    if L<.5:return False
+    nx,ny=-dy/L*width*.5,dx/L*width*.5
+    base=len(targetv)
+    for x,y in [(a[0]+nx,a[1]+ny),(a[0]-nx,a[1]-ny),
+                (b[0]-nx,b[1]-ny),(b[0]+nx,b[1]+ny)]:
+        targetv.extend([(x,y,z0),(x,y,z1)])
+    targetf.extend([(base+1,base+3,base+5,base+7),
+                    (base,base+2,base+4,base+6),
+                    (base,base+1,base+3,base+2),
+                    (base+4,base+5,base+7,base+6)])
+    return True
+def flat_mapped_area(verts,faces,pts,height):
+    if len(pts)<4 or pts[0]!=pts[-1]:return False
+    pts=pts[:-1]
+    if len(pts)<3:return False
+    base=len(verts)
+    verts.extend((x,y,height) for x,y in pts)
+    faces.append(tuple(range(base,base+len(pts))))
+    return True
+for way in doc.findall("way"):
+    tags={t.attrib["k"]:t.attrib["v"] for t in way.findall("tag")}
+    refs=[q.attrib["ref"] for q in way.findall("nd")]
+    if not refs or any(ref not in nodes for ref in refs):continue
+    pts=[nodes[ref] for ref in refs]
+    if tags.get("man_made") in ("pier","quay","breakwater"):
+        # Width from OSM when present; otherwise explicit aesthetic estimate.
+        width=surface_width(tags,"service")
+        for a,b in zip(pts,pts[1:]):
+            if strip_geom(pierverts,pierfaces,a,b,width,.07,.30):
+                extra_counts["pier_segments"]+=1
+    if tags.get("barrier") in ("fence","wall","guard_rail","handrail"):
+        for a,b in zip(pts,pts[1:]):
+            if strip_geom(fenceverts,fencefaces,a,b,.09,.03,1.12):
+                extra_counts["barrier_segments"]+=1
+    if tags.get("natural")=="water" or tags.get("water") in ("sea","basin","harbour"):
+        extra_counts["water_polygons"]+=int(flat_mapped_area(waterverts,waterfaces,pts,.045))
+    if tags.get("natural")=="scrub" or tags.get("landuse") in ("grass","forest"):
+        extra_counts["scrub_polygons"]+=int(flat_mapped_area(scrubverts,scrubfaces,pts,.025))
+for n in doc.findall("node"):
+    tags={t.attrib["k"]:t.attrib["v"] for t in n.findall("tag")}
+    if tags.get("natural")!="tree":continue
+    pos=nodes.get(n.attrib.get("id"))
+    if pos is None:continue
+    x,y=pos
+    extra_counts["mapped_tree_nodes"]+=1
+    # Each stem and crown has deterministic, intentionally illustrative size.
+    base=len(barkverts)
+    for a,b in [(-.12,-.12),(.12,-.12),(.12,.12),(-.12,.12)]:
+        barkverts.extend([(x+a,y+b,.1),(x+a,y+b,2.4)])
+    for k in range(4):
+        v=base+k*2;v2=base+((k+1)%4)*2
+        barkfaces.append((v,v2,v2+1,v+1))
+    base=len(leafverts)
+    for a,b in [(-1.15,-1.15),(1.15,-1.15),(1.15,1.15),(-1.15,1.15)]:
+        leafverts.append((x+a,y+b,2.0))
+    leafverts.append((x,y,5.0))
+    leaffaces.extend([(base+i,base+(i+1)%4,base+4) for i in range(4)])
+add("OSM_REAL_pier_segments_width_illustrative",pierverts,pierfaces,piermat)
+add("OSM_REAL_barrier_segments_height_illustrative",fenceverts,fencefaces,fencemat)
+add("OSM_REAL_water_polygon_source_only",waterverts,waterfaces,watermat)
+add("OSM_REAL_scrub_boundary_flat_illustrative",scrubverts,scrubfaces,scrubmat)
+add("OSM_REAL_tree_locations_trunk_illustrative",barkverts,barkfaces,barkmat)
+add("OSM_REAL_tree_locations_canopy_illustrative",leafverts,leaffaces,leafmat)
+print("Coastal and greenery OSM-bound visual layer",extra_counts,flush=True)
+
 if total==0:raise RuntimeError("NO REAL OSM BUILDING FOOTPRINTS RECEIVED; abort")
 bpy.ops.object.light_add(type="SUN",location=(-45,20,180))
 sun=bpy.context.object;sun.data.energy=2.1;sun.rotation_euler=(.55,-.25,-.25)
@@ -128,7 +208,7 @@ camera.data.lens=30;s.camera=camera
 bpy.ops.wm.save_as_mainfile(filepath=str((O/"Alicante_REAL_OSM_PNOA.blend").resolve()))
 bpy.ops.export_scene.gltf(filepath=str((O/"Alicante_REAL_OSM_PNOA.glb").resolve()),export_format="GLB")
 # Visual QA render is a separate optional workflow step, never blocks successful GLB export.
-result={"real_osm_buildings":total,"heights_directly_measured":measured,"omitted":skipped,"road_segments_from_OSM":roadcounts,
+result={"real_osm_buildings":total,"heights_directly_measured":measured,"omitted":skipped,"road_segments_from_OSM":roadcounts,"coastal_and_vegetation_visual_objects":extra_counts,"actual_boat_models":0,
 "pnoa_ground":info["real_orthophoto"],"facades_photogrammetric":False,
 "private_avatar_included":False,"blender_version":list(bpy.app.version)}
 (O/"QA_source_report.json").write_text(json.dumps(result,indent=2))

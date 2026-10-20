@@ -1,0 +1,101 @@
+name: NeuroCity · Integrated public terrain + 3D brain browser QA (NO DEPLOY)
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/neurocity-integrated-browser.yml'
+permissions:
+  contents: read
+jobs:
+  integration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 38
+    env:
+      LIBGL_ALWAYS_SOFTWARE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: geodata_source
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/neurocity-npl-brain-conflicto-mission-20261019
+          path: game_source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install free Blender for georeferenced source model
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq blender python3-numpy python3-pil
+      - name: Download OSM/PNOA and generate real grounded 3D assets
+        working-directory: geodata_source/demos/npl-world/open_city_pipeline
+        run: |
+          python3 download_city.py
+          python3 download_icv_ortho.py
+          python3 download_ortho_tiles.py
+          blender -b --factory-startup -t 2 --python-exit-code 1 -P build_blender.py
+      - name: Verify mesh quality and geographic source
+        run: |
+          python3 geodata_source/tools/factory/city_quality.py \
+            geodata_source/demos/npl-world/open_city_pipeline/input/alicante.osm \
+            geodata_source/demos/npl-world/open_city_pipeline/input/source_manifest.json \
+            geodata_source/demos/npl-world/open_city_pipeline/output/QA_source_report.json \
+            geodata_source/demos/npl-world/open_city_pipeline/output/Alicante_REAL_OSM_PNOA.glb \
+            geodata_source/demos/npl-world/open_city_pipeline/output/QA_independent_provenance.json
+          python3 geodata_source/tools/factory/coast_inventory.py \
+            --osm geodata_source/demos/npl-world/open_city_pipeline/input/alicante.osm \
+            --manifest geodata_source/demos/npl-world/open_city_pipeline/input/source_manifest.json \
+            --output /tmp/QA_COASTAL_SOURCE.json
+      - name: Compile real educational 3D-brain experience with game-source tests
+        working-directory: game_source/demos/npl-world/visual_viewer
+        run: |
+          npm install --no-audit --no-fund
+          node --test tests/*.test.mjs
+          npm run build
+      - name: Package independent public sources without any avatar
+        run: |
+          set -euo pipefail
+          viewer=game_source/demos/npl-world/visual_viewer
+          city=geodata_source/demos/npl-world/open_city_pipeline
+          mkdir -p "$viewer/dist/assets"
+          cp "$city/output/Alicante_REAL_OSM_PNOA.glb" "$viewer/dist/assets/alicante.glb"
+          cp "$viewer/public_context/ine_eaes2024_3_territories.json" "$viewer/dist/assets/conflictometro_public_verified.json"
+          cp "$viewer/index.html" "$viewer/dist/index.html"
+          cp "$viewer/observatory.html" "$viewer/observatory.css" "$viewer/observatory.mjs" "$viewer/public_layers.mjs" "$viewer/dist/"
+          cp "$city/output/QA_independent_provenance.json" "$viewer/dist/QA_SOURCE.json"
+          cp "$city/output/QA_source_report.json" "$viewer/dist/QA_URBAN_SOURCE.json"
+          cp /tmp/QA_COASTAL_SOURCE.json "$viewer/dist/QA_COASTAL_SOURCE.json"
+          python3 - <<'PY'
+          from pathlib import Path
+          index=Path('game_source/demos/npl-world/visual_viewer/dist/index.html')
+          content=index.read_text(encoding='utf-8')
+          token='<script src="./game.js"></script>'
+          assert token in content
+          index.write_text(content.replace(token,'<script>window.NPL_PUBLIC_REVIEW=true;</script>'+token),encoding='utf-8')
+          import json
+          report=json.loads(Path('game_source/demos/npl-world/visual_viewer/dist/QA_URBAN_SOURCE.json').read_text())
+          features=report['coastal_and_vegetation_visual_objects']
+          assert features['mapped_tree_nodes']>0 and features['pier_segments']>0 and features['barrier_segments']>0
+          assert features['water_polygons']>=1
+          assert not Path('game_source/demos/npl-world/visual_viewer/dist/assets/maya.glb').exists()
+          PY
+      - name: Install ephemeral browser QA
+        working-directory: game_source/demos/npl-world/visual_viewer
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.56.0
+          npx playwright install chromium
+      - name: Test integrated GLB plus educational brain in real Chromium
+        run: |
+          python3 -m http.server 8766 --bind 127.0.0.1 --directory game_source/demos/npl-world/visual_viewer/dist >/tmp/neurocity-integrated-server.log 2>&1 &
+          cd game_source
+          node demos/npl-world/visual_viewer/tests/browser_public_review.mjs
+          node demos/npl-world/visual_viewer/tests/browser_mobile_review.mjs
+        # Both tests write screenshot paths relative to repository checkout root.
+      - name: Preserve public playable city+brain with provenance
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEUROCITY_ALICANTE_COAST_GROUNDED_WITH_BRAIN_PUBLIC_ONLY
+          path: game_source/demos/npl-world/visual_viewer/dist/
+          retention-days: 5
+          if-no-files-found: warn
