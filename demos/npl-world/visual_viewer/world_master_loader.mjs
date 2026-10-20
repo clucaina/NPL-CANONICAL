@@ -11,7 +11,7 @@ import {instantiateMasterPalms} from './asset_instancing.mjs';
  */
 export class RecoveredMasterTiles {
  constructor({scene,loader,profile='desktop',base='./world-master',onVisibility=()=>{}}){
-   if(!scene?.add||!loader?.loadAsync)throw new TypeError('Need existing Three.js scene and GLTFLoader');
+   if(!scene?.add||!loader?.parseAsync)throw new TypeError('Need existing Three.js scene and GLTFLoader.parseAsync');
    if(!['desktop','mobile'].includes(profile)||base!=='./world-master')
      throw new Error('Invalid local-only tilepack configuration');
    this.scene=scene;this.loader=loader;this.profile=profile;this.base=base;
@@ -63,7 +63,21 @@ export class RecoveredMasterTiles {
    const source=this.base+'/'+asset.path;
    const parsed=new URL(source,document.baseURI);
    if(parsed.origin!==location.origin)throw Error('Cross-origin asset requests prohibited');
-   const model=await this.loader.loadAsync(parsed.href);
+   // The prior viewer trusted manifest digests but never compared the actual
+   // fetched bytes. Do so BEFORE decoding or displaying any private/local GLB.
+   if(!globalThis.crypto?.subtle?.digest)throw Error('SHA-256 unavailable in insecure browser context');
+   const response=await fetch(parsed.href,{credentials:'omit',cache:'force-cache'});
+   if(!response.ok)throw Error('Tile bytes missing: HTTP '+response.status);
+   const cap=Math.min(90_000_000,asset.bytes);
+   const stated=Number(response.headers?.get?.('content-length'));
+   if(Number.isFinite(stated)&&stated>0&&stated!==asset.bytes)throw Error('GLB HTTP length mismatch');
+   const bytes=await response.arrayBuffer();
+   if(this.disposed||signal.cancelled)return null;
+   if(bytes.byteLength!==asset.bytes||bytes.byteLength>cap)throw Error('Original GLB byte-length mismatch');
+   const hash=new Uint8Array(await crypto.subtle.digest('SHA-256',bytes));
+   const hex=Array.from(hash,b=>b.toString(16).padStart(2,'0')).join('');
+   if(hex!==asset.sha256)throw Error('Original GLB SHA256 mismatch');
+   const model=await this.loader.parseAsync(bytes,new URL('.',parsed.href).href);
    if(this.disposed||signal.cancelled)return null;
    return this._tileAssetGroup(model,asset,tileId);
  }
