@@ -86,7 +86,14 @@ jobs:
             if ! git -C city-integrated fetch --no-tags origin \
                  "$ref:refs/remotes/origin/ci-$label" > "reports/fetch-$label.log" 2>&1; then
               printf 'BLOCKED: remote branch unavailable. See fetch log.\n\n' >> reports/REPORT.md
+              printf 'NEUROCITY_REMOTE_UNAVAILABLE label=%s ref=%s\\n' "$label" "$ref"
               blocked=1
+              continue
+            fi
+            # A commit already in the trial tree must not be merged twice.
+            if git -C city-integrated merge-base --is-ancestor \
+              "refs/remotes/origin/ci-$label" HEAD; then
+              printf 'ALREADY INCLUDED: %s is an ancestor.\\n\\n' "$ref" >> reports/REPORT.md
               continue
             fi
             # A peer capability already present byte-for-byte in the current
@@ -120,6 +127,8 @@ jobs:
               printf 'BLOCKED: actual source merge conflicts (not silently resolved):\n\n' >> reports/REPORT.md
               git -C city-integrated diff --name-only --diff-filter=U > "reports/conflicts-$label.txt"
               sed 's/^/- /' "reports/conflicts-$label.txt" >> reports/REPORT.md
+              printf 'NEUROCITY_CONFLICT label=%s ref=%s\\n' "$label" "$ref"
+              sed 's/^/  CONFLICT_PATH: /' "reports/conflicts-$label.txt"
               printf '\n' >> reports/REPORT.md
               git -C city-integrated merge --abort || true
               blocked=1
