@@ -1,24 +1,80 @@
 <!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>NPL WORLD v0.12 · Alicante 3D + avatar humano</title>
 <style>*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#11232d;color:#edf4f7;font:14px system-ui,Segoe UI,sans-serif}
-#game{width:100%;height:100%;display:block;cursor:grab}#game:active{cursor:grabbing}
+#game{width:100%;height:100%;display:block;cursor:grab;touch-action:none}#game:active{cursor:grabbing}
 .panel{position:absolute;background:#0b1b28dc;border:1px solid #b5dbea41;border-radius:14px;backdrop-filter:blur(12px);padding:13px 15px;box-shadow:0 8px 20px #0003}
 header{top:15px;left:15px;max-width:410px}header strong{font-size:22px;letter-spacing:2px}header p{color:#bcd2dd;line-height:1.45;margin:6px 0 0}header small{color:#ffdb9e}
 #loading{position:absolute;left:50%;top:49%;transform:translate(-50%,-50%);min-width:310px;max-width:90vw;text-align:center;background:#06151af3;border-radius:14px;padding:24px 30px;box-shadow:0 20px 50px #0008}
 #loading h2{margin:4px 0;font-size:18px}#loading p{font-size:13px;color:#a6ccdb}
 #panelControls{right:12px;top:14px;display:flex;gap:8px;align-items:center}
 button{border:1px solid #688a97;background:#173747;color:#f4f5f4;border-radius:10px;padding:9px 12px;cursor:pointer}
-button:hover{background:#2e6474}
+button:hover{background:#2e6474}button:disabled{opacity:.45;cursor:not-allowed}
 #info{bottom:15px;left:50%;transform:translateX(-50%);max-width:85vw;text-align:center;font-size:12px}
 #info.error{border-color:#df7f77;color:#ffd0c5}
 #stat{left:15px;bottom:15px}#cameraMode{color:#ffd790}
-@media(max-width:680px){header{width:calc(100% - 30px);top:66px}#panelControls{left:12px;right:auto;top:9px}#info{bottom:70px;min-width:80%}}
+#brainWidget{position:absolute;right:12px;top:80px;width:300px;height:239px;z-index:5;
+  border:1px solid #bb8b9d;background:radial-gradient(ellipse at 60% 40%,#704b65ea,#25182aeb 68%);
+  box-shadow:0 16px 44px #0009;backdrop-filter:blur(12px);border-radius:17px;overflow:hidden;
+  display:flex;flex-direction:column;padding:8px}
+#brainCanvas{display:block;width:100%;height:174px;touch-action:none;cursor:grab}
+#brainCanvas:active{cursor:grabbing}
+#brainFocus{font-size:11px;color:#f5dcd2;min-height:19px;text-align:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#brainWidget label{font-size:10px;color:#dfc0c6;display:flex;align-items:center;gap:8px}
+#brainTimeScrub{width:130px;accent-color:#f0abae;height:16px}
+#brainWidget h2{position:absolute;top:6px;left:10px;font-size:11px;font-weight:600;letter-spacing:.09em;margin:0;color:#fff0e7}
+#neurohud{position:absolute;right:12px;top:330px;width:min(325px,calc(100vw - 24px));z-index:4;
+ background:#221922e8;border:1px solid #d7a4a17a;color:#f8ebe2;border-radius:16px;
+ box-shadow:0 16px 36px #0008;backdrop-filter:blur(16px);max-height:calc(100vh - 110px);overflow:auto}
+#neurohud summary{cursor:pointer;padding:13px 15px;display:flex;justify-content:space-between;align-items:center;
+ font-weight:700;letter-spacing:.04em;color:#ffe8df;list-style:none}
+#neurohud summary::-webkit-details-marker{display:none}
+#neurohud summary em{font-style:normal;font-weight:500;font-size:11px;color:#f0c0b1}
+#neurohud section{padding:0 15px 15px}
+#neurohud h3{font-size:12px;letter-spacing:.14em;color:#e9b1ad;margin:12px 0 6px}
+#neurohud p,#neurohud li{font-size:12px;line-height:1.46;margin:6px 0}
+#neurohud ol{padding-left:17px;margin:6px 0}
+#neurohud .npl-step{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #ffffff18;padding:7px 0}
+#neurohud .npl-step span{color:#dcbcc7;font-size:12px}
+#neurohud .npl-step b{font-size:11px;font-weight:600;text-align:right}
+#neurohud button{font-size:12px;width:100%;text-align:left;margin:4px 0;border-color:#af8390;background:#493044}
+#neurohud button:focus-visible{outline:2px solid #ffe1b7;outline-offset:2px}
+#neurohud button:hover{background:#72465a}
+#nplDataState[data-ready="true"]{color:#aee3c8}
+#nplDataState[data-ready="false"]{color:#ffd0a9}
+#nplFeedback{min-height:34px;color:#f9e0c4}
+#nplBrainLabel{font-size:11px;color:#ead0c8}
+#neurohud .npl-note{color:#d4b0c3;font-size:11px}
+
+#walkPad{display:none;touch-action:none;user-select:none;-webkit-user-select:none}
+#walkKnob{width:48px;height:48px;border-radius:50%;background:linear-gradient(140deg,#ebdbc7,#cba88b);border:2px solid #ffefd6;box-shadow:0 4px 18px #0008;pointer-events:none;will-change:transform}
+@media (pointer:coarse){
+ #walkPad{position:absolute;display:grid;place-items:center;bottom:104px;left:20px;width:120px;height:120px;border:2px solid #edcba5a3;border-radius:50%;background:radial-gradient(circle,#6b3441d9,#261923b8);box-shadow:0 10px 36px #0007;z-index:2}
+ #panelControls{flex-wrap:wrap;max-width:calc(100vw - 24px);justify-content:flex-start}
+ #panelControls button{padding:7px 9px;font-size:12px}
+ #stat{bottom:238px;left:20px}#brainWidget{top:80px;right:10px;width:min(260px,56vw);height:210px}#brainCanvas{height:142px}#neurohud{top:298px;right:10px;width:min(260px,56vw);max-height:calc(100vh - 306px)}
+}
+
+@media(max-width:680px){#brainWidget{top:80px;width:min(220px,58vw)}#neurohud{top:300px;right:10px;width:min(220px,58vw);max-height:calc(100vh - 310px)}header{width:max-content;max-width:39vw;top:118px}header p{display:none}header strong{font-size:14px}#panelControls{left:12px;right:auto;top:9px}#info{bottom:9px;right:10px;left:auto;transform:none;min-width:0;max-width:calc(100% - 20px);font-size:11px}
+ @media (pointer:coarse){#info{max-width:calc(100% - 162px);bottom:60px}#stat{bottom:236px;}}
+}
 </style></head><body>
 <canvas id="game"></canvas>
 <header class="panel"><strong>N✦ NPL WORLD</strong><p>Explanada de Alicante · Edificios OSM y escena 3D con vestuario y paisaje mediterráneo.<br><small>Ciudad y semejanza facial aún no fotogramétricas.</small></p></header>
 <div id="panelControls" class="panel"><button id="cam">◉ Cámara (C)</button><button id="face">◎ Ver rostro</button><button id="fidelity">◈ Calidad</button><button id="reset">↻ Centrar</button></div>
+<section id="brainWidget" aria-label="Cerebro 3D educativo del personaje">
+<h2>◉ NPL · CEREBRO 3D / TIEMPO</h2>
+<canvas id="brainCanvas" width="300" height="174" role="img" aria-label="Representación animada 3D interactiva de un cerebro, vinculada a acciones del personaje. No es un registro neurológico."></canvas>
+<div id="brainFocus" aria-live="polite">Gira, toca regiones y observa la actividad del juego.</div>
+<label for="brainTimeScrub">Rebobinar <input type="range" id="brainTimeScrub" min="0" max="12" value="0" step="1" aria-label="Rebobinar actividad del juego, en segundos"/> <span id="brainTimeText">0 s</span></label>
+</section>
+<details id="neurohud" open aria-label="Explicaciones accesibles y misión del cerebro NPL"><summary><span>◉ NPL · Cerebro de tu personaje</span><em id="nplMode">Formación</em></summary><section>
+<div class="npl-note" id="nplBrainLabel">Modelo didáctico, no medición cerebral.</div><div id="nplFlow" aria-live="off"></div>
+<h3>CONFLICTÓMETRO · CONTEXTO</h3><p id="nplDataState" data-ready="false">Buscando observaciones verificadas…</p><p id="nplConflictSummary">Sin atribuciones causales ni diagnósticos colectivos.</p>
+<h3>MISIÓN · INVESTIGAR ANTES DE ACTUAR</h3><p id="nplMissionStage" aria-live="polite">Verificando fuente…</p><div id="nplOptions"></div><p id="nplFeedback" aria-live="polite"></p>
+<p class="npl-note">Modo sin cuentas, sin chat, sin personas identificables. Progreso local de sesión, no registrado.</p></section></details>
+<div id="walkPad" role="group" aria-label="Control táctil de desplazamiento. Desliza para avanzar, retroceder y moverte lateralmente."><div id="walkKnob"></div></div>
 <div id="loading"><h2>Cargando recursos locales 3D</h2><p id="progress">Preparando motor gráfico…</p><p>No se descargan personas ni edificios al abrir. Los modelos ya están en el paquete.</p></div>
-<div id="stat" class="panel">0,0 m</div><div id="info" class="panel">W/S avanzar y retroceder · A/D lateral · Mayús correr · ratón cámara · <span id="cameraMode">Tercera persona</span></div>
+<div id="stat" class="panel">0,0 m</div><div id="info" class="panel"><span id="messageText">W/S avanzar y retroceder · A/D lateral · Mayús correr · ratón cámara</span> · <span id="cameraMode">Tercera persona</span></div>
 <script>
 document.querySelector('#face').onclick=()=>{
  for(let i=0;i<3;i++){

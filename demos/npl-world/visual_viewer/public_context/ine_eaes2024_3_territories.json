@@ -1,0 +1,52 @@
+{
+  "schema": "npl.public_context.v1",
+  "dataset": "EAES2024_DEF",
+  "updated_at": "2026-05-28",
+  "license_verified": true,
+  "provenance_reviewed": true,
+  "license": "CC BY 4.0",
+  "attribution": "Elaboración propia con datos extraídos del sitio web del INE: www.ine.es",
+  "methodology": "Ganancia media anual bruta por persona asalariada, sin ajustar por jornada, ocupación ni antigüedad; diferencias territoriales descriptivas, no causas ni conflictos psicológicos medidos.",
+  "source": "https://www.ine.es/dyngs/Prensa/EAES2024.htm",
+  "source_access_date": "2026-10-19",
+  "population": "personas asalariadas",
+  "observations": [
+    {
+      "indicator_id": "EAES_SALARIO_BRUTO_ANUAL",
+      "geo_code": "ES",
+      "period": "2024",
+      "value": 29540.26,
+      "unit": "EUR/año",
+      "denominator": "personas asalariadas",
+      "source_url": "https://www.ine.es/dyngs/Prensa/EAES2024.htm",
+      "source_id": "INE"
+    },
+    {
+      "indicator_id": "EAES_SALARIO_BRUTO_ANUAL",
+      "geo_code": "ES30",
+      "period": "2024",
+      "value": 34410.01,
+      "unit": "EUR/año",
+      "denominator": "personas asalariadas",
+      "source_url": "https://www.ine.es/dyngs/Prensa/EAES2024.htm",
+      "source_id": "INE"
+    },
+    {
+      "indicator_id": "EAES_SALARIO_BRUTO_ANUAL",
+      "geo_code": "ES21",
+      "period": "2024",
+      "value": 35170.28,
+      "unit": "EUR/año",
+      "denominator": "personas asalariadas",
+      "source_url": "https://www.ine.es/dyngs/Prensa/EAES2024.htm",
+      "source_id": "INE"
+    }
+  ],
+  "never_claim": [
+    "2026 current salary levels",
+    "measured neurological effects",
+    "causal reason for salary differences",
+    "geolocation of specific users",
+    "all regions of Spain included"
+  ]
+}

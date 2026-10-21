@@ -1,12 +1,17 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { nextCameraMode, canNavigate } from './navigation_policy.mjs';
+import {normalizedStick,combineMovement} from './mobile_navigation.mjs';
+import {buildUrbanKit} from './urban_kit.mjs';
+import {inspectDataset,compareObservation,missionStart,missionStep,cognitivePulse,STAGES} from './neuro_mission.mjs';
+import {createBrain4D} from './brain_visual.mjs';
 
 // NPL WORLD - real GLB integration. No placeholder people, no pay-per-map API.
 // Local public cartographic geometry + separate PRIVATE human GLB. Offline runtime.
 const $=id=>document.getElementById(id);
 const loading=$('loading'), info=$('info'), stat=$('stat'), progress=$('progress');
 const view=$('game');
-const display=(message,problem=false)=>{info.textContent=message;info.classList.toggle('error',problem)};
+const display=(message,problem=false)=>{$('messageText').textContent=message;info.classList.toggle('error',problem)};
 const renderer=new THREE.WebGLRenderer({canvas:view, antialias:true,alpha:false,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));
 renderer.shadowMap.enabled=true;
@@ -115,7 +120,7 @@ async function addRealPalmObjects(){
  }catch(err){display('Ciudad cargada; palmeras 3D opcionales no disponibles: '+err.message,true)}
 }
 // Construct facade detail only on ACTUAL OSM walls: no fabricated building footprints.
-function addFacadeDetail(group){
+function addFacadeDetail(group,maxDistance=Infinity){
  let buildingWall=null;
  group.traverse(o=>{if(o.isMesh&&o.name.includes('Building_Walls'))buildingWall=o;});
  if(!buildingWall)return;
@@ -137,6 +142,9 @@ function addFacadeDetail(group){
    if(length<2.7||length>37)continue;
    const mx=(a.x+b.x)/2,mz=(a.z+b.z)/2;
    if(Math.abs(mx+10)>235||Math.abs(mz-119)>280)continue;
+   // LOD: public GPU budget limits artistic windows to nearby actual OSM walls.
+   // These motifs are illustrative, not surveyed facade/window measurements.
+   if(Math.hypot(mx+10.664,mz-113.546)>maxDistance)continue;
    const key=[Math.round(a.x*10),Math.round(a.z*10),Math.round(b.x*10),Math.round(b.z*10)].sort((x,y)=>x-y).join(':')+':'+a.y.toFixed(0);
    if(!edges.has(key))edges.set(key,{ax:a.x,az:a.z,bx:b.x,bz:b.z,h:a.y,len:length});
   }
@@ -164,7 +172,9 @@ function addFacadeDetail(group){
   const mesh=new THREE.InstancedMesh(geometry,material,points.length);
   const obj=new THREE.Object3D();
   points.forEach(([x,y,z,rot],i)=>{obj.position.set(x,y,z);obj.rotation.y=rot;obj.updateMatrix();mesh.setMatrixAt(i,obj.matrix)});
-  mesh.instanceMatrix.needsUpdate=true;mesh.castShadow=true;scene.add(mesh);
+  mesh.instanceMatrix.needsUpdate=true;
+  // Decorative details need no individual shadow pass on low-end/mobile GPUs.
+  mesh.castShadow=false;mesh.receiveShadow=true;scene.add(mesh);
  };
  make(windows,new THREE.BoxGeometry(1.35,1.86,.11),new THREE.MeshPhysicalMaterial({color:0x163240,metalness:.32,roughness:.16,clearcoat:.53}));
  make(frames,new THREE.BoxGeometry(1.61,.15,.18),new THREE.MeshStandardMaterial({color:0xe5d6bd,roughness:.67}));
@@ -183,28 +193,137 @@ const player=new THREE.Group();scene.add(player);
 player.position.set(-10.664,0,113.546);
 let avatar=null, city=null,mixer=null,animations={},current=null;
 const keys=new Set();
+const touchStick={forward:0,strafe:0};
 let yaw=-.65,pitch=.14,zoom=2.95,mode='back',actorHeading=0,moving=false;
 const loader=new GLTFLoader();
 const model=(url)=>new Promise((resolve,reject)=>loader.load(url,resolve,undefined,reject));
 const showLoad=(text)=>{progress.textContent=text;};
+// Public preview deliberately excludes optional props and private avatars.
+// Do not expose personal/biometric models through a GitHub artifact.
+const publicPreview=window.NPL_PUBLIC_REVIEW===true;
+const brain3d=createBrain4D($('brainCanvas'),$('brainFocus'));
+$('brainTimeScrub')?.addEventListener('input',()=>{
+ const seconds=Number($('brainTimeScrub').value)||0;
+ brain3d.setTimeAgo(seconds);
+ $('brainTimeText').textContent=seconds+' s';
+});
+
+
+let nplEvidence={usable:false,reason:"no_public_dataset",entries:[]};
+let nplMission=missionStart(nplEvidence);
+const taskChoices=[
+  [["verificar_fuente","Comprobar procedencia, fecha y límites"],["suponer_sin_fuente","Aceptar sin comprobar"]],
+  [["comparar_misma_poblacion","Comparar mismo periodo, unidad y población"],["mezclar_poblaciones","Comparar poblaciones distintas"]],
+  [["separar_correlacion_causalidad","Explorar hipótesis alternativas"],["atribuir_causa_directa","Afirmar una causa sin contrastar"]],
+  [["proponer_intervencion_evaluable","Proponer y evaluar una intervención"],["aplicar_sin_evaluar","Afirmar que funcionará"]]
+];
+let lastMissionOptionsKey='';
+function refreshNPL(moving=false){
+ const flow=$('nplFlow');if(!flow)return;
+ const p=cognitivePulse({moving,sourceReady:nplEvidence.usable,mission:nplMission});
+ const operations=[["Entrada sensorial",p.senses],["Atención",p.attention],["Memoria de trabajo",p.memory],["Inferencia",p.inference],["Decisión",p.decision]];
+ // Safe textContent: no raw HTML from data source or player.
+ flow.replaceChildren(...operations.map(([k,v])=>{
+   const d=document.createElement('div');d.className='npl-step';
+   const left=document.createElement('span');left.textContent=k;
+   const right=document.createElement('b');right.textContent=v;
+   d.append(left,right);return d;
+ }));
+ const state=$('nplDataState');state.dataset.ready=String(nplEvidence.usable);
+ state.textContent=nplEvidence.usable
+  ? 'Fuente pública revisada disponible · '+nplEvidence.entries.length+' observaciones'
+  : 'Sin base de datos pública aprobada · entrenamiento metodológico, NO indicador social real';
+ $('nplMode').textContent=nplEvidence.usable?'Evidencia':'Entrenamiento';
+ $('nplBrainLabel').textContent=p.disclaimer;
+ $('nplMissionStage').textContent=nplMission.completed?'Misión completada · reflexión crítica'
+  : 'Paso '+(nplMission.stage+1)+' de '+STAGES.length+' · '+STAGES[nplMission.stage];
+ $('nplFeedback').textContent=nplMission.insight||'Investiga, contrasta y decide; no confundas percepción y evidencia.';
+ const options=$('nplOptions');
+ const optionsKey=nplMission.stage+':'+String(nplMission.completed)+':'+nplMission.mode;
+ if(lastMissionOptionsKey!==optionsKey){
+  lastMissionOptionsKey=optionsKey;
+  options.replaceChildren();
+  if(!nplMission.completed){
+   for(const [code,label] of taskChoices[nplMission.stage]){
+     const btn=document.createElement('button');btn.type='button';btn.textContent=label;
+     btn.addEventListener('click',()=>{nplMission=missionStep(nplMission,code,nplEvidence);refreshNPL(moving);});
+     options.appendChild(btn);
+   }
+ }else{
+   const reset=document.createElement('button');reset.type='button';reset.textContent='↻ Nueva misión de investigación';
+   reset.addEventListener('click',()=>{nplMission=missionStart(nplEvidence);refreshNPL(moving);});
+   options.appendChild(reset);
+  }
+ }
+ const summary=$('nplConflictSummary');
+ if(!nplEvidence.usable){
+   summary.textContent='Conflictos: no se presentan cifras sin procedencia revisada. NPL puede enseñar metodología mientras faltan datos.';
+ }else{
+   const indicator=nplEvidence.entries.find(x=>x.geo_code!=='ES');
+   const v=indicator&&compareObservation(nplEvidence,indicator.indicator_id,indicator.geo_code);
+   summary.textContent=v?.comparable
+      ? 'Comparación descriptiva '+indicator.geo_code+' frente a España: '+v.difference.toFixed(2)+' '+v.unit+
+        ' ('+v.period+'). No demuestra causalidad.'
+      : 'Fuente revisada, pero faltan comparaciones homologables para este territorio.';
+ }
+ window.NPL_MISSION={
+    mode:nplMission.mode,stage:nplMission.stage,completed:nplMission.completed,
+    publicEvidenceReady:nplEvidence.usable,noTracking:true,noSocialNetworking:true
+ };
+}
+async function loadNPLOpenData(){
+ // The file is optional and must be packaged ONLY after independent provenance review.
+ // Any malformed, missing or unreviewed source keeps the training-only mode.
+ if(!publicPreview){refreshNPL(false);return;}
+ try{
+   const response=await fetch('./assets/conflictometro_public_verified.json',{cache:'no-store'});
+   if(!response.ok)throw new Error('dataset unavailable');
+   nplEvidence=inspectDataset(await response.json());
+ }catch(_){nplEvidence={usable:false,reason:'no_public_dataset',entries:[]};}
+ nplMission=missionStart(nplEvidence);
+ refreshNPL(false);
+}
+refreshNPL(false);
+loadNPLOpenData();
+let lastNplDraw=0;
+
+// Public city decor: original CC0 procedural asset library, never a private GLB.
+const urbanKit=publicPreview?buildUrbanKit({tier:window.matchMedia?.('(pointer:coarse)')?.matches?'mobile':'desktop'}):null;
+if(urbanKit){decorGroup.add(urbanKit.group);palmCount=urbanKit.stats.palmCount;}
+function enterPublicCity(){
+ $('face').disabled=true;
+ $('face').title='Solo disponible cuando exista un avatar privado local';
+ mode='first';
+ $('cameraMode').textContent='Primera persona · ciudad pública';
+ window.NPL_READY={cityMeshes:city?.children?.length||0,cityOnly:true,privateAvatarLoaded:false,
+  explanadaCoords:[38.34318,-0.48326],windows:windowCount,facadeStyle:'artistic_not_surveyed',palms:palmCount,urbanKit:urbanKit?.stats||null,skins:0,clips:[]};
+ loading.remove();
+ showLoad('Ciudad pública geográfica lista');
+ display('Alicante 3D OSM: fachadas y mobiliario mediterráneo 3D ilustrativos (no medidos). Navegación experimental; FPS y fotorrealismo sin certificar.');
+}
+
 async function loadWorld(){
  showLoad('Cargando modelo geográfico real de Alicante…');
  try{
   const data=await model('./assets/alicante.glb');
   city=data.scene;scene.add(city);
+  // Public-only, bounded artistic facade detail on verifiable OSM wall geometry.
+  // Never loads the optional private facade GLB.
+  if(publicPreview)addFacadeDetail(city,170);
   // v11 architectural detail baked on exactly 150 ACTUAL OSM building-wall edges.
   // Geometry intentionally separate from the PNOA georeferenced base.
-  try {
+  if(!publicPreview) try {
     const decorData=await model('./assets/facades.glb');
     const facades=decorData.scene;
     facades.traverse(n=>{if(n.isMesh){n.castShadow=false;n.receiveShadow=true;}});
     scene.add(facades);
     windowCount=3679;
   }catch(err){display('Los edificios base se han cargado, pero falta el detalle GLB: '+err.message,true);}
-  await addRealPalmObjects();
+  if(!publicPreview) await addRealPalmObjects();
   city.traverse(n=>{if(n.isMesh){n.receiveShadow=true;n.castShadow=true;if(n.material?.name?.includes('NO_photo')) n.material.roughness=.9;}});
   showLoad('Alicante 3D cargada: edificios reales y calle a nivel humano. Cargando cuerpo humano animado…');
  }catch(err){display('No se ha podido cargar la ciudad GLB: '+(err?.message||err),true);showLoad('ERROR: falta assets/alicante.glb');return;}
+ if(publicPreview){enterPublicCity();return;}
  try{
   const data=await model('./assets/maya.glb');
   avatar=data.scene;
@@ -238,7 +357,12 @@ async function loadWorld(){
   loading.remove();
   window.NPL_READY={cityMeshes:city.children.length,facadeDetailsLoaded:windowCount>0,explanadaCoords:[38.34318,-0.48326],windows:windowCount,palms:palmCount,skins:avatar.children.length,clips:data.animations.map(a=>a.name)};
   display('Alicante 3D con 614 edificios reales OSM, detalles arquitectónicos artísticos, palmeras CC0 y avatar privado v11. Fotorrealismo aún sin alcanzar.');
- }catch(err){display('No se ha podido cargar el avatar GLB: '+(err?.message||err),true);showLoad('Modelo femenino 3D ausente. Debe existir assets/maya.glb');return;}
+ }catch(err){
+  // PUBLIC, NON-PERSONAL city navigation remains possible without private maya.glb.
+  // No invented avatar and no personal mesh is ever pulled into a public artifact.
+  enterPublicCity();
+  return;
+ }
 }
 function animateState(key){
  const next=animations[key]||animations.walk||animations.idle;
@@ -251,19 +375,24 @@ const clock=new THREE.Clock();
 function frame(){
  requestAnimationFrame(frame);
  const dt=Math.min(clock.getDelta(),.045);
- const forward=Number(keys.has('KeyW')||keys.has('ArrowUp'))-Number(keys.has('KeyS')||keys.has('ArrowDown'));
- const strafe=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft'));
- const total=Math.hypot(forward,strafe);
- moving=total>0.01 && !!avatar;
+ const input=combineMovement(
+  Number(keys.has('KeyW')||keys.has('ArrowUp'))-Number(keys.has('KeyS')||keys.has('ArrowDown')),
+  Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft')),
+  touchStick.forward,touchStick.strafe
+ );
+ const {forward,strafe}=input, total=input.magnitude;
+ moving=total>0.01 && canNavigate(city);
+ brain3d.tick({moving,stage:nplMission.stage,dataReady:nplEvidence.usable,completed:nplMission.completed},performance.now());
+ if(clock.elapsedTime-lastNplDraw>=1){lastNplDraw=clock.elapsedTime;refreshNPL(moving);}
  const fast=keys.has('ShiftLeft')||keys.has('ShiftRight');
  if(moving){
-  const speed=(fast?6.6:2.6)*dt/total;
+  const speed=(fast?6.6:2.6)*dt;
   const dx=Math.sin(yaw)*forward-Math.cos(yaw)*strafe;
   const dz=Math.cos(yaw)*forward+Math.sin(yaw)*strafe;
   player.position.x=Math.max(-318,Math.min(402,player.position.x+dx*speed));
   player.position.z=Math.max(-411,Math.min(304,player.position.z+dz*speed));
   actorHeading=Math.atan2(Math.sin(yaw)*Math.sign(forward),Math.cos(yaw)*Math.sign(forward));
-  if(Math.abs(forward)>.05){const headingDelta=Math.atan2(Math.sin(actorHeading-avatar.rotation.y),Math.cos(actorHeading-avatar.rotation.y));
+  if(avatar&&Math.abs(forward)>.05){const headingDelta=Math.atan2(Math.sin(actorHeading-avatar.rotation.y),Math.cos(actorHeading-avatar.rotation.y));
     avatar.rotation.y+=headingDelta*Math.min(1,dt*7);}
   // Lateral input remains strafe rather than forcing a 90-degree turn.
  }
@@ -299,16 +428,54 @@ window.addEventListener('resize',resize);resize();
 window.addEventListener('keydown',e=>{if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight'].includes(e.code))e.preventDefault();keys.add(e.code);if(e.code==='KeyC')cycleCamera();});
 window.addEventListener('keyup',e=>keys.delete(e.code));
 window.addEventListener('blur',()=>keys.clear());
-let dragging=false,lastX=0,lastY=0;
-view.addEventListener('pointerdown',e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;view.setPointerCapture(e.pointerId);});
-view.addEventListener('pointerup',()=>dragging=false);
-view.addEventListener('pointermove',e=>{if(!dragging)return;
+// One pointer steers the camera, another independently drives the virtual joystick.
+let lookPointer=null,lastX=0,lastY=0;
+view.addEventListener('pointerdown',e=>{
+ if(lookPointer!==null)return;
+ lookPointer=e.pointerId;lastX=e.clientX;lastY=e.clientY;
+ view.setPointerCapture(e.pointerId);
+});
+function endLook(e){if(e.pointerId===lookPointer)lookPointer=null;}
+view.addEventListener('pointerup',endLook);
+view.addEventListener('pointercancel',endLook);
+view.addEventListener('lostpointercapture',endLook);
+view.addEventListener('pointermove',e=>{
+ if(lookPointer!==e.pointerId)return;
  const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;
- yaw+=dx*.006;pitch=Math.max(-.08,Math.min(.92,pitch+dy*.004));});
+ yaw+=dx*.006;pitch=Math.max(-.08,Math.min(.92,pitch+dy*.004));
+});
+const pad=$('walkPad'),knob=$('walkKnob');
+let walkPointer=null;
+function setStickPosition(e){
+ const bounds=pad.getBoundingClientRect();
+ const radius=Math.min(bounds.width,bounds.height)*.34;
+ const v=normalizedStick(e.clientX-(bounds.left+bounds.width/2),
+                          e.clientY-(bounds.top+bounds.height/2),radius);
+ touchStick.strafe=v.x;touchStick.forward=-v.y;
+ knob.style.transform='translate('+Math.round(v.x*radius)+'px,'+Math.round(v.y*radius)+'px)';
+ window.NEUROCITY_INPUT={...touchStick};
+}
+function releaseStick(e){
+ if(e && e.pointerId!==walkPointer)return;
+ walkPointer=null;touchStick.forward=0;touchStick.strafe=0;
+ knob.style.transform='translate(0px,0px)';
+ window.NEUROCITY_INPUT={...touchStick};
+}
+pad.addEventListener('pointerdown',e=>{
+ if(walkPointer!==null)return;
+ e.preventDefault();walkPointer=e.pointerId;
+ pad.setPointerCapture(e.pointerId);setStickPosition(e);
+});
+pad.addEventListener('pointermove',e=>{if(walkPointer===e.pointerId)setStickPosition(e);});
+pad.addEventListener('pointerup',releaseStick);
+pad.addEventListener('pointercancel',releaseStick);
+pad.addEventListener('lostpointercapture',releaseStick);
+window.addEventListener('blur',()=>releaseStick());
+window.NEUROCITY_INPUT={...touchStick};
 view.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(1.85,Math.min(28,zoom+Math.sign(e.deltaY)*.65));},{passive:false});
-const cycleCamera=()=>{mode=mode==='back'?'face':mode==='face'?'first':'back';$('cameraMode').textContent=mode==='back'?'Tercera persona':mode==='face'?'Inspección facial':'Primera persona';};
+const cycleCamera=()=>{mode=nextCameraMode(mode,!!avatar);$('cameraMode').textContent=mode==='back'?'Tercera persona':mode==='face'?'Inspección facial':'Primera persona · ciudad pública';};
 $('cam').onclick=cycleCamera;
-$('reset').onclick=()=>{player.position.set(-10.664,0,113.546);yaw=-.65;mode='back';};
+$('reset').onclick=()=>{player.position.set(-10.664,0,113.546);yaw=-.65;mode=avatar?'back':'first';};
 $('fidelity').onclick=()=>{let hi=renderer.getPixelRatio()<1.7;renderer.setPixelRatio(hi?Math.min(devicePixelRatio,2):1);sun.shadow.mapSize.set(hi?2048:1024,hi?2048:1024);sun.shadow.map?.dispose();sun.shadow.map=null;};
 frame();
 loadWorld();
