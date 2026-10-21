@@ -148,22 +148,26 @@ jobs:
             echo FAIL > ../../../../reports/v7-result.txt
           fi
           cd ../../../..
-          if [ "$blocked" -eq 0 ]; then
-            cd city-integrated/demos/npl-world/visual_viewer
-            if npm install --no-audit --no-fund > ../../../../reports/integrated-install.log 2>&1 &&
-               node --test tests/*.test.mjs > ../../../../reports/integrated-tests.log 2>&1 &&
-               npm run build > ../../../../reports/integrated-build.log 2>&1; then
-              printf 'Multi-branch integrated tests + game bundle: PASS.\n\n' >> ../../../../reports/REPORT.md
+          # Always test the conflict-free subset of the real source tree.
+          # Conflicted peers were individually aborted, not silently merged.
+          # A partial green build MUST NOT mark full convergence as passed.
+          cd city-integrated/demos/npl-world/visual_viewer
+          if npm install --no-audit --no-fund > ../../../../reports/integrated-install.log 2>&1 &&
+             node --test tests/*.test.mjs > ../../../../reports/integrated-tests.log 2>&1 &&
+             npm run build > ../../../../reports/integrated-build.log 2>&1; then
+            if [ "$blocked" -eq 0 ]; then
+              printf 'Multi-branch integrated tests + game bundle: PASS.\\n\\n' >> ../../../../reports/REPORT.md
               echo PASS > ../../../../reports/integrated-result.txt
             else
-              printf 'Multi-branch integrated tests or build: FAIL; inspect saved logs.\n\n' >> ../../../../reports/REPORT.md
-              echo FAIL > ../../../../reports/integrated-result.txt
+              printf 'Conflict-free subset tested and built: PARTIAL_PASS, but full world convergence remains BLOCKED.\\n\\n' >> ../../../../reports/REPORT.md
+              printf 'NEUROCITY_PARTIAL_BUILD_PASS: integrated safe subset; blocked branches are NOT included.\\n'
+              echo PARTIAL_PASS > ../../../../reports/integrated-result.txt
             fi
-            cd ../../../..
           else
-            printf 'Multi-branch bundle: NOT TESTED - merge was blocked. No fabricated PASS.\n\n' >> reports/REPORT.md
-            echo BLOCKED > reports/integrated-result.txt
+            printf 'Integrated available subset tests or build: FAIL.\\n\\n' >> ../../../../reports/REPORT.md
+            echo FAIL > ../../../../reports/integrated-result.txt
           fi
+          cd ../../../..
           printf '## Next verified action\n\n' >> reports/REPORT.md
           if [ "$(cat reports/merge-blocked.txt)" != 0 ]; then
             printf 'Resolve listed conflicts in a **new draft integration branch**, preserve source GLB integrity, rerun the browser/physical checks. Do not deploy.\n' >> reports/REPORT.md
