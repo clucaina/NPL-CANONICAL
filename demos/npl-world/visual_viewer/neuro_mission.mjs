@@ -3,6 +3,19 @@
 // No networking, no accounts, no tracking and no client data.
 export const STAGES=Object.freeze(["observar","comparar","interpretar","decidir"]);
 const SAFE_GEO=/^ES(?:[0-9A-Z]{2,6})?$/;
+// Conflictómetro must never treat an arbitrary HTTPS hostname as INE proof.
+// This is an allowlist for one CURATED public source, not a claim of scientific
+// validation or live data authenticity. New providers require explicit review.
+function isReviewedPublicSource(sourceId,rawUrl){
+  if(sourceId!=='INE'||typeof rawUrl!=='string')return false;
+  try{
+    const url=new URL(rawUrl);
+    return url.protocol==='https:' &&
+      (url.hostname==='www.ine.es'||url.hostname==='ine.es') &&
+      !url.username && !url.password &&
+      !url.port;
+  }catch(_){return false;}
+}
 export function inspectDataset(payload){
   if(!payload||typeof payload!=="object"||!Array.isArray(payload.observations))
     return {usable:false,reason:"no_public_dataset",entries:[]};
@@ -15,8 +28,7 @@ export function inspectDataset(payload){
     if(!indicator_id||!SAFE_GEO.test(geo_code||"")||!/^20\d\d(?:-\d\d)?$/.test(period||"")
       ||typeof value!=="number"||!Number.isFinite(value)||typeof unit!=="string"
       ||!unit||typeof denominator!=="string"||!denominator
-      ||typeof source_url!=="string"||!source_url.startsWith("https://")
-      ||typeof source_id!=="string"||!source_id){
+      ||!isReviewedPublicSource(source_id,source_url)){
         return {usable:false,reason:"missing_comparable_evidence",entries:[]};
     }
     const key=[indicator_id,geo_code,period,denominator].join("|");
