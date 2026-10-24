@@ -109,3 +109,41 @@ Se extendió el cargador libre, manteniendo intacta la ruta monotesela, a `r02_c
 - Auditoría comparativa `trimesh` (fuentes privadas locales) + `scipy.interpolate.LinearNDInterpolator` sin exportar vértices privados. RMSE G19 vs MDT05: `r02_c00` **0,843 m** (21.946 vértices comparados), `r02_c01` **0,773 m** (13.529), `r01_c01` **6,743 m** (379), `r01_c02` **1,419 m** (5.491). En `r01_c01` hay diferencia absoluta máxima **18,525 m**; su terreno G19 particular contiene 396 vértices, por lo que se debe investigar procedencia y casos de costa/cubierta. No implica datum resuelto ni fuente de error identificada. Informe de agregados restringido a Biblioteca propia `/NeuroEcosistema/NeuroCity/G19_IGN_MDT05_4_TILES_VERTICAL_PRIVATE_SUMMARY_20261020.json`.
 - Fuente oficial, GLBs originales, atlas NPL y Catastro 207 volúmenes siguen inalterados. La importación al visor está intencionalmente **BLOQUEADA** hasta comprobación de bases de edificio, referencia vertical y coherencia de costa. **Nunca** usar como prueba de fotorrealismo, FPS, calles interiores o fachadas.
 
+
+
+## NeuroCity · TikTok 24/10/2026 · reconstrucción local desde imágenes sin sustituir el mundo
+
+**Fuente de idea, no evidencia de ejecución:** [reel @roconeo](https://www.tiktok.com/@roconeo/video/7699880975030816020), cuyo embed anuncia una «IA código abierto para hacer reconstrucción en 3D desde tu PC y posiblemente tu teléfono». Se leyó la descripción; **el vídeo íntegro y el nombre del programa mostrado NO están verificados**. La técnica candidata concreta se selecciona de forma independiente: [LocalAI free-splatter.cpp](https://github.com/localai-org/free-splatter.cpp), basada en [TencentARC/FreeSplatter](https://github.com/TencentARC/FreeSplatter). No asociar como si fuera el producto identificado en el vídeo.
+
+**Utilidad real si se valida:** de 2 vistas solapadas de una escena u objeto se puede generar una representación de Gaussian Splatting para interiores, fragmentos de arquitectura o detalles reales; el programa C++ indica CPU o GPU Vulkan. El visor web puede mostrar una escena a través de un rasterizador compatible. Esta es una **capa de apariencia**, no produce por sí misma los triángulos topográficos, mallas de choque, cimientos o fachadas a escala verificadas que requiere NeuroCity.
+
+### Intervención técnica en la misma PR #54 (sin proyecto ni cron nuevo)
+
+1. La candidata queda en `tools/neurocity/public_free_sources_20261020.json`, con `license=UNVERIFIED`, sin código, pesos ni fotografías importadas. Mantiene el cortafuegos actual de `source_admission.py` y pasa de 11 a 12 metadatos descubiertos, **0 admitidos**.
+2. `tools/neurocity/splat_candidate_gate.py` examina de forma local y acotada registros antimatter15 `.splat` (32 bytes por gaussiana), SHA256 del binario, escala y finitud; recibe sólo un manifiesto explícito con referencias de fuentes, pesos y permisos. Su máxima conclusión es `STRUCTURAL_ONLY_NOT_CITY_ASSET`: jamás valida licencia, fotorrealismo, geolocalización, render, mallas físicas ni publicación, aunque el manifiesto lo afirme. No imprime coordenadas.
+3. `test_splat_candidate_gate.py` utiliza muestras sintéticas, rechaza truncamientos, NaN, escalas negativas, hashes incoherentes, entradas repetidas, permisos ausentes y afirmaciones de publicación. Se incorpora al job de **procedencia existente** (no hay nuevo workflow, cron, coordinación ni descarga de modelos).
+4. Las pruebas y el material recuperado G19/V50, G13, Catastro, 86 GLB privados y 19 conexiones del Huerto quedan intactos. **No reconstruir el mundo original si no están sus bytes legítimos**.
+
+### Puertas de aceptación ANTES de crear un piloto con fotografías reales
+
+- **Fuentes y privacidad:** origen, permisos de fotografías/capturas, ausencia de personas identificables o material privado, autoría y fechas. Nunca usar imágenes de expedientes, pacientes o menores.
+- **Licencia binaria separada:** contrastar el repositorio del código y el modelo/archivo de pesos efectivamente ejecutado; TencentARC menciona restricciones adicionales, por lo que Apache declarado en un repositorio derivado no equivale a libertad comercial confirmada. Se exige revisión explícita de licencia y hash del GGUF, no el resumen de un vídeo.
+- **Geometría y ciudad:** solapamiento real entre vistas; registro/cámara/escala con puntos de control homologados, precisión contra G19 y fuentes IGN/Catastro. No deducir posición métrica de una captura llamativa; **splat != GLB triangulado** y no habilita colisiones.
+- **Calidad y rendimiento:** reproducir escena pública autorizada en navegador real, controlar apariciones espurias, agujeros, iluminación, distorsión de vistas nuevas, FPS y memoria GPU/móvil con degradación a malla auténtica. GPU compatible con WebGL o Vulkan no se presupone; procesar por CPU puede ser lento y la ejecución en teléfono **no ha sido demostrada**.
+- **Experiencia humana:** navegar y comparar captura frente a geometría, revelar/ocultar reconstrucción, congelar tiempo, cámara libre y explicación sobre lo conocido/inferido; permitir desactivar efectos y mantener la versión accesible. El objetivo es comprensión y exploración voluntaria, no tiempo de pantalla forzado.
+- **Antes de adoptar:** verificar test, procedencia y derechos del original, revisión científica/geográfica, render y performance con navegador físico, y comparación de utilidad humana. Solo entonces decidir si se prueba en una tesela independiente, sin merge/deploy automáticos.
+
+Reproducción de comprobaciones sin imágenes, pesos, datos personales ni red (desde raíz del repositorio):
+
+```sh
+python3 -m unittest discover -s tools/neurocity -p 'test_source_admission.py' -v
+python3 -m unittest discover -s tools/neurocity -p 'test_splat_candidate_gate.py' -v
+```
+
+La validación estructural de un `.splat` futuro mediante CLI explícita:
+
+```sh
+python3 tools/neurocity/splat_candidate_gate.py --splat /ruta/autorizada/escena.splat --manifest /ruta/autorizada/manifest.json
+```
+
+**Estado al registrar:** no se ha descargado ningún GGUF ni captura, no se ha producido archivo `.splat` real, no hay compatibilidad WebGL/FPS físico verificada ni se ha integrado nada en Alicante. La fuente G19/V50 no se modifica, los bloqueos anteriores siguen vigentes.
