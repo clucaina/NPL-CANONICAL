@@ -6,6 +6,8 @@ on:
       - 'tools/neurocity/public_free_sources_20261020.json'
       - 'tools/neurocity/source_admission.py'
       - 'tools/neurocity/test_source_admission.py'
+      - 'tools/neurocity/splat_candidate_gate.py'
+      - 'tools/neurocity/test_splat_candidate_gate.py'
       - 'tools/neurocity/official_terrain_probe.py'
       - 'tools/neurocity/test_official_terrain_probe.py'
       - 'tools/neurocity/official_terrain_lod.py'
@@ -30,7 +32,9 @@ jobs:
         with:
           python-version: '3.12'
       - name: Enforce provenance, datum, public metadata and LICENSE security
-        run: python3 -m unittest discover -s tools/neurocity -p 'test_source_admission.py' -v
+        run: |
+          python3 -m unittest discover -s tools/neurocity -p 'test_source_admission.py' -v
+          python3 -m unittest discover -s tools/neurocity -p 'test_splat_candidate_gate.py' -v
       - name: Write a zero-binary source decision report
         run: |
           python3 tools/neurocity/source_admission.py --output _neurocity_source_qa/report.json
