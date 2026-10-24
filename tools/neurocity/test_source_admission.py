@@ -14,12 +14,24 @@ class SourceAdmissionTests(unittest.TestCase):
     def setUp(self):
         self.registry=json.loads(SOURCE.read_text(encoding="utf8"))
 
-    def test_01_11_real_public_metadata_sources_and_zero_imports(self):
+    def test_01_12_real_public_metadata_sources_and_zero_imports(self):
         result=validate_registry(self.registry)
-        self.assertEqual(result["discovered"],11)
+        self.assertEqual(result["discovered"],12)
         self.assertEqual(result["admitted"],0)
         self.assertEqual(result["generated_world_glbs"],0)
         self.assertTrue(all(not r["runtime_admitted"] for r in result["records"]))
+
+    def test_13_tiktok_reconstruction_candidate_is_not_runtime_admitted(self):
+        item=next(x for x in self.registry["records"] if x["id"]=="free_splatter_cpp_candidate")
+        self.assertFalse(item["clip_exact_model_confirmed"])
+        self.assertFalse(item["model_weights_license_reviewed"])
+        self.assertFalse(item["mobile_runtime_verified"])
+        self.assertFalse(item["binary_imported"])
+        verdict=evaluate(item)
+        self.assertFalse(verdict["runtime_admitted"])
+        self.assertFalse(verdict["eligible_for_manual_import"])
+        self.assertIn("LICENSE_REVIEW_REQUIRED",verdict["reasons"])
+        self.assertIn("SOURCE_FILE_SHA256_MISSING",verdict["reasons"])
 
     def test_02_legal_unresolved_mirror_never_admitted(self):
         x=next(x for x in self.registry["records"] if x["id"]=="kenney_third_party_catalog")
@@ -91,7 +103,7 @@ class SourceAdmissionTests(unittest.TestCase):
             out=Path(d)/"report.json"
             got=run(SOURCE,out)
             self.assertEqual(got["admitted"],0)
-            self.assertEqual(json.loads(out.read_text())["discovered"],11)
+            self.assertEqual(json.loads(out.read_text())["discovered"],12)
             self.assertNotIn("drive.google",out.read_text())
 
 if __name__=="__main__":
