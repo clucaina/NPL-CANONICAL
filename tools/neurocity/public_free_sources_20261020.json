@@ -168,6 +168,28 @@
       "spatial_placement_verified": false,
       "binary_imported": false,
       "vertical_datum": "ORTHOMETRIC_PRODUCT_FAMILY_FILE_NOT_SELECTED"
+    },
+    {
+      "id": "free_splatter_cpp_candidate",
+      "kind": "tool",
+      "license": "UNVERIFIED",
+      "source_url": "https://github.com/localai-org/free-splatter.cpp",
+      "license_evidence_url": "https://github.com/TencentARC/FreeSplatter",
+      "notes": "2026-10-24 TikTok @roconeo: open-source PC / possibly phone 3D reconstruction (exact model NOT identified). FreeSplatter.cpp is a researched possible fit, NOT proven to appear in clip. CPU/Vulkan pose-free sparse-view Gaussian splats, no 3D collision mesh; upstream Tencent says Apache 2.0 with additional restrictions; model weights and image rights need separate review. No phone support, Alicante capture, alignment, hardware FPS, WebGL, geometry or placement verified.",
+      "license_scope": "software",
+      "license_evidence_verified": false,
+      "attribution": "UPSTREAM_LICENSE_AND_WEIGHT_REVIEW_REQUIRED",
+      "artifact_sha256": null,
+      "spatial_placement_verified": false,
+      "binary_imported": false,
+      "vertical_datum": "NOT_APPLICABLE",
+      "clip_exact_model_confirmed": false,
+      "candidate_only": true,
+      "runtime_integration_approved": false,
+      "imagery_rights_reviewed": false,
+      "model_weights_license_reviewed": false,
+      "mobile_runtime_verified": false,
+      "tiktok_reference_url": "https://www.tiktok.com/@roconeo/video/7699880975030816020"
     }
   ]
 }
