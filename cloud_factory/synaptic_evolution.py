@@ -117,6 +117,32 @@ def _observed_run(root):
     failures=[r for r in latest.values() if r["conclusion"]=="failure"]
     return max(failures or list(latest.values()),key=lambda r:r["time"])
 
+def _real_failure_intervention(root_id,run):
+    """Escalate security/convergence faults without leaking affected values.
+
+    Trigger is the NAME of a real failed workflow, not its secret-bearing log.
+    The record proposes a review and never manipulates Git history.
+    """
+    if run.get("conclusion")!="failure":return None
+    name=run.get("name","").casefold()
+    if root_id=="psicologia_politica" and any(x in name for x in ("secret","privacy","credential")):
+        return (
+            "security-history","PROTEGER EL HISTORIAL DE CREDENCIALES",
+            "Un control de secretos histórico continúa fallando y requiere contención por la persona titular.",
+            "Revisar informe redactado por categorías; rotar cualquier secreto potencialmente vigente y verificar revocación sin copiarlo ni mostrarlo.",
+            "El escaneo histórico continúa señalando la misma categoría, o no existe evidencia de rotación independiente.",
+            220
+        )
+    if root_id=="neurocity" and any(x in name for x in ("convergence","merge","integracion","integración")):
+        return (
+            "convergence","RESOLVER CONVERGENCIA 3D SIN SOBREESCRITURAS",
+            "Las ramas públicas de modelos y fuentes pueden integrarse únicamente con conflictos resueltos y pruebas reproducibles.",
+            "Comparar blobs de rutas conflictivas, explicar cada elección y ejecutar build/regresión de fuentes antes de aceptar un merge.",
+            "Un merge automático descarta geometría original, salta pruebas o deja conflictos de ficheros pendientes.",
+            180
+        )
+    return None
+
 def evolve(report,previous=None,budget=MAX_CANDIDATES):
     if type(budget) is not int or budget<0 or budget>MAX_CANDIDATES:
         raise ValueError("Only 0..2 public research hypotheses per pulse")
@@ -133,7 +159,14 @@ def evolve(report,previous=None,budget=MAX_CANDIDATES):
         run=_observed_run(root)
         if run is None:continue
         available+=1
-        for code,title,hypothesis,measurement,falsifier in EXPERIMENTS[root_id]:
+        intervention=_real_failure_intervention(root_id,run)
+        templates=(
+           [(code,title,hypothesis,measurement,falsifier,priority)]
+           if intervention and (code:=intervention[0])
+           else [(code,title,hypothesis,measurement,falsifier,None)
+                 for code,title,hypothesis,measurement,falsifier in EXPERIMENTS[root_id]]
+        )
+        for code,title,hypothesis,measurement,falsifier,special_priority in templates:
             signature=sha256((root_id+"|"+code+"|"+run["url"]+"|"+run["conclusion"]).encode()).hexdigest()[:20]
             if signature in seen:
                 rejected+=1
@@ -141,7 +174,7 @@ def evolve(report,previous=None,budget=MAX_CANDIDATES):
             # This prioritizes unresolved real failures over unvalidated
             # innovation work, but does not claim we have reproduced either.
             is_failure=run["conclusion"]=="failure"
-            priority=(100 if is_failure else 25)+(10 if code in ("render-parity","missingness","source-drift") else 0)
+            priority=special_priority or (100 if is_failure else 25)+(10 if code in ("render-parity","missingness","source-drift") else 0)
             candidates.append({
                 "id":signature,"root":root_id,"track":code,"title":title,
                 "hypothesis":hypothesis,"test_to_run":measurement,"falsifier":falsifier,
