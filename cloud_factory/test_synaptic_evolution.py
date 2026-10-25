@@ -101,6 +101,33 @@ class TestEvolution(unittest.TestCase):
             d["roots"][0]["recent_runs"][0]["url"]=url
             res=evolve(d)
             self.assertFalse(any(x["root"]=="neurocity" for x in res["hypotheses"]),url)
+    def test_historical_security_scan_is_prioritized_without_secret_contents(self):
+        d=report()
+        d["roots"][1]["recent_runs"][0]=job("Historical secret and privacy audit",PP,"failure")
+        outcome=evolve(d)
+        finding=next(x for x in outcome["hypotheses"] if x["root"]=="psicologia_politica")
+        self.assertEqual(finding["track"],"security-history")
+        self.assertEqual(finding["priority"],220)
+        self.assertEqual(finding["status"],"ENGINEERING_HYPOTHESIS_REQUIRES_REAL_TEST")
+        self.assertIn("rotar",finding["test_to_run"])
+        self.assertFalse(finding["code_changed"])
+        self.assertNotIn("sk-",str(outcome))
+    def test_convergence_conflict_replaces_generic_render_proposal(self):
+        d=report()
+        d["roots"][0]["recent_runs"][0]=job("NeuroCity 24h - convergence, build and regressions",RUN,"failure")
+        outcome=evolve(d)
+        finding=next(x for x in outcome["hypotheses"] if x["root"]=="neurocity")
+        self.assertEqual(finding["track"],"convergence")
+        self.assertEqual(finding["priority"],180)
+        self.assertIn("blobs",finding["test_to_run"])
+        self.assertFalse(finding["deployment"])
+    def test_successful_security_audit_never_claims_a_rotation_or_clears_history(self):
+        d=report()
+        d["roots"][1]["recent_runs"][0]=job("Historical secret and privacy audit",PP,"success")
+        outcome=evolve(d)
+        finding=next(x for x in outcome["hypotheses"] if x["root"]=="psicologia_politica")
+        self.assertNotEqual(finding["track"],"security-history")
+        self.assertFalse(outcome["real_world_effect_verified"])
     def test_failure_first_but_never_fabricates_a_fix(self):
         d=report()
         d["roots"][0]["recent_runs"][0]["conclusion"]="failure"
