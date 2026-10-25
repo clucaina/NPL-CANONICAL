@@ -8,7 +8,8 @@ const loading=$('loading'), info=$('info'), stat=$('stat'), progress=$('progress
 const view=$('game');
 const display=(message,problem=false)=>{info.textContent=message;info.classList.toggle('error',problem)};
 const renderer=new THREE.WebGLRenderer({canvas:view, antialias:true,alpha:false,powerPreference:'high-performance'});
-renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));
+let renderRatio=Math.min(devicePixelRatio||1,1.75);
+renderer.setPixelRatio(renderRatio);
 renderer.shadowMap.enabled=true;
 renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.outputColorSpace=THREE.SRGBColorSpace;
@@ -183,6 +184,8 @@ const player=new THREE.Group();scene.add(player);
 player.position.set(-10.664,0,113.546);
 let avatar=null, city=null,mixer=null,animations={},current=null;
 const keys=new Set();
+const fpsLabel=$('fps'),coordsLabel=$('coords');
+let fpsFrames=0,fpsWindow=0,slowWindows=0;
 let yaw=-.65,pitch=.14,zoom=2.95,mode='back',actorHeading=0,moving=false;
 const loader=new GLTFLoader();
 const model=(url)=>new Promise((resolve,reject)=>loader.load(url,resolve,undefined,reject));
@@ -287,8 +290,20 @@ function frame(){
  sun.target.position.set(player.position.x,0,player.position.z);
  sun.target.updateMatrixWorld();
  renderer.render(scene,camera);
+ const time=performance.now();fpsFrames++;
+ if(!fpsWindow)fpsWindow=time;
+ if(time-fpsWindow>=1500){
+   const fps=Math.round(fpsFrames*1000/(time-fpsWindow));
+   if(fpsLabel)fpsLabel.textContent=fps+' FPS';
+   if(fps<25)slowWindows++;else slowWindows=0;
+   if(slowWindows>=2&&renderRatio>1){
+     renderRatio=Math.max(1,renderRatio-.25);
+     renderer.setPixelRatio(renderRatio);resize();slowWindows=0;
+   }
+   fpsWindow=time;fpsFrames=0;
+ }
  if(Math.floor(clock.elapsedTime*3)!==Math.floor((clock.elapsedTime-dt)*3)){
-   stat.textContent='x '+player.position.x.toFixed(0)+' m · z '+player.position.z.toFixed(0)+' m · '+mode;
+   if(coordsLabel)coordsLabel.textContent='x '+player.position.x.toFixed(0)+' m · z '+player.position.z.toFixed(0)+' m · '+mode;
  }
 }
 function resize(){const width=view.clientWidth,height=view.clientHeight;
@@ -298,7 +313,19 @@ function resize(){const width=view.clientWidth,height=view.clientHeight;
 window.addEventListener('resize',resize);resize();
 window.addEventListener('keydown',e=>{if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight'].includes(e.code))e.preventDefault();keys.add(e.code);if(e.code==='KeyC')cycleCamera();});
 window.addEventListener('keyup',e=>keys.delete(e.code));
-window.addEventListener('blur',()=>keys.clear());
+window.addEventListener('blur',()=>{keys.clear();document.querySelectorAll('#mobilePad [data-move]').forEach(b=>b.setAttribute('aria-pressed','false'))});
+const activeTouches=new Map();
+document.querySelectorAll('#mobilePad [data-move]').forEach(button=>{
+ const code=button.dataset.move;
+ const push=e=>{if(e){e.preventDefault();if(e.pointerId!==undefined){activeTouches.set(e.pointerId,{button,code});button.setPointerCapture?.(e.pointerId)}}keys.add(code);button.setAttribute('aria-pressed','true')};
+ const drop=e=>{if(e?.pointerId!==undefined)activeTouches.delete(e.pointerId);if(![...activeTouches.values()].some(x=>x.code===code)){keys.delete(code);button.setAttribute('aria-pressed','false')}};
+ button.addEventListener('pointerdown',push);
+ button.addEventListener('pointerup',drop);
+ button.addEventListener('pointercancel',drop);
+ button.addEventListener('lostpointercapture',drop);
+ button.addEventListener('keydown',e=>{if((e.key===' '||e.key==='Enter')&&!e.repeat)push(e)});
+ button.addEventListener('keyup',e=>{if(e.key===' '||e.key==='Enter')drop(e)});
+});
 let dragging=false,lastX=0,lastY=0;
 view.addEventListener('pointerdown',e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;view.setPointerCapture(e.pointerId);});
 view.addEventListener('pointerup',()=>dragging=false);
@@ -309,6 +336,6 @@ view.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(1.85,Math.min
 const cycleCamera=()=>{mode=mode==='back'?'face':mode==='face'?'first':'back';$('cameraMode').textContent=mode==='back'?'Tercera persona':mode==='face'?'Inspección facial':'Primera persona';};
 $('cam').onclick=cycleCamera;
 $('reset').onclick=()=>{player.position.set(-10.664,0,113.546);yaw=-.65;mode='back';};
-$('fidelity').onclick=()=>{let hi=renderer.getPixelRatio()<1.7;renderer.setPixelRatio(hi?Math.min(devicePixelRatio,2):1);sun.shadow.mapSize.set(hi?2048:1024,hi?2048:1024);sun.shadow.map?.dispose();sun.shadow.map=null;};
+$('fidelity').onclick=()=>{let hi=renderer.getPixelRatio()<1.7;renderRatio=hi?Math.min(devicePixelRatio||1,2):1;renderer.setPixelRatio(renderRatio);slowWindows=0;sun.shadow.mapSize.set(hi?2048:1024,hi?2048:1024);sun.shadow.map?.dispose();sun.shadow.map=null;};
 frame();
 loadWorld();
