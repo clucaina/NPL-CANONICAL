@@ -16,6 +16,7 @@ import re
 import shutil
 import subprocess
 from urllib.request import Request, urlopen
+from synaptic_evolution import evolve, markdown as evolution_markdown
 
 ROOTS=[
  {"id":"neurocity","title":"NeuroCity","subtitle":"Ciudad 3D navegable","privacy":"public","source":"clucaina/NPL-CANONICAL","modules":["NPL","Conflictómetro"],"focus":"Realismo 3D, interacción, rendimiento y fuentes geográficas","position":[175,140],"next":"Comparación de renders con referencias y FPS real"},
@@ -102,7 +103,25 @@ def choose_turns(states,budget=3,previous=None):
                       "turn":"VERIFY_FAILURE" if debt else "VALIDATE_NEXT_INDEPENDENT_DELTA"})
     queue.sort(key=lambda t:(-t["score"],t["id"]))
     return queue[:max(0,budget)]
-def assemble(fetcher=fetch_public_repo,previous=None):
+def recent_ci_status(runs):
+    """Current status is latest completed result for each workflow, not every old run.
+
+    Multiple workflows remain independent: a newer successful lint job never
+    hides a still-unresolved failed 3D job. No product-validity claim.
+    """
+    latest={}
+    for run in runs:
+        if not isinstance(run,dict) or run.get("status")!="completed":continue
+        name=run.get("name")
+        when=run.get("time","")
+        if not isinstance(name,str) or not name or not isinstance(when,str):continue
+        if name not in latest or when>latest[name].get("time",""):
+            latest[name]=run
+    outcomes=[v.get("conclusion") for v in latest.values()]
+    if "failure" in outcomes:return "CHECKS_FAILED"
+    if "success" in outcomes:return "CI_PRESENT_NOT_PRODUCT_VALIDATION"
+    return "IN_PROGRESS_UNVERIFIED"
+def assemble(fetcher=fetch_public_repo,previous=None,prior_snapshot=None):
     ids={r["id"] for r in ROOTS}
     if len(ids)!=len(ROOTS) or any(e["from"] not in ids or e["to"] not in ids for e in EDGES):
         raise ValueError("Broken botanical topology")
@@ -117,9 +136,7 @@ def assemble(fetcher=fetch_public_repo,previous=None):
             status="NEEDS_PRIVATE_CANONICAL_SOURCE" if root["privacy"]=="private" else "NEEDS_PUBLIC_CORPUS"
         elif error:status="SOURCE_UNREACHABLE"
         elif not runs:status="NO_RECENT_CI_OBSERVED"
-        elif any(run["conclusion"]=="failure" for run in runs if run["status"]=="completed"):status="CHECKS_FAILED"
-        elif any(run["conclusion"]=="success" for run in runs if run["status"]=="completed"):status="CI_PRESENT_NOT_PRODUCT_VALIDATION"
-        else:status="IN_PROGRESS_UNVERIFIED"
+        else:status=recent_ci_status(runs)
         state[root["id"]]={"status":status}
         outputs.append({**root,"status":status,"verification_error":error,
                         "recent_runs":runs[:5],"last_seen":runs[0]["time"] if runs else None,
@@ -134,6 +151,8 @@ def assemble(fetcher=fetch_public_repo,previous=None):
             "limits":["Not all projects have executable sources","GitHub scheduler is periodic, not uninterrupted",
                       "The private repo is NOT accessed from this public coordinator",
                       "Observations are read-only API states; no unsupported progress is inferred"]}
+    report["evolution"]=evolve(report,prior_snapshot)
+    report["safety"]["hypotheses_executed"]=0
     return report
 def save(report,out,html_template=None):
     out.mkdir(parents=True,exist_ok=True)
@@ -150,13 +169,23 @@ def save(report,out,html_template=None):
     lines+=["","## Turnos elegibles (nunca inventar trabajo realizado)"]
     lines+=["- "+t["id"]+" · "+t["turn"]+" · prioridad "+str(t["score"]) for t in report["active_turns"]]
     lines+=["","Las sinapsis están bloqueadas hasta aprobar contratos y procedencia. NO hay despliegue, IA programadora ni datos privados."]
+    if report.get("evolution"):lines+=["",evolution_markdown(report["evolution"])]
     (out/"status.md").write_text("\n".join(lines)+"\n",encoding="utf-8")
     return report
 if __name__=="__main__":
     a=argparse.ArgumentParser()
     a.add_argument("--out",default="garden-output")
     a.add_argument("--html",default="cloud_factory/garden_view.html")
+    a.add_argument("--prior-snapshot",default=None,help="Small optional checkpoint from the same EXISTING public garden artifact")
     args=a.parse_args()
-    result=assemble()
+    previous=None
+    if args.prior_snapshot:
+        path=Path(args.prior_snapshot)
+        try:
+            if path.is_file() and path.stat().st_size<=90_000:
+                previous=json.loads(path.read_text(encoding="utf-8"))
+        except (OSError,ValueError,UnicodeError):
+            previous=None
+    result=assemble(prior_snapshot=previous)
     save(result,Path(args.out),args.html)
     print((Path(args.out)/"status.md").read_text(encoding="utf-8"))

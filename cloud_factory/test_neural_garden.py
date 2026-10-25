@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from neural_garden import ROOTS, EDGES, transmit, choose_turns, assemble, save
+from neural_garden import ROOTS, EDGES, transmit, choose_turns, assemble, save, recent_ci_status
 
 class NeuralGardenTests(unittest.TestCase):
     def test_roots_isolated_and_npl_conflictometro_inside_neurocity(self):
@@ -56,6 +56,35 @@ class NeuralGardenTests(unittest.TestCase):
         self.assertEqual(turn[0]["id"],"psicologia_politica")
         self.assertEqual(turn[0]["turn"],"VERIFY_FAILURE")
         self.assertEqual(len({x["id"] for x in turn}),2)
+    def test_latest_per_workflow_prevents_old_successful_failure_alert_repetition(self):
+        newer={"name":"release","status":"completed","conclusion":"success","time":"2026-10-25T12:00:00Z"}
+        older={"name":"release","status":"completed","conclusion":"failure","time":"2026-10-24T12:00:00Z"}
+        self.assertEqual(recent_ci_status([newer,older]),"CI_PRESENT_NOT_PRODUCT_VALIDATION")
+        independent={"name":"real-3d","status":"completed","conclusion":"failure","time":"2026-10-24T10:00:00Z"}
+        self.assertEqual(recent_ci_status([newer,older,independent]),"CHECKS_FAILED")
+        self.assertEqual(recent_ci_status([{"name":"queue","status":"queued","time":"2026-10-25T12:00:00Z"}]),"IN_PROGRESS_UNVERIFIED")
+    def test_evolution_in_existing_snapshot_is_proposals_not_achievements(self):
+        def evidence(repo):
+            return [{"name":"Test verified","status":"completed","conclusion":"success",
+                "time":"2026-10-25T12:00:00Z",
+                "url":"https://github.com/"+repo+"/actions/runs/40188427617"}]
+        current=assemble(fetcher=evidence)
+        self.assertEqual(current["evolution"]["schema"],"neurohuerto.evolution.v1")
+        self.assertFalse(current["evolution"]["originality_verified"])
+        self.assertFalse(current["evolution"]["real_world_effect_verified"])
+        self.assertEqual(current["safety"]["hypotheses_executed"],0)
+        next_pulse=assemble(fetcher=evidence,prior_snapshot=current)
+        current_ids={x["id"] for x in current["evolution"]["hypotheses"]}
+        next_ids={x["id"] for x in next_pulse["evolution"]["hypotheses"]}
+        self.assertFalse(current_ids & next_ids)
+        with tempfile.TemporaryDirectory() as tmp:
+            base=Path(tmp);viewer=base/"view.html"
+            viewer.write_text('<script type="application/json">__GARDEN_DATA__</script>',encoding="utf-8")
+            save(current,base/"result",viewer)
+            content=(base/"result"/"snapshot.json").read_text(encoding="utf-8")
+            self.assertIn("evolution",content)
+            self.assertIn("Plasticidad experimental", (base/"result"/"status.md").read_text(encoding="utf-8"))
+            self.assertFalse((base/"result"/"index.html").stat().st_size>90000)
     def test_public_pulse_outputs_evidence_without_commenting_or_emailing(self):
         workflow=(Path(__file__).parent.parent/".github"/"workflows"/"neural-garden.yml").read_text(encoding="utf-8")
         self.assertIn("SILENT_EVIDENCE_DELIVERY=WORKFLOW_SUMMARY_AND_ARTIFACTS_ONLY",workflow)

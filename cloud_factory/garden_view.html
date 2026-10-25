@@ -31,6 +31,20 @@ svg{display:block;width:100%;height:auto;min-height:380px}
 .list a{color:#e7cebd}.lower{grid-column:1/-1;display:grid;grid-template-columns:1.2fr .8fr;gap:15px}
 .note{padding:20px 24px}.note h2{margin:0 0 10px;font:500 23px Georgia,serif}.note p{font-size:12px;line-height:1.6}
 table{width:100%;border-collapse:collapse}th,td{text-align:left;font-size:12px;border-bottom:1px solid #473240;padding:9px 6px}th{color:#cdaeb9;font-weight:500}
+.synaptic-probes{grid-column:1/-1;padding:22px 24px}
+.synaptic-probes header{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:0 0 13px;margin:0;border-bottom:1px solid var(--line)}
+.synaptic-probes h2{font:500 clamp(23px,2.6vw,33px)/1.1 Georgia,serif;margin:5px 0 9px;color:var(--ink)}
+.synaptic-probes .capsule{font:650 10px/1.5 monospace;letter-spacing:.07em;border:1px solid #795b62;padding:6px 10px;border-radius:30px;color:var(--cream)}
+.synaptic-probes .intro{max-width:830px;color:var(--muted);font-size:12px;line-height:1.65}
+.probe-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin-top:17px}
+.probe{border:1px solid #6c4a59;padding:17px;border-radius:12px;background:linear-gradient(140deg,#3b2734,#231822)}
+.probe small{display:block;font:700 10px/1.5 monospace;letter-spacing:.12em;color:#e0b99d}
+.probe h3{font:500 22px/1.18 Georgia,serif;margin:9px 0;color:#f5e4d7}
+.probe p{font:13px/1.65 system-ui;color:#dbc2c5}
+.probe strong{display:block;margin-top:13px;font-size:11px;color:#e8baa4}
+.probe a{display:inline-block;margin-top:12px;color:#f0d6a9;font-size:12px;text-underline-offset:4px}
+.probe a:focus-visible{outline:3px solid #f0d6a9;outline-offset:4px}
+@media(max-width:800px){.probe-list{grid-template-columns:1fr}.synaptic-probes header{display:block}.synaptic-probes .capsule{display:inline-block}}
 footer{grid-column:1/-1;color:#a88f9a;font-size:11px;line-height:1.65;padding:5px 3px 15px}
 @media(max-width:1050px){.app{display:block;padding:12px}.panel{margin:12px 0}.lower{display:block}header{display:block;padding:16px 5px}.stats{margin-top:18px}svg{min-width:640px}.bed{overflow-x:auto}.info{min-height:300px}}
 </style>
@@ -53,6 +67,13 @@ footer{grid-column:1/-1;color:#a88f9a;font-size:11px;line-height:1.65;padding:5p
 <div class="lower"><section class="panel note"><h2>Ciclos de atención</h2><p>No representa horas inventadas de trabajo. Son turnos seleccionados por disponibilidad de fuentes, errores recientes, prioridades y deuda de revisión.</p>
 <table><thead><tr><th>Raíz</th><th>Tipo de ciclo</th><th>Prioridad</th></tr></thead><tbody id="turns"></tbody></table></section>
 <section class="panel note"><h2>Membranas de seguridad</h2><div class="signal">Datos clínicos, expedientes y credenciales: fuera del jardín público.</div><div class="signal">Las propuestas no atraviesan las sinapsis hasta disponer de contrato, procedencia y revisión.</div><div class="signal">Publicar un boletín técnico nunca publica una web, un modelo privado ni un informe pericial.</div></section></div>
+<section class="panel synaptic-probes" aria-labelledby="evolution-head">
+<header><div><span class="eyebrow">CONEXIONES · HIPÓTESIS · FALSACIÓN</span>
+<h2 id="evolution-head">Ideas que necesitan una prueba.</h2>
+<p class="intro">Los ciclos públicos seleccionan hipótesis de ingeniería según incidencias reales y memoria de intentos. Ni una idea equivale a un descubrimiento ni una prueba automática equivale a validación científica.</p></div>
+<span class="capsule" id="evolution-label">Sin propuestas verificables</span></header>
+<div class="probe-list" id="evolution-list" aria-live="polite"></div>
+</section>
 <footer id="footer">Cargando observaciones verificables…</footer>
 </div>
 <script id="snapshot" type="application/json">__GARDEN_DATA__</script>
@@ -130,10 +151,32 @@ function renderTurns(){
  const tbody=q('turns');tbody.replaceChildren();
  state.active_turns.forEach(t=>{const row=document.createElement('tr');[rootmap.get(t.id)?.title||t.id,t.turn,t.score].forEach(v=>{const td=document.createElement('td');td.textContent=String(v);row.append(td)});tbody.append(row)});
 }
+function renderEvolution(){
+ const evo=state.evolution;
+ const list=q('evolution-list'),flag=q('evolution-label');list.replaceChildren();
+ if(!evo||!Array.isArray(evo.hypotheses)||!evo.hypotheses.length){
+  flag.textContent='Sin candidatos nuevos';
+  const p=document.createElement('p');p.textContent='Se ha evitado repetir hipótesis sin nueva evidencia pública. Ningún experimento se da por ejecutado.';list.appendChild(p);return;
+ }
+ flag.textContent=evo.hypotheses.length+' propuestas NO comprobadas';
+ for(const item of evo.hypotheses.slice(0,2)){
+  const card=document.createElement('article');card.className='probe';
+  const kind=document.createElement('small');kind.textContent=String(item.root||'')+' · PRUEBA PENDIENTE';
+  const h=document.createElement('h3');h.textContent=String(item.title||'Hipótesis abierta');
+  const p=document.createElement('p');p.textContent=String(item.hypothesis||'');
+  const label=document.createElement('strong');label.textContent='CÓMO REFUTARLO';
+  const exp=document.createElement('p');exp.textContent=String(item.falsifier||'');
+  card.append(kind,h,p,label,exp);
+  if(urlsafe(item.evidence_url)){
+   const a=document.createElement('a');a.href=item.evidence_url;a.target='_blank';a.rel='noopener noreferrer';a.textContent='Ver la evidencia de CI ↗';card.appendChild(a);
+  }
+  list.appendChild(card);
+ }
+}
 document.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>{
  filter=b.dataset.filter;document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('active',x===b));render()
 }));
-fillSummary();renderTurns();pick(selected);
+fillSummary();renderTurns();renderEvolution();pick(selected);
 q('footer').textContent='Observación '+state.generated_utc+' · Separación total de fuentes · '+state.limits.join(' · ');
 })();
 </script>
