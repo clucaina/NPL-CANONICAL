@@ -9,9 +9,11 @@ on:
       - 'tools/factory/**'
 permissions:
   contents: read
+# Each branch gets its own gate; new commits cancel obsolete expensive Blender runs.
+# Avoid one central 40-minute job blocking all other NeuroCity chats.
 concurrency:
-  group: neurocity-public-3d-review
-  cancel-in-progress: false
+  group: neurocity-public-3d-review-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   playable_review:
     runs-on: ubuntu-24.04
@@ -25,6 +27,11 @@ jobs:
           node-version: 22
       - name: Prove public source-quality audit unit tests
         run: python3 -m unittest discover -s tools/factory -p 'test_*.py' -v
+      - name: Fail early on browser test syntax before Blender and geodata downloads
+        run: |
+          node --check demos/npl-world/visual_viewer/tests/browser_public_review.mjs
+          node --check demos/npl-world/visual_viewer/tests/browser_mobile_review.mjs
+          node --check demos/npl-world/visual_viewer/tests/browser_layers_review.mjs
       - name: Set up open Blender CPU
         run: |
           sudo apt-get update -qq
@@ -121,6 +128,39 @@ jobs:
         run: |
           python3 -m http.server 8766 --bind 127.0.0.1 --directory demos/npl-world/visual_viewer/dist > /tmp/neurocity-browser.log 2>&1 &
           node demos/npl-world/visual_viewer/tests/browser_public_review.mjs
+      - name: Measure actual pixel-level facade effect in close-up WebGL (not just shader-unit tests)
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          from PIL import Image,ImageChops,ImageStat
+          root=Path('demos/npl-world/visual_viewer/dist')
+          old=Image.open(root/'QA_FACADE_CLOSEUP_ORIGINAL.png').convert('RGB')
+          new=Image.open(root/'QA_FACADE_CLOSEUP_PBR.png').convert('RGB')
+          assert old.size==new.size and old.size[0]>=1000
+          diff=ImageChops.difference(old,new)
+          pix=diff.getdata()
+          count=old.width*old.height
+          meaningful=sum(max(p)>6 for p in pix)
+          mean=sum(ImageStat.Stat(diff).mean)/3
+          frac=meaningful/count
+          state={
+            'schema':'neurocity.real-webgl-facade-pbr.v1',
+            'same_public_osm_geometry':True,
+            'same_camera':True,
+            'image_size':list(old.size),
+            'pixel_fraction_difference_gt_6':round(frac,6),
+            'mean_absolute_rgb_difference':round(mean,6),
+            'effect_materially_visible_in_snapshot':bool(frac>=.015 and mean>=1.0),
+            'meaningful_difference_threshold':{'fraction':.015,'mean_abs_rgb':1.0},
+            'professional_photorealism_certified':False,
+            'source': 'REAL_CHROMIUM_SOFTWARE_WEBGL_2_FRAMES'
+          }
+          (root/'QA_FACADE_VISUAL_DELTA.json').write_text(json.dumps(state,indent=2)+'\n')
+          print('Visual source-wall comparison',json.dumps(state))
+          if not state['effect_materially_visible_in_snapshot']:
+            print('::warning::PBR coded and browser-working, but visual effect not convincingly detectable at current close-up.')
+          PY
       - name: Validate live city + NPL/Conflictometro integration using synthetic fixtures
         run: node demos/npl-world/visual_viewer/tests/browser_layers_review.mjs
       - name: Validate 3D navigation with mobile touch joystick

@@ -11,6 +11,22 @@ export function safeTilePath(path){
   return typeof path==='string' && path.length<220 && SAFE_PATH.test(path) &&
       !path.split('/').includes('..') && !path.startsWith('/') && !path.includes('//');
 }
+/** Fail closed on all original mobile-GLB fallback metadata before LOD or loads.
+ * A fallback must be a distinct allowlisted signed GLB. Never silently copy
+ * unchecked image counts into the GPU scheduler. */
+export function verifiedMosaicFallback(a){
+  const f=a?.mobile_fallback;
+  if(!a||a.role!=='mosaic'||!f||typeof f!=='object'||
+     !safeTilePath(f.path)||f.path===a.path||
+     typeof f.sha256!=='string'||!/^[a-f0-9]{64}$/.test(f.sha256)||
+     !Number.isSafeInteger(f.bytes)||f.bytes<=0||f.bytes>90_000_000||
+     !Number.isSafeInteger(f.triangle_estimate)||
+     f.triangle_estimate<1||f.triangle_estimate>4_000_000||
+     !Number.isSafeInteger(f.embedded_images)||
+     f.embedded_images<0||f.embedded_images>1024)
+     throw new Error('Unsupported asset source: Unsafe original V50 mobile mosaic fallback');
+  return f;
+}
 export function tileBounds(id){
   const match=/^r(\d{2})_c(\d{2})$/.exec(id);
   if(!match||!ALLOWED_TILES.includes(id))throw new Error('Unknown recovered tile');
@@ -42,14 +58,9 @@ export function assertTileManifest(m){
           (a.local===true&&!['terrain','geo','street','beach','coast'].includes(a.role)) ||
           (a.triangle_estimate!==undefined && (!Number.isSafeInteger(a.triangle_estimate)||a.triangle_estimate<1||a.triangle_estimate>4_000_000)) ||
           (a.embedded_images!==undefined && (!Number.isSafeInteger(a.embedded_images)||a.embedded_images<0||a.embedded_images>1024)) ||
-          (a.mobile_fallback!==undefined && (a.role!=='mosaic'||
-             !safeTilePath(a.mobile_fallback.path) ||
-             !/^[a-f0-9]{64}$/.test(a.mobile_fallback.sha256||'')||
-             !Number.isSafeInteger(a.mobile_fallback.bytes)||
-             a.mobile_fallback.bytes<=0||a.mobile_fallback.bytes>90_000_000||
-             !Number.isSafeInteger(a.mobile_fallback.triangle_estimate)||
-             a.mobile_fallback.triangle_estimate<1||a.mobile_fallback.triangle_estimate>4_000_000)))
+          (a.mobile_fallback!==undefined && !a.mobile_fallback))
        throw new Error('Unsupported asset source, integrity claim or local-space transform');
+      if(a.mobile_fallback!==undefined)verifiedMosaicFallback(a);
     }
   }
   return m;
@@ -75,12 +86,12 @@ export function plannedLayers(tile,profile='desktop'){
     if(profile==='desktop')return !(a.role==='streetlamp'&&hasV50Furniture);
     return !['facade','furniture'].includes(a.role);
   }).map(a=>{
+    // Fail closed in direct LOD calls, even without the full manifest preflight.
+    if(a.mobile_fallback!==undefined)verifiedMosaicFallback(a);
     // Original V50 4cm relief: ~105k triangles on 16m2 patch. Preserve its
     // authentic 5k-triangle PBR source GLB for mobile instead of loading both.
     if(profile==='mobile'&&a.role==='mosaic'&&a.mobile_fallback){
-      const fb=a.mobile_fallback;
-      if(!safeTilePath(fb.path)||!/^[a-f0-9]{64}$/.test(fb.sha256||''))
-        throw Error('Untrusted original V50 mobile mosaic');
+      const fb=verifiedMosaicFallback(a);
       return {...a,...fb,mobileV50Fallback:true,
         archaeologicalModelSource:'original_V50_PBR_not_procedural'};
     }
@@ -96,7 +107,6 @@ export function plannedLayers(tile,profile='desktop'){
     // geometry metadata; regeneration populates the actual GLB counts.
     const cost=asset.triangle_estimate ?? Math.ceil(asset.bytes/20);
     const imageCost=asset.embedded_images ?? 1;
-    const mustKeep=['terrain','geo','urban','architecture','mosaic'].includes(asset.role);
     if(profile==='mobile' && ['environment','driving','lod'].includes(asset.role))continue;
     // Enforce one exact GPU proxy budget for ALL layers (including mandatory).
     // If this excludes a required source layer, tile.ready stays false and

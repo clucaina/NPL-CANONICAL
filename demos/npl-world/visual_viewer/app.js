@@ -3,6 +3,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { nextCameraMode, canNavigate } from './navigation_policy.mjs';
 import {normalizedStick,combineMovement} from './mobile_navigation.mjs';
 import {buildUrbanKit} from './urban_kit.mjs';
+import {animateExistingPublicPalmFronds} from './palm_canopy_wind.mjs';
+import {nearestSourceFacadeView,placeInspectionCamera} from './source_facade_inspector.mjs';
 import {RecoveredMasterTiles} from './world_master_loader.mjs';
 import {RecoveredPhysicalAtlas} from './world_physics.mjs';
 import {installCoveredOSMMask} from './osm_building_mask.mjs';
@@ -236,6 +238,25 @@ scene.add(decorGroup);
 const player=new THREE.Group();scene.add(player);
 player.position.set(-10.664,0,113.546);
 let avatar=null, city=null,mixer=null,animations={},current=null;
+let publicSourceWalls=[];
+let nearFacadeQA=null;
+if(publicPreview){
+  window.NEUROCITY_FACADE_INSPECT={
+    activate(){
+      if(!city?.isObject3D)return {ready:false,reason:'CITY_NOT_LOADED'};
+      nearFacadeQA=nearestSourceFacadeView(city,player.position,{maxDistance:95});
+      return nearFacadeQA?{
+        ready:true,source:nearFacadeQA.source,
+        originalMesh:nearFacadeQA.originalMesh,
+        distanceToObserver:nearFacadeQA.distanceToObserver,
+        facadeSourceVerified:nearFacadeQA.facadeSourceVerified,
+        geometryInvented:nearFacadeQA.geometryInvented
+      }:{ready:false,reason:'NO_NEARBY_VERIFIED_WALL'};
+    },
+    deactivate(){nearFacadeQA=null;return {ready:true,inspectionDisabled:true};},
+    status(){return {active:!!nearFacadeQA,source:nearFacadeQA?.source||null};}
+  };
+}
 let cityCollision=null; // Public OSM walls; verified G13 physics takes priority.
 let osmCover=null;
 let physicalAtlas=null,physicalPrefetchBusy=false,physicalLastPrefetch=0;
@@ -366,6 +387,15 @@ window.NPL_CANONICAL_STATUS={
 };
 updateBrainPanel();
 const urbanKit=publicPreview?buildUrbanKit({tier:visualTier}):null;
+const palmWind=urbanKit?animateExistingPublicPalmFronds(urbanKit.group,{
+ tier:visualTier,reducedMotion:window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches===true
+}):null;
+if(palmWind)window.NEUROCITY_VEGETATION_QA={
+ source:palmWind.source,canopyGroups:palmWind.canopyGroups,
+ geometryAdded:palmWind.geometryAdded,drawCallsAdded:palmWind.drawCallsAdded,
+ G19SourcePalmsAltered:palmWind.G19SourcePalmsAltered,
+ reducedMotion:palmWind.reducedMotion,originalAssetsUntouched:true
+};
 const hedgeLayer=publicPreview?buildHedgeLayer(visualTier):null;
 let roadStatus=null,coastalWater=null,stuccoStatus=null;let wallMicroreliefStatus=null;
 const pbrSwitch=$('pbrMicrorelief');
@@ -462,7 +492,10 @@ function enterPublicCity(){
  mode='first';
  $('cameraMode').textContent='Primera persona · ciudad pública';
  window.NPL_READY={cityMeshes:city?.children?.length||0,cityOnly:true,privateAvatarLoaded:false,
-  explanadaCoords:[38.34318,-0.48326],windows:windowCount,facadeStyle:'artistic_not_surveyed',palms:palmCount,urbanKit:urbanKit?.stats||null,hedges:hedgeLayer?.stats||null,roadSurface:roadStatus,facadeMaterial:stuccoStatus?{
+  explanadaCoords:[38.34318,-0.48326],windows:windowCount,
+  decorativeWindowSourceVerified:false,
+  artificialFacadeGeometryDefaultOff:window.NEUROCITY_WINDOW_ORIGIN_QA?.defaultIllustrativeWindowsDisabled===true,
+  facadeStyle:'artistic_not_surveyed',palms:palmCount,urbanKit:urbanKit?.stats||null,hedges:hedgeLayer?.stats||null,roadSurface:roadStatus,facadeMaterial:stuccoStatus?{
    source:stuccoStatus.source,meshCount:stuccoStatus.meshCount,
    photoMatched:stuccoStatus.photoMatched}:null,mosaic:mosaicKit.report,brain3D:{available:false,source:CANONICAL_NPL.source,
   expectedStructures:437,lazyOriginalViewer:true,neverProcedural:true},water:coastalWater?{
@@ -479,6 +512,17 @@ async function loadWorld(){
  try{
   const data=await model('./assets/alicante.glb');
   city=data.scene;scene.add(city);
+  // Keep references only to the PUBLIC GLB wall materials before any visual
+  // decoration; a diagnostic can render raw geometry to isolate shader failures.
+  if(publicPreview){
+    publicSourceWalls=[];
+    city.traverse(mesh=>{
+      if(mesh.isMesh&&(mesh.name==='OSM_Real_Building_Walls_UNTEXTURED'||
+          mesh.name.startsWith('OSM_Real_Building_Walls_UNTEXTURED.'))){
+        publicSourceWalls.push({mesh,rawMaterial:mesh.material});
+      }
+    });
+  }
   // Inspect the actual loaded Three.js mesh topology, not only declarations
   // from a Blender export manifest. No human / avatar GLBs are inspected.
   if(publicPreview || ownerWorldRequested){
@@ -517,15 +561,51 @@ async function loadWorld(){
     geometryStillCanonical:true,artisticNotSurveyed:true,
     browserMeasuredNotCertified:true
   };
-  if(publicPreview || ownerWorldRequested)osmCover=installCoveredOSMMask(city);
+  // The public OSM-only viewer has NO G19 private architecture to clip against.
+  // Do not install an unnecessary replacement shader on the source building
+  // materials. Owner-only G19/V50 still gets the precise triangle occupancy.
+  if(ownerWorldRequested)osmCover=installCoveredOSMMask(city);
   // The source-matched asphalt texture belongs on OSM highway ribbon meshes, not on invented roads.
   if(publicPreview)roadStatus=enhanceMappedOSMRoads(city,{mobile:visualTier==='mobile'});
   if(publicPreview)coastalWater=enhanceSourceMappedWater(city,{
     tier:visualTier,reducedMotion:window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches===true
   });
-  // Public-only, bounded artistic facade detail on verifiable OSM wall geometry.
-  // Never loads the optional private facade GLB.
-  if(publicPreview)addFacadeDetail(city,170);
+  // Independent screenshot QA proved hundreds of guessed black window boxes
+  // create unnatural card-like facades. Retain the historic algorithm ONLY as
+  // an explicit public comparison option; default uses actual OSM 3D wall
+  // surfaces with conservative shader styling, never invented balconies.
+  const decorativeWindowsOptIn=publicPreview&&
+    new URLSearchParams(location.search).get('windowStudy')==='illustrative';
+  if(decorativeWindowsOptIn)addFacadeDetail(city,170);
+  if(publicPreview){
+    let showingRaw=false;
+    window.NEUROCITY_SOURCE_WALL_QA={
+      source:'PUBLIC_OSM_GLB_ORIGINAL_MATERIAL',
+      originalWallMeshes:publicSourceWalls.length,
+      setRaw(value){
+        if(typeof value!=='boolean')throw TypeError('Raw wall comparison must be boolean');
+        for(const wall of publicSourceWalls){
+          if(value&&!showingRaw){
+            wall.decoratedMaterial=wall.mesh.material;
+            wall.mesh.material=wall.rawMaterial;
+          }else if(!value&&showingRaw){
+            wall.mesh.material=wall.decoratedMaterial;
+          }
+        }
+        showingRaw=value;
+        return {raw:showingRaw,meshCount:publicSourceWalls.length,
+          sourceGeometryUnchanged:true,ownerArchiveIgnored:true};
+      },
+      status(){return {raw:showingRaw,sourceMeshes:publicSourceWalls.length};}
+    };
+  }
+  if(publicPreview)window.NEUROCITY_WINDOW_ORIGIN_QA={
+    defaultIllustrativeWindowsDisabled:!decorativeWindowsOptIn,
+    artificialWindowsDrawn:windowCount,
+    OSMBuildingGeometryUnmodified:true,
+    surveyedWindowsClaimed:false,
+    historicDemonstrationPreservedAsOptIn:true
+  };
   // v11 architectural detail baked on exactly 150 ACTUAL OSM building-wall edges.
   // Geometry intentionally separate from the PNOA georeferenced base.
   if(!publicPreview) try {
@@ -696,6 +776,10 @@ function frame(){
  sun.target.position.set(player.position.x,0,player.position.z);
  sun.target.updateMatrixWorld();
  if(coastalWater)coastalWater.advance(clock.elapsedTime);
+ if(palmWind)palmWind.update(clock.elapsedTime);
+ // Automated inspection is opt-in, PUBLIC-REVIEW-only; the source-derived
+ // near-field camera shows actual material detail without moving the player.
+ if(publicPreview&&nearFacadeQA)placeInspectionCamera(camera,nearFacadeQA);
  renderer.render(scene,camera);
  if(clock.elapsedTime>=nextPerformanceReportSec){
    nextPerformanceReportSec=clock.elapsedTime+1;

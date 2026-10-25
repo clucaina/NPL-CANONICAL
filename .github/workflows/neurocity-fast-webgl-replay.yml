@@ -1,0 +1,120 @@
+name: NeuroCity · fast public-GLB Chromium replay, source SHA locked (NO DEPLOY)
+on:
+  push:
+    paths:
+      - '.github/workflows/neurocity-fast-webgl-replay.yml'
+      - 'demos/npl-world/visual_viewer/palm_canopy_wind.mjs'
+      - 'demos/npl-world/visual_viewer/source_facade_inspector.mjs'
+      - 'demos/npl-world/visual_viewer/facade_microrelief.mjs'
+      - 'demos/npl-world/visual_viewer/tests/browser_public_review.mjs'
+  pull_request:
+    paths:
+      - '.github/workflows/neurocity-fast-webgl-replay.yml'
+      - 'demos/npl-world/visual_viewer/palm_canopy_wind.mjs'
+      - 'demos/npl-world/visual_viewer/source_facade_inspector.mjs'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: neurocity-fast-qa-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify-visible:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Preflight JavaScript syntax before downloading historical 3D artifact
+        run: |
+          node --check demos/npl-world/visual_viewer/tests/browser_public_review.mjs
+          node --check demos/npl-world/visual_viewer/tests/browser_mobile_review.mjs
+          node --check demos/npl-world/visual_viewer/app.js
+      - name: Reuse ONLY previously source-verified PUBLIC Alicante geometry, never private G19
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p demos/npl-world/visual_viewer/dist
+          gh run download 39467155769 \
+            --repo clucaina/NPL-CANONICAL \
+            --name NEUROCITY_ALICANTE_PUBLIC_REVIEW_NO_PRIVATE_PERSON \
+            --dir demos/npl-world/visual_viewer/dist
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          root=Path('demos/npl-world/visual_viewer/dist')
+          meta=json.loads((root/'PREVIEW_MANIFEST.json').read_text())
+          actual=hashlib.sha256((root/'assets/alicante.glb').read_bytes()).hexdigest()
+          assert actual==meta['city_glb_sha256']=='419edba062f7a91b0c7dc59896db545242bbee6d1867951891c72d34d479c65f'
+          assert meta['public_viewer'] and meta['no_personal_avatar']
+          assert meta['source_qa']['gate']=='PASS_PROVENANCE_ONLY'
+          assert not (root/'assets/maya.glb').exists()
+          print('LOCKED public OSM-PNOA source GLB; 614 buildings, 2 measured heights, not photorealistic')
+          PY
+      - name: Compile latest shader, animation and inspection code with pinned open-source Three
+        working-directory: demos/npl-world/visual_viewer
+        run: |
+          npm install --no-audit --no-fund
+          node --test tests/facade_microrelief.test.mjs tests/palm_canopy_wind.test.mjs tests/source_facade_inspector.test.mjs
+          npm run build
+          node --check dist/game.js
+          cp index.html dist/index.html
+          cp observatory.html observatory.css observatory.mjs public_layers.mjs dist/
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('dist/index.html')
+          data=p.read_text(encoding='utf-8')
+          n='<script src="./game.js"></script>'
+          assert n in data
+          p.write_text(data.replace(n,'<script>window.NPL_PUBLIC_REVIEW=true;</script>'+n))
+          PY
+      - name: Run real Chromium software WebGL using existing public geometry; capture PBR closeup
+        run: |
+          set -euo pipefail
+          # Only preverified geometry may be reused. Every screenshot and QA JSON
+          # must be generated fresh from this commit: stale images are forbidden.
+          rm -f demos/npl-world/visual_viewer/dist/QA_BROWSER*.json
+          rm -f demos/npl-world/visual_viewer/dist/QA_BROWSER*.png
+          rm -f demos/npl-world/visual_viewer/dist/QA_FACADE_*.png
+          npm --prefix demos/npl-world/visual_viewer install --no-save --no-audit --no-fund playwright@1.56.0
+          npx --prefix demos/npl-world/visual_viewer playwright install chromium
+          python3 -m http.server 8766 --bind 127.0.0.1 \
+            --directory demos/npl-world/visual_viewer/dist > /tmp/fast-neurocity-http.log 2>&1 &
+          node demos/npl-world/visual_viewer/tests/browser_public_review.mjs
+          node demos/npl-world/visual_viewer/tests/browser_mobile_review.mjs
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path('demos/npl-world/visual_viewer/dist')
+          state=json.loads((p/'QA_BROWSER.json').read_text())
+          assert state['status']=='BROWSER_READY'
+          assert state['nearSourceWallQA']['source']=='OSM_REAL_BUILDING_WALLS_PUBLIC_GEOMETRY'
+          assert state['foliageGPU']['canopyGroups']==3
+          assert all((p/n).stat().st_size>1000 for n in
+            ['QA_FACADE_CLOSEUP_RAW_GLB.png','QA_FACADE_CLOSEUP_ORIGINAL.png','QA_FACADE_CLOSEUP_PBR.png',
+             'QA_FACADE_ORIGINAL_SAME_CAMERA.png','QA_FACADE_PBR_SAME_CAMERA.png'])
+          mobile=json.loads((p/'QA_BROWSER_MOBILE.json').read_text())
+          assert mobile['status']=='PASS'
+          print('PASS source-SHA-locked latest app, new screenshots, actual browser, mobile joystick')
+          PY
+      - name: Save actual source-wall images and bounded evidence; no private GLB
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEUROCITY_FAST_REAL_WEBGL_PUBLIC_SOURCE_ONLY
+          path: |
+            demos/npl-world/visual_viewer/dist/QA_BROWSER.json
+            demos/npl-world/visual_viewer/dist/QA_BROWSER_MOBILE.json
+            demos/npl-world/visual_viewer/dist/QA_FACADE_CLOSEUP_RAW_GLB.png
+            demos/npl-world/visual_viewer/dist/QA_FACADE_CLOSEUP_ORIGINAL.png
+            demos/npl-world/visual_viewer/dist/QA_FACADE_CLOSEUP_PBR.png
+            demos/npl-world/visual_viewer/dist/QA_FACADE_ORIGINAL_SAME_CAMERA.png
+            demos/npl-world/visual_viewer/dist/QA_FACADE_PBR_SAME_CAMERA.png
+            demos/npl-world/visual_viewer/dist/QA_BROWSER_MOBILE.png
+          retention-days: 7
+          if-no-files-found: warn

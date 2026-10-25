@@ -14,6 +14,24 @@ test('refuses public social claims from missing or unreviewed data',()=>{
  assert.equal(inspectDataset({...dataset,observations:[...rows,rows[1]]}).usable,false);
  assert.equal(inspectDataset({...dataset,observations:[{...rows[0],value:NaN},rows[1]]}).usable,false);
 });
+test('curated INE metadata cannot be faked with a lookalike HTTPS host',()=>{
+ for(const fake of [
+  'https://www.ine.es.attacker.example/false.csv',
+  'http://www.ine.es/dyngs/Prensa/EAES2024.htm',
+  'https://fake.example/ine',
+  'https://www.ine.es@attacker.example/data',
+  'https://www.ine.es:443@attacker.example/data'
+ ]){
+  const counterfeit={...dataset,observations:rows.map(x=>({...x,source_url:fake}))};
+  assert.equal(inspectDataset(counterfeit).usable,false,fake);
+ }
+ assert.equal(inspectDataset({...dataset,observations:rows.map(x=>({...x,source_id:'FAKE_INE'}))}).usable,false);
+ const valid=inspectDataset({...dataset,observations:rows.map(x=>({
+  ...x,source_url:'https://www.ine.es/dyngs/Prensa/EAES2024.htm'}))});
+ assert.equal(valid.usable,true);
+ assert.equal(compareObservation(valid,'SALARIOS','ES30').comparable,true);
+});
+
 test('compares only same indicator, denominator, unit and period',()=>{
  const d=inspectDataset(dataset);
  assert.equal(d.usable,true);
