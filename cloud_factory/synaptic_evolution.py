@@ -160,12 +160,11 @@ def evolve(report,previous=None,budget=MAX_CANDIDATES):
         if run is None:continue
         available+=1
         intervention=_real_failure_intervention(root_id,run)
-        templates=(
-           [(code,title,hypothesis,measurement,falsifier,priority)]
-           if intervention and (code:=intervention[0])
-           else [(code,title,hypothesis,measurement,falsifier,None)
-                 for code,title,hypothesis,measurement,falsifier in EXPERIMENTS[root_id]]
-        )
+        if intervention:
+            templates=[intervention]
+        else:
+            templates=[(code,title,hypothesis,measurement,falsifier,None)
+                       for code,title,hypothesis,measurement,falsifier in EXPERIMENTS[root_id]]
         for code,title,hypothesis,measurement,falsifier,special_priority in templates:
             signature=sha256((root_id+"|"+code+"|"+run["url"]+"|"+run["conclusion"]).encode()).hexdigest()[:20]
             if signature in seen:
