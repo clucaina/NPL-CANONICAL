@@ -152,7 +152,15 @@ def evolve(report,previous=None,budget=MAX_CANDIDATES):
                 "scientific_validation":False,"deployment":False
             })
     candidates.sort(key=lambda p:(-p["priority"],p["root"],p["track"],p["id"]))
-    selected=candidates[:budget]
+    selected=[]
+    participating=set()
+    for candidate in candidates:
+        # One topic per observed public root per pulse, so one noisy CI
+        # project cannot monopolize the entire budget.
+        if candidate["root"] in participating:continue
+        selected.append(candidate)
+        participating.add(candidate["root"])
+        if len(selected)>=budget:break
     # Limit memory: no histories of users, article content or raw CI logs.
     history=(previously+[p["id"] for p in selected])[-MAX_HISTORY:]
     return {
