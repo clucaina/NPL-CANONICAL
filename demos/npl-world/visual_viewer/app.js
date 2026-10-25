@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import {choosePixelRatio,nextAutoScale,qualityBudget,QUALITY_MODES} from './quality.mjs';
 
 // NPL WORLD - real GLB integration. No placeholder people, no pay-per-map API.
 // Local public cartographic geometry + separate PRIVATE human GLB. Offline runtime.
@@ -8,7 +9,7 @@ const loading=$('loading'), info=$('info'), stat=$('stat'), progress=$('progress
 const view=$('game');
 const display=(message,problem=false)=>{info.textContent=message;info.classList.toggle('error',problem)};
 const renderer=new THREE.WebGLRenderer({canvas:view, antialias:true,alpha:false,powerPreference:'high-performance'});
-renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));
+// Native resolution is constrained by the measured framebuffer budget in applyGraphicsQuality().
 renderer.shadowMap.enabled=true;
 renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.outputColorSpace=THREE.SRGBColorSpace;
@@ -250,7 +251,8 @@ function animateState(key){
 const clock=new THREE.Clock();
 function frame(){
  requestAnimationFrame(frame);
- const dt=Math.min(clock.getDelta(),.045);
+ const rawMs=clock.getDelta()*1000;
+ const dt=Math.min(rawMs/1000,.045);
  const forward=Number(keys.has('KeyW')||keys.has('ArrowUp'))-Number(keys.has('KeyS')||keys.has('ArrowDown'));
  const strafe=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft'));
  const total=Math.hypot(forward,strafe);
@@ -287,14 +289,39 @@ function frame(){
  sun.target.position.set(player.position.x,0,player.position.z);
  sun.target.updateMatrixWorld();
  renderer.render(scene,camera);
+ observePerformance(rawMs);
  if(Math.floor(clock.elapsedTime*3)!==Math.floor((clock.elapsedTime-dt)*3)){
    stat.textContent='x '+player.position.x.toFixed(0)+' m · z '+player.position.z.toFixed(0)+' m · '+mode;
  }
 }
-function resize(){const width=view.clientWidth,height=view.clientHeight;
- camera.aspect=width/Math.max(1,height);camera.updateProjectionMatrix();
+const QUALITY_LABELS={auto:'Auto',ultra:'Ultra',balanced:'Equilibrada',economy:'Ahorro'};
+let graphicsMode='auto',adaptiveScale=1,perfMillis=0,perfFrames=0,lastRatio=-1,lastShadow=-1;
+function applyGraphicsQuality(){
+ const width=Math.max(1,view.clientWidth),height=Math.max(1,view.clientHeight);
+ camera.aspect=width/height;camera.updateProjectionMatrix();
+ const ratio=choosePixelRatio({width,height,deviceRatio:window.devicePixelRatio||1,mode:graphicsMode,autoScale:adaptiveScale});
+ if(Math.abs(lastRatio-ratio)>.009){renderer.setPixelRatio(ratio);lastRatio=ratio;}
+ const shadow=qualityBudget(graphicsMode).shadow;
+ if(shadow!==lastShadow){
+  sun.shadow.mapSize.set(shadow,shadow);
+  if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null;}
+  lastShadow=shadow;
+ }
  renderer.setSize(width,height,false);
+ $('fidelity').textContent='◈ '+QUALITY_LABELS[graphicsMode]+(graphicsMode==='auto'?' '+Math.round(adaptiveScale*100)+'%':'');
 }
+function observePerformance(ms){
+ // A hidden tab or long interruption should not count as a graphics bottleneck.
+ if(graphicsMode!=='auto'||document.visibilityState!=='visible'||ms>180)return;
+ perfMillis+=ms;perfFrames++;
+ if(perfMillis<2400)return;
+ const fps=1000*perfFrames/perfMillis;
+ const next=nextAutoScale(adaptiveScale,fps);
+ perfMillis=0;perfFrames=0;
+ if(next!==adaptiveScale){adaptiveScale=next;applyGraphicsQuality();}
+}
+function resize(){applyGraphicsQuality();}
+
 window.addEventListener('resize',resize);resize();
 window.addEventListener('keydown',e=>{if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight'].includes(e.code))e.preventDefault();keys.add(e.code);if(e.code==='KeyC')cycleCamera();});
 window.addEventListener('keyup',e=>keys.delete(e.code));
@@ -309,6 +336,6 @@ view.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(1.85,Math.min
 const cycleCamera=()=>{mode=mode==='back'?'face':mode==='face'?'first':'back';$('cameraMode').textContent=mode==='back'?'Tercera persona':mode==='face'?'Inspección facial':'Primera persona';};
 $('cam').onclick=cycleCamera;
 $('reset').onclick=()=>{player.position.set(-10.664,0,113.546);yaw=-.65;mode='back';};
-$('fidelity').onclick=()=>{let hi=renderer.getPixelRatio()<1.7;renderer.setPixelRatio(hi?Math.min(devicePixelRatio,2):1);sun.shadow.mapSize.set(hi?2048:1024,hi?2048:1024);sun.shadow.map?.dispose();sun.shadow.map=null;};
+$('fidelity').onclick=()=>{graphicsMode=QUALITY_MODES[(QUALITY_MODES.indexOf(graphicsMode)+1)%QUALITY_MODES.length];adaptiveScale=1;perfMillis=0;perfFrames=0;applyGraphicsQuality();};
 frame();
 loadWorld();
