@@ -155,6 +155,7 @@ def evolve(report,previous=None,budget=MAX_CANDIDATES):
     selected=[]
     participating=set()
     for candidate in candidates:
+        if len(selected)>=budget:break
         # One topic per observed public root per pulse, so one noisy CI
         # project cannot monopolize the entire budget.
         if candidate["root"] in participating:continue
