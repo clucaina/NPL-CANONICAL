@@ -6,6 +6,8 @@ on:
       - 'cloud_factory/neural_garden.py'
       - 'cloud_factory/garden_view.html'
       - 'cloud_factory/test_neural_garden.py'
+      - 'cloud_factory/public_site_parity.py'
+      - 'cloud_factory/test_public_site_parity.py'
       - '.github/workflows/neural-garden.yml'
   schedule:
     - cron: '17 */6 * * *'
@@ -25,6 +27,10 @@ jobs:
           persist-credentials: false
       - name: Prove root isolation, privacy membrane and fairness
         run: python3 -m unittest discover -s cloud_factory -p 'test_neural_garden.py' -v
+      - name: Test original public Site release signals without private source
+        run: python3 -m unittest discover -s cloud_factory -p 'test_public_site_parity.py' -v
+      - name: Inspect original Site without editing, emails, new jobs or storage
+        run: python3 cloud_factory/public_site_parity.py --summary >> "$GITHUB_STEP_SUMMARY"
       - name: Build fresh evidence-anchored orchard snapshot and interactive offline dashboard
         env:
           GH_TOKEN: ${{ github.token }}
