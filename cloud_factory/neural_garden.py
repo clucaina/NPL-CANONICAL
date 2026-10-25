@@ -57,7 +57,7 @@ def transmit(edge,payload):
     if hashv and not re.fullmatch(r"[a-f0-9]{64}",hashv):raise PermissionError("Invalid digest")
     return dict(payload)
 def fetch_public_repo(repo,opener=urlopen):
-    url="https://api.github.com/repos/"+repo+"/actions/runs?per_page=12"
+    url="https://api.github.com/repos/"+repo+"/actions/runs?branch=main&per_page=35"
     headers={"User-Agent":"NeuralGarden-EvidenceGate/1","Accept":"application/vnd.github+json"}
     token=os.getenv("GITHUB_TOKEN","")
     if token:headers["Authorization"]="Bearer "+token
@@ -65,7 +65,7 @@ def fetch_public_repo(repo,opener=urlopen):
     # The official GH CLI handles authenticated GitHub Actions APIs reliably.
     # Fixed allowlisted repo names only, never a user-controlled command.
     if os.getenv("GH_TOKEN") and shutil.which("gh"):
-        result=subprocess.run(["gh","api","repos/"+repo+"/actions/runs?per_page=12"],
+        result=subprocess.run(["gh","api","repos/"+repo+"/actions/runs?branch=main&per_page=35"],
                               capture_output=True,text=True,timeout=24)
         if result.returncode!=0:raise ValueError("GitHub CLI evidence unavailable")
         obj=json.loads(result.stdout)
@@ -75,17 +75,22 @@ def fetch_public_repo(repo,opener=urlopen):
     data=obj.get("workflow_runs",[])
     if not isinstance(data,list):raise ValueError("GitHub runs are malformed")
     runs=[]
-    for t in data[:12]:
+    seen_workflows=set()
+    for t in data[:35]:
         if not isinstance(t,dict):continue
         name=str(t.get("name") or "")[:110]
         if not name:continue
         # Exclude this observatory and passive inventory jobs: prevent artificial "new progress" loops.
         if name.startswith(("Jardín Sináptico","Factory independent shift","NPL Alicante 3D - open city on free CPU")):continue
+        if name in seen_workflows:continue
+        if t.get("head_branch") not in ("main",None):continue
+        seen_workflows.add(name)
         runs.append({"name":name,"status":str(t.get("status","unknown"))[:25],
                      "conclusion":str(t.get("conclusion") or "pending")[:25],
                      "time":str(t.get("created_at") or "")[:35],
                      "url":str(t.get("html_url") or "")[:210],
                      "branch":str(t.get("head_branch") or "")[:120]})
+        if len(runs)>=12:break
     return runs
 def choose_turns(states,budget=3,previous=None):
     """Finite-resource priority, safety-before-novelty, fair across eligible roots."""
