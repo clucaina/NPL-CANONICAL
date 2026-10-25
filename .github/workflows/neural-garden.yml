@@ -12,7 +12,6 @@ on:
 permissions:
   contents: read
   actions: read
-  issues: write
 concurrency:
   group: garden-synaptic-pulse
   cancel-in-progress: false
@@ -39,29 +38,8 @@ jobs:
           path: garden-output/
           if-no-files-found: error
           retention-days: 14
-      - name: Notify only on meaningful changes, never log private content
-        uses: actions/github-script@v7
-        env:
-          GARDEN_STATE: garden-output/snapshot.json
-        with:
-          script: |
-            const fs=require('fs');
-            const crypto=require('crypto');
-            const snap=JSON.parse(fs.readFileSync(process.env.GARDEN_STATE,'utf8'));
-            const observed=snap.roots.filter(p=>p.source).map(p=>({
-              id:p.id,status:p.status,
-              latest:(p.recent_runs.find(r=>r.status==='completed'&&r.name!=='Jardín Sináptico - pulso comprobable (SIN DESPLIEGUE)')||{}).url||''
-            })).sort((a,b)=>a.id.localeCompare(b.id));
-            if(!observed.some(v=>v.latest)) {console.log('No verified source change to notify');return;}
-            const fingerprint=crypto.createHash('sha256').update(JSON.stringify(observed)).digest('hex');
-            const marker='<!-- garden-evidence:'+fingerprint+' -->';
-            const {owner,repo}=context.repo;
-            const comments=await github.paginate(github.rest.issues.listComments,{owner,repo,issue_number:6,per_page:100});
-            if(comments.some(c=>typeof c.body==='string'&&c.body.includes(marker))){
-              console.log('No changes in verified public evidence');return;
-            }
-            const rows=observed.map(p=>'- '+p.id+': '+p.status+(p.latest?' · '+p.latest:''));
-            const body=marker+'\n### Evolución comprobable del jardín\n'+rows.join('\n')+
-              '\n\n[Ver ejecución y visor offline]('+context.serverUrl+'/'+owner+'/'+repo+'/actions/runs/'+context.runId+')'+
-              '\n\n*No hay publicación de apps, imágenes personales, inferencias científicas ni datos periciales.*';
-            await github.rest.issues.createComment({owner,repo,issue_number:6,body});
+      - name: Confirm no automatic email or GitHub issue comment delivery
+        run: |
+          echo "SILENT_EVIDENCE_DELIVERY=WORKFLOW_SUMMARY_AND_ARTIFACTS_ONLY" >> "$GITHUB_STEP_SUMMARY"
+          test -s garden-output/status.md
+          test -s garden-output/snapshot.json
