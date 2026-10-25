@@ -15,7 +15,7 @@ export function choosePixelRatio({width,height,deviceRatio=1,mode='auto',autoSca
  const native=Number.isFinite(deviceRatio)&&deviceRatio>0?deviceRatio:1;
  const pixelBound=Math.sqrt(b.maxPixels/Math.max(1,width*height));
  const scale=mode==='auto'&&Number.isFinite(autoScale)?Math.max(.6,Math.min(1,autoScale)):1;
- return Math.round(Math.max(.5,Math.min(native,b.maxDpr,pixelBound)*scale)*100)/100;
+ return Math.max(.01,Math.floor(Math.min(native,b.maxDpr,pixelBound)*scale*100)/100);
 }
 export function nextAutoScale(scale,fps) {
  if(!Number.isFinite(fps)||fps<=0)return scale;
