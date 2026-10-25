@@ -4,13 +4,15 @@ on:
   push:
     paths:
       - 'cloud_factory/neural_garden.py'
+      - 'cloud_factory/synaptic_evolution.py'
+      - 'cloud_factory/test_synaptic_evolution.py'
       - 'cloud_factory/garden_view.html'
       - 'cloud_factory/test_neural_garden.py'
       - 'cloud_factory/public_site_parity.py'
       - 'cloud_factory/test_public_site_parity.py'
       - '.github/workflows/neural-garden.yml'
   schedule:
-    - cron: '17 */6 * * *'
+    - cron: '17 * * * *'
 permissions:
   contents: read
   actions: read
@@ -27,14 +29,36 @@ jobs:
           persist-credentials: false
       - name: Prove root isolation, privacy membrane and fairness
         run: python3 -m unittest discover -s cloud_factory -p 'test_neural_garden.py' -v
+      - name: Prove experiment deduplication, falsification and no-private-source boundaries
+        run: python3 -m unittest discover -s cloud_factory -p 'test_synaptic_evolution.py' -v
       - name: Test original public Site release signals without private source
         run: python3 -m unittest discover -s cloud_factory -p 'test_public_site_parity.py' -v
       - name: Inspect original Site without editing, emails, new jobs or storage
         run: python3 cloud_factory/public_site_parity.py --summary | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Build fresh evidence-anchored orchard snapshot and interactive offline dashboard
+      - name: Recover small previous checkpoint from this same public workflow if present
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 cloud_factory/neural_garden.py --out garden-output --html cloud_factory/garden_view.html
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/previous-garden"
+          previous="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow neural-garden.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)"
+          if [[ "$previous" =~ ^[0-9]+$ ]]; then
+            gh run download "$previous" --repo "$GITHUB_REPOSITORY" --name JARDIN_SINAPTICO_EVIDENCIAS_PUBLICAS --dir "$RUNNER_TEMP/previous-garden" >/dev/null 2>&1 || true
+          fi
+          if [[ -s "$RUNNER_TEMP/previous-garden/snapshot.json" ]]; then
+            bytes="$(wc -c < "$RUNNER_TEMP/previous-garden/snapshot.json")"
+            if (( bytes > 90000 )); then
+              rm -f "$RUNNER_TEMP/previous-garden/snapshot.json"
+            fi
+          fi
+      - name: Evolve bounded public hypotheses in the SAME existing garden artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 cloud_factory/neural_garden.py \
+            --out garden-output \
+            --html cloud_factory/garden_view.html \
+            --prior-snapshot "$RUNNER_TEMP/previous-garden/snapshot.json"
       - name: Summarize only public traceable evidence
         run: cat garden-output/status.md >> "$GITHUB_STEP_SUMMARY"
       - name: Archive privacy-safe dashboard and machine-readable state
@@ -43,7 +67,8 @@ jobs:
           name: JARDIN_SINAPTICO_EVIDENCIAS_PUBLICAS
           path: garden-output/
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 2
+          compression-level: 9
       - name: Confirm no automatic email or GitHub issue comment delivery
         run: |
           echo "SILENT_EVIDENCE_DELIVERY=WORKFLOW_SUMMARY_AND_ARTIFACTS_ONLY" >> "$GITHUB_STEP_SUMMARY"
