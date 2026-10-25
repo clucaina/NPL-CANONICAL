@@ -30,7 +30,7 @@ jobs:
       - name: Test original public Site release signals without private source
         run: python3 -m unittest discover -s cloud_factory -p 'test_public_site_parity.py' -v
       - name: Inspect original Site without editing, emails, new jobs or storage
-        run: python3 cloud_factory/public_site_parity.py --summary >> "$GITHUB_STEP_SUMMARY"
+        run: python3 cloud_factory/public_site_parity.py --summary | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Build fresh evidence-anchored orchard snapshot and interactive offline dashboard
         env:
           GH_TOKEN: ${{ github.token }}
