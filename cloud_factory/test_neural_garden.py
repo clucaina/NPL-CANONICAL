@@ -56,6 +56,15 @@ class NeuralGardenTests(unittest.TestCase):
         self.assertEqual(turn[0]["id"],"psicologia_politica")
         self.assertEqual(turn[0]["turn"],"VERIFY_FAILURE")
         self.assertEqual(len({x["id"] for x in turn}),2)
+    def test_public_pulse_outputs_evidence_without_commenting_or_emailing(self):
+        workflow=(Path(__file__).parent.parent/".github"/"workflows"/"neural-garden.yml").read_text(encoding="utf-8")
+        self.assertIn("SILENT_EVIDENCE_DELIVERY=WORKFLOW_SUMMARY_AND_ARTIFACTS_ONLY",workflow)
+        self.assertIn("actions/upload-artifact@v4",workflow)
+        self.assertIn("garden-output/status.md",workflow)
+        self.assertNotIn("createComment",workflow)
+        self.assertNotIn("issues: write",workflow)
+        self.assertNotIn("sendmail",workflow)
+        self.assertNotIn("gmail",workflow.casefold())
     def test_export_is_standalone_and_escapes_html_data(self):
         report=assemble(fetcher=lambda _:[])
         report["roots"][0]["title"]='</script><img src=x onerror=alert(1)>'
