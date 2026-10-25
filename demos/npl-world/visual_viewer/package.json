@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "esbuild app.js --bundle --format=iife --minify --outfile=dist/game.js"
+    "build": "esbuild app.js --bundle --format=iife --minify --outfile=dist/game.js",
+    "test:quality": "node --test quality.test.mjs"
   },
   "dependencies": {
     "three": "0.169.0"
