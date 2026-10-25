@@ -1,11 +1,12 @@
 import hashlib
+import io
 import json
 from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
 
-from neural_garden import ROOTS, EDGES, transmit, choose_turns, assemble, save, recent_ci_status
+from neural_garden import ROOTS, EDGES, transmit, choose_turns, assemble, save, recent_ci_status, fetch_public_repo
 
 class NeuralGardenTests(unittest.TestCase):
     def test_roots_isolated_and_npl_conflictometro_inside_neurocity(self):
@@ -56,6 +57,28 @@ class NeuralGardenTests(unittest.TestCase):
         self.assertEqual(turn[0]["id"],"psicologia_politica")
         self.assertEqual(turn[0]["turn"],"VERIFY_FAILURE")
         self.assertEqual(len({x["id"] for x in turn}),2)
+    def test_public_ci_queries_use_main_and_current_workflow_result(self):
+        observations=[
+         {"name":"NeuroCity convergence","status":"completed","conclusion":"failure",
+          "created_at":"2026-10-25T13:00:00Z","head_branch":"main",
+          "html_url":"https://github.com/clucaina/NPL-CANONICAL/actions/runs/4001"},
+         {"name":"NeuroCity convergence","status":"completed","conclusion":"success",
+          "created_at":"2026-10-24T13:00:00Z","head_branch":"main",
+          "html_url":"https://github.com/clucaina/NPL-CANONICAL/actions/runs/4000"},
+         {"name":"Jardín Sináptico - pulso comprobable","status":"completed","conclusion":"success",
+          "created_at":"2026-10-25T13:01:00Z","head_branch":"main"},
+         {"name":"Privacy from feature branch","status":"completed","conclusion":"failure",
+          "created_at":"2026-10-25T14:00:00Z","head_branch":"feature"}]
+        def opener(request,timeout):
+            self.assertIn("branch=main&per_page=35",request.full_url)
+            self.assertLessEqual(timeout,18)
+            return io.BytesIO(json.dumps({"workflow_runs":observations}).encode())
+        with patch.dict("os.environ",{"GH_TOKEN":""}),patch("neural_garden.shutil.which",return_value=None):
+            found=fetch_public_repo("clucaina/NPL-CANONICAL",opener=opener)
+        self.assertEqual(len(found),1)
+        self.assertEqual(found[0]["name"],"NeuroCity convergence")
+        self.assertEqual(found[0]["conclusion"],"failure")
+        self.assertEqual(found[0]["branch"],"main")
     def test_latest_per_workflow_prevents_old_successful_failure_alert_repetition(self):
         newer={"name":"release","status":"completed","conclusion":"success","time":"2026-10-25T12:00:00Z"}
         older={"name":"release","status":"completed","conclusion":"failure","time":"2026-10-24T12:00:00Z"}
