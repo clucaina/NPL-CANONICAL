@@ -24,7 +24,7 @@ export function verifiedMosaicFallback(a){
      f.triangle_estimate<1||f.triangle_estimate>4_000_000||
      !Number.isSafeInteger(f.embedded_images)||
      f.embedded_images<0||f.embedded_images>1024)
-     throw new Error('Unsafe original V50 mobile mosaic fallback');
+     throw new Error('Unsupported asset source: Unsafe original V50 mobile mosaic fallback');
   return f;
 }
 export function tileBounds(id){
@@ -86,6 +86,8 @@ export function plannedLayers(tile,profile='desktop'){
     if(profile==='desktop')return !(a.role==='streetlamp'&&hasV50Furniture);
     return !['facade','furniture'].includes(a.role);
   }).map(a=>{
+    // Fail closed in direct LOD calls, even without the full manifest preflight.
+    if(a.mobile_fallback!==undefined)verifiedMosaicFallback(a);
     // Original V50 4cm relief: ~105k triangles on 16m2 patch. Preserve its
     // authentic 5k-triangle PBR source GLB for mobile instead of loading both.
     if(profile==='mobile'&&a.role==='mosaic'&&a.mobile_fallback){
