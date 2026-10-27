@@ -119,6 +119,41 @@ class GLBQuality(unittest.TestCase):
                 binary = b"\x00" * 36 + struct.pack("<3H", 0, 1, 2) + b"\x00" * 2
                 self.assertEqual(inspect_glb(pack(payload, binary))["drawable_primitives"], 0)
 
+    def test_glb_chunk_order_duplicates_and_trailing_corruption(self):
+        valid = pack(valid_payload())
+        json_size = struct.unpack_from("<I", valid, 12)[0]
+        json_chunk = valid[12:20 + json_size]
+        bin_chunk = valid[20 + json_size:]
+        unknown_chunk = struct.pack("<I4s", 4, b"XTRA") + b"\x00" * 4
+
+        def from_chunks(chunks):
+            body = b"".join(chunks)
+            return b"glTF" + struct.pack("<II", 2, 12 + len(body)) + body
+
+        cases = {
+            "bin_before_json": [bin_chunk, json_chunk],
+            "duplicate_json": [json_chunk, json_chunk, bin_chunk],
+            "duplicate_bin": [json_chunk, bin_chunk, bin_chunk],
+            "unknown_chunk": [json_chunk, unknown_chunk, bin_chunk],
+        }
+        for name, chunks in cases.items():
+            with self.subTest(name=name):
+                outcome = inspect_glb(from_chunks(chunks))
+                self.assertEqual(outcome["drawable_primitives"], 0)
+                self.assertTrue(outcome["errors"])
+        trailing = bytearray(valid + b"\x01")
+        struct.pack_into("<I", trailing, 8, len(trailing))
+        outcome = inspect_glb(bytes(trailing))
+        self.assertEqual(outcome["drawable_primitives"], 0)
+        self.assertTrue(outcome["errors"])
+
+    def test_glb_json_root_and_asset_must_be_objects(self):
+        for payload in ([], {"asset": []}, {"asset": None}):
+            with self.subTest(payload=payload):
+                outcome = inspect_glb(pack(payload))
+                self.assertEqual(outcome["drawable_primitives"], 0)
+                self.assertTrue(outcome["errors"])
+
     def test_bad_file_and_unsupported_version(self):
         self.assertFalse(inspect_glb(b"bad")["header_valid"])
         b=bytearray(pack(valid_payload()))
