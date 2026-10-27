@@ -39,7 +39,7 @@ def audit(osm_file, manifest_file, scene_file, glb_file):
     # Fail closed on malformed or non-finite coordinates: string/bool/NaN
     # values must never be mistaken for valid projected geometry.
     if (not isinstance(width, list) or len(width) != 4
-            or any(type(value) not in (int, float) or not math.isfinite(value) for value in width)
+            or any(type(value) not in (int, float) or abs(value) > 1e12 or not math.isfinite(value) for value in width)
             or width[2] <= width[0] or width[3] <= width[1]):
         errors.append("Invalid projected bounding box")
     exported = scene.get("real_osm_buildings")
