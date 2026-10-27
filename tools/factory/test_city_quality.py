@@ -62,6 +62,25 @@ class CityQualityTests(unittest.TestCase):
             self.assertEqual(audit(osm,manifest,scene,glb)["gate"],"FAIL")
             manifest.write_text(json.dumps({"bbox_local_m":[0,0,10,10],"real_orthophoto":False}))
             self.assertEqual(audit(osm,manifest,scene,glb)["gate"],"PASS_PROVENANCE_ONLY")
+            # A closed list of node IDs is not necessarily a georeferenced footprint.
+            original_osm = osm.read_text()
+            invalid_footprints = {
+                "two_distinct_nodes": original_osm.replace('<nd ref="3"/>', '<nd ref="2"/>'),
+                "nonfinite_latitude": original_osm.replace('lat="38.35"', 'lat="nan"'),
+                "latitude_outside_earth": original_osm.replace('lat="38.35"', 'lat="100"'),
+                "missing_latitude": original_osm.replace('lat="38.35"', 'lat=""'),
+                "collinear_nodes": original_osm.replace('lat="38.35" lon="-0.48"', 'lat="38.34" lon="-0.46"'),
+                "same_position_twice": original_osm.replace('lat="38.35" lon="-0.48"', 'lat="38.34" lon="-0.48"'),
+            }
+            for reason, bad_osm in invalid_footprints.items():
+                with self.subTest(reason=reason):
+                    self.assertNotEqual(bad_osm, original_osm)
+                    osm.write_text(bad_osm)
+                    result = audit(osm,manifest,scene,glb)
+                    self.assertEqual(result["gate"], "FAIL")
+                    self.assertEqual(result["evidence"]["closed_node_complete_ways"], 0)
+            osm.write_text(original_osm)
+            self.assertEqual(audit(osm,manifest,scene,glb)["gate"],"PASS_PROVENANCE_ONLY")
     def test_empty_or_invalid_glb_fails(self):
         with tempfile.TemporaryDirectory() as d:
             p=Path(d)
