@@ -9,11 +9,35 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from glb_structure import inspect_glb
 
+def valid_building_footprint(refs, nodes):
+    """Require a closed, non-degenerate OSM polygon with real geographic nodes."""
+    if len(refs) < 4 or refs[0] != refs[-1] or len(set(refs[:-1])) < 3:
+        return False
+    points = [nodes.get(ref) for ref in refs]
+    if any(point is None for point in points) or len(set(points[:-1])) < 3:
+        return False
+    # Translate to the first point to avoid cancellation with absolute lat/lon.
+    lat0, lon0 = points[0]
+    twice_area = sum(
+        (points[i][1] - lon0) * (points[i + 1][0] - lat0)
+        - (points[i + 1][1] - lon0) * (points[i][0] - lat0)
+        for i in range(1, len(points) - 2)
+    )
+    return abs(twice_area) > 1e-14
+
 def audit(osm_file, manifest_file, scene_file, glb_file):
     manifest = json.loads(Path(manifest_file).read_text(encoding="utf-8"))
     scene = json.loads(Path(scene_file).read_text(encoding="utf-8"))
     xml = ET.parse(osm_file).getroot()
-    nodes = {x.attrib["id"] for x in xml.findall("node")}
+    # A node ID alone is not evidence of a usable geographic coordinate.
+    nodes = {}
+    for node in xml.findall("node"):
+        try:
+            lat, lon = float(node.attrib["lat"]), float(node.attrib["lon"])
+            if math.isfinite(lat) and math.isfinite(lon) and -90 <= lat <= 90 and -180 <= lon <= 180:
+                nodes[node.attrib["id"]] = (lat, lon)
+        except (KeyError, TypeError, ValueError):
+            continue
     buildings, explicit_heights, complete, roads = 0, 0, 0, 0
     for way in xml.findall("way"):
         tags = {t.attrib.get("k"): t.attrib.get("v") for t in way.findall("tag")}
@@ -26,7 +50,7 @@ def audit(osm_file, manifest_file, scene_file, glb_file):
                     explicit_heights += int(math.isfinite(h) and 2 <= h <= 150)
                 except ValueError:
                     pass
-            complete += int(len(refs) >= 4 and refs[0] == refs[-1] and all(n in nodes for n in refs))
+            complete += int(valid_building_footprint(refs, nodes))
         if tags.get("highway"):
             roads += 1
     data = Path(glb_file).read_bytes()
