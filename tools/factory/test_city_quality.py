@@ -51,7 +51,7 @@ class CityQualityTests(unittest.TestCase):
             scene.write_text(json.dumps(valid_scene))
             invalid_bounds = [
                 [0,0,"10",10], [0,0,float("nan"),10],
-                [0,0,float("inf"),10], [False,0,10,10],
+                [0,0,float("inf"),10], [False,0,10,10], [0,0,10**1000,10],
                 [0,0,0,10], [0,0,10,-1],
             ]
             for bbox in invalid_bounds:
