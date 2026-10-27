@@ -44,13 +44,15 @@ def audit(osm_file, manifest_file, scene_file, glb_file):
         refs = [n.attrib["ref"] for n in way.findall("nd")]
         if tags.get("building") not in (None, "no"):
             buildings += 1
-            if tags.get("height"):
+            # Height tags on unusable footprints are not evidence for exported buildings.
+            footprint_valid = valid_building_footprint(refs, nodes)
+            complete += int(footprint_valid)
+            if footprint_valid and tags.get("height"):
                 try:
                     h = float(str(tags["height"]).strip().removesuffix(" m"))
                     explicit_heights += int(math.isfinite(h) and 2 <= h <= 150)
                 except ValueError:
                     pass
-            complete += int(valid_building_footprint(refs, nodes))
         if tags.get("highway"):
             roads += 1
     data = Path(glb_file).read_bytes()
