@@ -81,6 +81,21 @@ class CityQualityTests(unittest.TestCase):
                     self.assertEqual(result["evidence"]["closed_node_complete_ways"], 0)
             osm.write_text(original_osm)
             self.assertEqual(audit(osm,manifest,scene,glb)["gate"],"PASS_PROVENANCE_ONLY")
+            # A height tag on a degenerate footprint cannot substantiate a
+            # measured-height claim for a different, complete building.
+            no_height = original_osm.replace('<tag k="height" v="11"/>', '')
+            self.assertNotEqual(no_height, original_osm)
+            invalid_height_way = ('<way id="6"><nd ref="1"/><nd ref="2"/>'
+                                  '<nd ref="2"/><nd ref="1"/>'
+                                  '<tag k="building" v="yes"/>'
+                                  '<tag k="height" v="12"/></way>')
+            osm.write_text(no_height.replace("</osm>", invalid_height_way + "</osm>"))
+            result = audit(osm, manifest, scene, glb)
+            self.assertEqual(result["evidence"]["closed_node_complete_ways"], 1)
+            self.assertEqual(result["evidence"]["osm_explicit_height_tags_valid"], 0)
+            self.assertEqual(result["gate"], "FAIL")
+            scene.write_text(json.dumps({**valid_scene, "heights_directly_measured": 0}))
+            self.assertEqual(audit(osm, manifest, scene, glb)["gate"], "PASS_PROVENANCE_ONLY")
     def test_empty_or_invalid_glb_fails(self):
         with tempfile.TemporaryDirectory() as d:
             p=Path(d)
