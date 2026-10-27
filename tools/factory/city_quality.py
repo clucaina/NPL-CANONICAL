@@ -79,10 +79,13 @@ def audit(osm_file, manifest_file, scene_file, glb_file):
     # bool("false") is True: never promote a textual flag to verified imagery.
     if type(manifest.get("real_orthophoto")) is not bool:
         errors.append("Orthophoto provenance flag must be boolean")
-    if scene.get("facades_photogrammetric") or manifest.get("building_facades_photogrammetric"):
-        errors.append("Unexpected unsupported photogrammetric facade claim")
-    if scene.get("private_avatar_included"):
-        errors.append("Private avatar must not be included in a public build")
+    # Provenance/privacy flags must be explicit booleans: 0, null and empty
+    # containers are not evidence that a private asset is absent.
+    if (scene.get("facades_photogrammetric") is not False
+            or manifest.get("building_facades_photogrammetric", False) is not False):
+        errors.append("Unexpected or unverifiable photogrammetric facade claim")
+    if scene.get("private_avatar_included") is not False:
+        errors.append("Private avatar absence must be explicitly verified")
     return {
         "gate": "FAIL" if errors else "PASS_PROVENANCE_ONLY",
         "errors": errors,
