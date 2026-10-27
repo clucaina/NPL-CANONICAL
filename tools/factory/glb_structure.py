@@ -82,17 +82,22 @@ def inspect_glb(data):
     while offset<len(data):
         if offset+8>len(data):
             errors.append("Truncated GLB chunk header")
-            break
+            return result
         n,kind=struct.unpack_from("<I4s",data,offset)
         offset+=8
         if n%4 or offset+n>len(data):
             errors.append("Unaligned or truncated GLB chunk")
-            break
+            return result
         raw=data[offset:offset+n];offset+=n
-        if kind==b"JSON" and json_chunk is None:
+        # glTF 2.0 GLB: JSON must be first; at most one BIN may follow.
+        # Unknown, repeated or out-of-order chunks invalidate the whole audit.
+        if json_chunk is None and kind==b"JSON":
             json_chunk=raw
-        elif kind==b"BIN\x00" and bin_chunk is None:
+        elif json_chunk is not None and bin_chunk is None and kind==b"BIN\x00":
             bin_chunk=raw
+        else:
+            errors.append("Unexpected, duplicated or out-of-order GLB chunk")
+            return result
     if json_chunk is None:
         errors.append("Missing GLB JSON chunk")
         return result
@@ -101,7 +106,10 @@ def inspect_glb(data):
     except (UnicodeError,ValueError):
         errors.append("Malformed GLB JSON chunk")
         return result
-    if gltf.get("asset",{}).get("version")!="2.0":
+    if not isinstance(gltf,dict) or not isinstance(gltf.get("asset"),dict):
+        errors.append("Malformed GLB asset metadata")
+        return result
+    if gltf["asset"].get("version")!="2.0":
         errors.append("Unsupported or missing glTF 2.0 asset")
     else:
         result["json_valid"]=True
