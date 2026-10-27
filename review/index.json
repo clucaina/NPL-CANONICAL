@@ -108,10 +108,10 @@
       "release_gate": "NO_AUTO_IMPORT_NO_AUTO_DEPLOY",
       "raw_values_copied": false,
       "source_exists_in_catalog": false,
-      "cross_review_status": "BLOCK_FORMAT_OR_ID",
+      "cross_review_status": "BLOCK_NON_STATISTICAL_DOCUMENT",
       "independent_source_checked": true,
       "candidate_type": "PUBLIC_RESEARCH_DOCUMENT_NOT_STATISTICAL_OBSERVATIONS",
-      "routing": "RESEARCH_REVIEW_NOT_DATA_IMPORT"
+      "routing": "QUARANTINE_UNTIL_REVIEW"
     },
     {
       "schema": "neurohuerto.public_source_candidate.v1",
@@ -130,10 +130,10 @@
       "release_gate": "NO_AUTO_IMPORT_NO_AUTO_DEPLOY",
       "raw_values_copied": false,
       "source_exists_in_catalog": false,
-      "cross_review_status": "BLOCK_FORMAT_OR_ID",
+      "cross_review_status": "BLOCK_NON_STATISTICAL_DOCUMENT",
       "independent_source_checked": true,
       "candidate_type": "PUBLIC_RESEARCH_DOCUMENT_NOT_STATISTICAL_OBSERVATIONS",
-      "routing": "RESEARCH_REVIEW_NOT_DATA_IMPORT"
+      "routing": "QUARANTINE_UNTIL_REVIEW"
     },
     {
       "schema": "neurohuerto.public_source_candidate.v1",
@@ -152,10 +152,10 @@
       "release_gate": "NO_AUTO_IMPORT_NO_AUTO_DEPLOY",
       "raw_values_copied": false,
       "source_exists_in_catalog": false,
-      "cross_review_status": "BLOCK_FORMAT_OR_ID",
+      "cross_review_status": "BLOCK_NON_STATISTICAL_DOCUMENT",
       "independent_source_checked": true,
       "candidate_type": "PUBLIC_RESEARCH_DOCUMENT_NOT_STATISTICAL_OBSERVATIONS",
-      "routing": "RESEARCH_REVIEW_NOT_DATA_IMPORT"
+      "routing": "QUARANTINE_UNTIL_REVIEW"
     },
     {
       "schema": "neurohuerto.public_source_candidate.v1",
@@ -174,10 +174,10 @@
       "release_gate": "NO_AUTO_IMPORT_NO_AUTO_DEPLOY",
       "raw_values_copied": false,
       "source_exists_in_catalog": false,
-      "cross_review_status": "BLOCK_FORMAT_OR_ID",
+      "cross_review_status": "BLOCK_NON_STATISTICAL_DOCUMENT",
       "independent_source_checked": true,
       "candidate_type": "PUBLIC_RESEARCH_DOCUMENT_NOT_STATISTICAL_OBSERVATIONS",
-      "routing": "RESEARCH_REVIEW_NOT_DATA_IMPORT"
+      "routing": "QUARANTINE_UNTIL_REVIEW"
     },
     {
       "schema": "neurohuerto.public_source_candidate.v1",
@@ -201,6 +201,6 @@
     }
   ],
   "candidate_count": 9,
-  "feedback_changed": 0,
+  "feedback_changed": 4,
   "publication_authorized": false
 }

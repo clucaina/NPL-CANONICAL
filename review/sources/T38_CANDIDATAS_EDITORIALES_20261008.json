@@ -15,8 +15,8 @@
   "release_gate": "NO_AUTO_IMPORT_NO_AUTO_DEPLOY",
   "raw_values_copied": false,
   "source_exists_in_catalog": false,
-  "cross_review_status": "BLOCK_FORMAT_OR_ID",
+  "cross_review_status": "BLOCK_NON_STATISTICAL_DOCUMENT",
   "independent_source_checked": true,
   "candidate_type": "PUBLIC_RESEARCH_DOCUMENT_NOT_STATISTICAL_OBSERVATIONS",
-  "routing": "RESEARCH_REVIEW_NOT_DATA_IMPORT"
+  "routing": "QUARANTINE_UNTIL_REVIEW"
 }
