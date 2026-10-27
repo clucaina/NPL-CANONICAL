@@ -33,6 +33,35 @@ class CityQualityTests(unittest.TestCase):
             self.assertEqual(result["evidence"]["osm_buildings_with_no_valid_measured_height"],0)
             scene.write_text(json.dumps({"real_osm_buildings":1,"heights_directly_measured":2}))
             self.assertEqual(audit(osm,manifest,scene,glb)["gate"],"FAIL")
+            valid_scene = {"real_osm_buildings":1,"heights_directly_measured":1,
+                           "facades_photogrammetric":False,"private_avatar_included":False}
+            invalid_scenes = [
+                {}, {"real_osm_buildings":0,"heights_directly_measured":0},
+                {"real_osm_buildings":-1,"heights_directly_measured":0},
+                {"real_osm_buildings":True,"heights_directly_measured":0},
+                {"real_osm_buildings":1.0,"heights_directly_measured":0},
+                {"real_osm_buildings":2,"heights_directly_measured":0},
+                {"real_osm_buildings":1,"heights_directly_measured":-1},
+                {"real_osm_buildings":1,"heights_directly_measured":True},
+            ]
+            for bad_scene in invalid_scenes:
+                with self.subTest(scene=bad_scene):
+                    scene.write_text(json.dumps(bad_scene))
+                    self.assertEqual(audit(osm,manifest,scene,glb)["gate"],"FAIL")
+            scene.write_text(json.dumps(valid_scene))
+            invalid_bounds = [
+                [0,0,"10",10], [0,0,float("nan"),10],
+                [0,0,float("inf"),10], [False,0,10,10],
+                [0,0,0,10], [0,0,10,-1],
+            ]
+            for bbox in invalid_bounds:
+                with self.subTest(bbox=bbox):
+                    manifest.write_text(json.dumps({"bbox_local_m":bbox,"real_orthophoto":False}))
+                    self.assertEqual(audit(osm,manifest,scene,glb)["gate"],"FAIL")
+            manifest.write_text(json.dumps({"bbox_local_m":[0,0,10,10],"real_orthophoto":"false"}))
+            self.assertEqual(audit(osm,manifest,scene,glb)["gate"],"FAIL")
+            manifest.write_text(json.dumps({"bbox_local_m":[0,0,10,10],"real_orthophoto":False}))
+            self.assertEqual(audit(osm,manifest,scene,glb)["gate"],"PASS_PROVENANCE_ONLY")
     def test_empty_or_invalid_glb_fails(self):
         with tempfile.TemporaryDirectory() as d:
             p=Path(d)
