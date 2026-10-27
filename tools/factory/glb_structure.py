@@ -5,6 +5,31 @@ Designed to reject GLB files with syntactically valid headers but no drawable 3D
 import json
 import struct
 
+def _position_buffer_valid(accessor, views, buffers, bin_length):
+    """Verify that FLOAT VEC3 positions actually fit inside an embedded GLB buffer."""
+    if not isinstance(accessor, dict) or accessor.get("type") != "VEC3" or accessor.get("componentType") != 5126:
+        return False
+    count = accessor.get("count")
+    view_id = accessor.get("bufferView")
+    if type(count) is not int or count < 3 or type(view_id) is not int or not 0 <= view_id < len(views):
+        return False
+    view = views[view_id]
+    if not isinstance(view, dict) or type(view.get("buffer")) is not int or view["buffer"] != 0:
+        return False
+    if len(buffers) != 1 or not isinstance(buffers[0], dict) or "uri" in buffers[0]:
+        return False
+    declared = buffers[0].get("byteLength")
+    view_start, view_length = view.get("byteOffset", 0), view.get("byteLength")
+    item_start, stride = accessor.get("byteOffset", 0), view.get("byteStride", 12)
+    if any(type(v) is not int for v in (declared, view_start, view_length, item_start, stride)):
+        return False
+    if (declared < 0 or view_start < 0 or view_length < 12 or item_start < 0
+            or view_start % 4 or item_start % 4 or stride < 12 or stride > 252 or stride % 4):
+        return False
+    last_byte = item_start + (count - 1) * stride + 12
+    return (last_byte <= view_length and view_start + view_length <= declared
+            and declared <= bin_length)
+
 def inspect_glb(data):
     result={"header_valid":False,"json_valid":False,"meshes":0,
             "drawable_primitives":0,"position_vertices":0,
@@ -50,8 +75,9 @@ def inspect_glb(data):
     meshes=gltf.get("meshes",[])
     accessors=gltf.get("accessors",[])
     buffers=gltf.get("buffers",[])
-    if not isinstance(meshes,list) or not isinstance(accessors,list) or not isinstance(buffers,list):
-        errors.append("Malformed glTF mesh, accessor or buffer collections")
+    views=gltf.get("bufferViews",[])
+    if not all(isinstance(v,list) for v in (meshes,accessors,buffers,views)):
+        errors.append("Malformed glTF mesh, accessor, buffer or view collections")
         return result
     result["meshes"]=len(meshes)
     result["bin_bytes"]=len(bin_chunk) if bin_chunk is not None else 0
@@ -64,23 +90,20 @@ def inspect_glb(data):
             # mode absent means TRIANGLES in glTF 2.0. Only count geometry we
             # could draw as triangles. Points/lines do not count as buildings.
             if primitive.get("mode",4) not in (4,5,6):continue
-            pos=primitive.get("attributes",{}).get("POSITION")
-            if not isinstance(pos,int) or isinstance(pos,bool) or not 0<=pos<len(accessors):continue
+            attrs=primitive.get("attributes")
+            if not isinstance(attrs,dict):continue
+            pos=attrs.get("POSITION")
+            if type(pos) is not int or not 0<=pos<len(accessors):continue
             accessor=accessors[pos]
-            if not isinstance(accessor,dict):continue
-            count=accessor.get("count",0)
-            if not isinstance(count,int) or count<3:continue
-            if accessor.get("type")!="VEC3":continue
+            if not _position_buffer_valid(accessor,views,buffers,result["bin_bytes"]):continue
             result["drawable_primitives"]+=1
-            result["position_vertices"]+=count
+            result["position_vertices"]+=accessor["count"]
     if result["drawable_primitives"]==0:
         errors.append("GLB has no triangle geometry with valid POSITION accessors")
-    if buffers:
-        total=sum(int(b.get("byteLength",0)) for b in buffers if isinstance(b,dict))
-        # A public standalone GLB must contain its binary geometry, not depend
-        # on external URI assets or absent private files.
-        if total>result["bin_bytes"]:
-            errors.append("Declared binary buffer exceeds embedded GLB BIN chunk")
-    elif result["drawable_primitives"]:
-        errors.append("Drawable primitives have no binary buffer")
+    if (len(buffers)!=1 or not isinstance(buffers[0],dict)
+            or "uri" in buffers[0] or type(buffers[0].get("byteLength")) is not int
+            or buffers[0]["byteLength"] < 0):
+        errors.append("GLB must declare one valid embedded binary buffer")
+    elif buffers[0]["byteLength"]>result["bin_bytes"]:
+        errors.append("Declared binary buffer exceeds embedded GLB BIN chunk")
     return result
