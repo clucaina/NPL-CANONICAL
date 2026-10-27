@@ -49,6 +49,23 @@ class CityQualityTests(unittest.TestCase):
                     scene.write_text(json.dumps(bad_scene))
                     self.assertEqual(audit(osm,manifest,scene,glb)["gate"],"FAIL")
             scene.write_text(json.dumps(valid_scene))
+            # Falsy non-booleans must never certify the absence of private
+            # assets or unsupported facade photogrammetry.
+            for field in ("private_avatar_included", "facades_photogrammetric"):
+                for invalid in (0, None, "", [], {}, "false"):
+                    with self.subTest(field=field, invalid=invalid):
+                        scene.write_text(json.dumps({**valid_scene, field: invalid}))
+                        self.assertEqual(audit(osm, manifest, scene, glb)["gate"], "FAIL")
+            scene.write_text(json.dumps(valid_scene))
+            for invalid in (0, None, "", [], {}, "false"):
+                with self.subTest(manifest_facades=invalid):
+                    manifest.write_text(json.dumps({"bbox_local_m": [0, 0, 10, 10],
+                                                    "real_orthophoto": False,
+                                                    "building_facades_photogrammetric": invalid}))
+                    self.assertEqual(audit(osm, manifest, scene, glb)["gate"], "FAIL")
+            manifest.write_text(json.dumps({"bbox_local_m": [0, 0, 10, 10],
+                                            "real_orthophoto": False}))
+            self.assertEqual(audit(osm, manifest, scene, glb)["gate"], "PASS_PROVENANCE_ONLY")
             invalid_bounds = [
                 [0,0,"10",10], [0,0,float("nan"),10],
                 [0,0,float("inf"),10], [False,0,10,10], [0,0,10**1000,10],
