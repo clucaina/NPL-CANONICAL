@@ -76,6 +76,49 @@ class GLBQuality(unittest.TestCase):
         interleaved["buffers"][0]["byteLength"] = 44
         self.assertEqual(inspect_glb(pack(interleaved, b"\x00" * 44))["errors"], [])
 
+    def test_indexed_triangle_requires_real_in_range_indices(self):
+        payload = valid_payload()
+        payload["meshes"][0]["primitives"][0]["indices"] = 1
+        payload["accessors"].append({
+            "type": "SCALAR", "count": 3, "componentType": 5123, "bufferView": 1
+        })
+        payload["bufferViews"].append({"buffer": 0, "byteOffset": 36, "byteLength": 6})
+        payload["buffers"][0]["byteLength"] = 42
+        binary = b"\x00" * 36 + struct.pack("<3H", 0, 1, 2) + b"\x00" * 2
+        good = inspect_glb(pack(payload, binary))
+        self.assertEqual(good["drawable_primitives"], 1)
+        self.assertEqual(good["errors"], [])
+        bad_binary = b"\x00" * 36 + struct.pack("<3H", 0, 1, 3) + b"\x00" * 2
+        bad = inspect_glb(pack(payload, bad_binary))
+        self.assertEqual(bad["drawable_primitives"], 0)
+        self.assertTrue(bad["errors"])
+
+    def test_malformed_index_accessors_never_count_as_drawable(self):
+        cases = {
+            "index_id_out_of_range": lambda p: p["meshes"][0]["primitives"][0].update(indices=9),
+            "wrong_index_type": lambda p: p["accessors"][1].update(type="VEC3"),
+            "float_indices": lambda p: p["accessors"][1].update(componentType=5126),
+            "short_index_view": lambda p: p["bufferViews"][1].update(byteLength=4),
+            "misaligned_index_offset": lambda p: p["accessors"][1].update(byteOffset=1),
+            "external_index_view": lambda p: p["bufferViews"][1].update(buffer=1),
+            "sparse_index": lambda p: p["accessors"][1].update(sparse={"count": 1}),
+            "non_triangle_index_count": lambda p: p["accessors"][1].update(count=4),
+            "boolean_index_count": lambda p: p["accessors"][1].update(count=True),
+            "index_view_stride": lambda p: p["bufferViews"][1].update(byteStride=2),
+        }
+        for name, mutate in cases.items():
+            with self.subTest(name=name):
+                payload = valid_payload()
+                payload["meshes"][0]["primitives"][0]["indices"] = 1
+                payload["accessors"].append({
+                    "type": "SCALAR", "count": 3, "componentType": 5123, "bufferView": 1
+                })
+                payload["bufferViews"].append({"buffer": 0, "byteOffset": 36, "byteLength": 6})
+                payload["buffers"][0]["byteLength"] = 42
+                mutate(payload)
+                binary = b"\x00" * 36 + struct.pack("<3H", 0, 1, 2) + b"\x00" * 2
+                self.assertEqual(inspect_glb(pack(payload, binary))["drawable_primitives"], 0)
+
     def test_bad_file_and_unsupported_version(self):
         self.assertFalse(inspect_glb(b"bad")["header_valid"])
         b=bytearray(pack(valid_payload()))
