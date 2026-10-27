@@ -30,6 +30,39 @@ def _position_buffer_valid(accessor, views, buffers, bin_length):
     return (last_byte <= view_length and view_start + view_length <= declared
             and declared <= bin_length)
 
+def _index_buffer_valid(accessor, views, buffers, bin_data, position_count, mode):
+    """Check indexed triangle primitives against real embedded index bytes."""
+    if not isinstance(accessor, dict) or accessor.get("type") != "SCALAR" or "sparse" in accessor:
+        return False
+    component = accessor.get("componentType")
+    formats = {5121: ("B", 1), 5123: ("H", 2), 5125: ("I", 4)}
+    if type(component) is not int or component not in formats:
+        return False
+    fmt, size = formats[component]
+    count, view_id = accessor.get("count"), accessor.get("bufferView")
+    if (type(count) is not int or count < 3 or (mode == 4 and count % 3)
+            or type(view_id) is not int or not 0 <= view_id < len(views)):
+        return False
+    view = views[view_id]
+    if (not isinstance(view, dict) or type(view.get("buffer")) is not int
+            or view["buffer"] != 0 or "byteStride" in view):
+        return False
+    if len(buffers) != 1 or not isinstance(buffers[0], dict) or "uri" in buffers[0]:
+        return False
+    declared = buffers[0].get("byteLength")
+    view_start, view_length = view.get("byteOffset", 0), view.get("byteLength")
+    item_start = accessor.get("byteOffset", 0)
+    if any(type(v) is not int for v in (declared, view_start, view_length, item_start)):
+        return False
+    byte_count = count * size
+    if (declared < 0 or view_start < 0 or view_start % 4 or view_length < byte_count
+            or item_start < 0 or item_start % size or item_start + byte_count > view_length
+            or view_start + view_length > declared or declared > len(bin_data)):
+        return False
+    start = view_start + item_start
+    raw = memoryview(bin_data)[start:start + byte_count]
+    return all(index < position_count for (index,) in struct.iter_unpack("<" + fmt, raw))
+
 def inspect_glb(data):
     result={"header_valid":False,"json_valid":False,"meshes":0,
             "drawable_primitives":0,"position_vertices":0,
@@ -96,6 +129,16 @@ def inspect_glb(data):
             if type(pos) is not int or not 0<=pos<len(accessors):continue
             accessor=accessors[pos]
             if not _position_buffer_valid(accessor,views,buffers,result["bin_bytes"]):continue
+            # An indexed primitive must also have real, in-range embedded indices.
+            # A plausible POSITION accessor cannot rescue a broken index stream.
+            if "indices" in primitive:
+                index_id = primitive["indices"]
+                if type(index_id) is not int or not 0 <= index_id < len(accessors):
+                    continue
+                if not _index_buffer_valid(accessors[index_id], views, buffers,
+                                           bin_chunk or b"", accessor["count"],
+                                           primitive.get("mode", 4)):
+                    continue
             result["drawable_primitives"]+=1
             result["position_vertices"]+=accessor["count"]
     if result["drawable_primitives"]==0:
