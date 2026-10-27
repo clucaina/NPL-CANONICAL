@@ -74,7 +74,7 @@ class GLBQuality(unittest.TestCase):
         interleaved = valid_payload()
         interleaved["bufferViews"][0].update(byteStride=16, byteLength=44)
         interleaved["buffers"][0]["byteLength"] = 44
-        self.assertEqual(inspect_glb(pack(interleaved, b"\\x00" * 44))["errors"], [])
+        self.assertEqual(inspect_glb(pack(interleaved, b"\x00" * 44))["errors"], [])
 
     def test_bad_file_and_unsupported_version(self):
         self.assertFalse(inspect_glb(b"bad")["header_valid"])
