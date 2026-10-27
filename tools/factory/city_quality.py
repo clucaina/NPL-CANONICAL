@@ -36,12 +36,23 @@ def audit(osm_file, manifest_file, scene_file, glb_file):
     errors = []
     if buildings == 0 or complete == 0: errors.append("No complete georeferenced building footprints")
     errors.extend(geometry["errors"])
-    if not isinstance(width, list) or len(width) != 4 or not (width[2] > width[0] and width[3] > width[1]):
+    # Fail closed on malformed or non-finite coordinates: string/bool/NaN
+    # values must never be mistaken for valid projected geometry.
+    if (not isinstance(width, list) or len(width) != 4
+            or any(type(value) not in (int, float) or not math.isfinite(value) for value in width)
+            or width[2] <= width[0] or width[3] <= width[1]):
         errors.append("Invalid projected bounding box")
-    if scene.get("real_osm_buildings", -1) > complete:
-        errors.append("Scene claims more buildings than complete OSM footprints")
-    if scene.get("heights_directly_measured", -1) > explicit_heights:
-        errors.append("Scene claims more measured heights than OSM height-tag evidence")
+    exported = scene.get("real_osm_buildings")
+    measured = scene.get("heights_directly_measured")
+    # A missing, fractional, negative or boolean count is not OSM evidence.
+    if type(exported) is not int or not 1 <= exported <= complete:
+        errors.append("Scene building count lacks complete OSM footprint evidence")
+    if (type(measured) is not int or not 0 <= measured <= explicit_heights
+            or (type(exported) is int and measured > exported)):
+        errors.append("Scene measured height count lacks OSM height-tag evidence")
+    # bool("false") is True: never promote a textual flag to verified imagery.
+    if type(manifest.get("real_orthophoto")) is not bool:
+        errors.append("Orthophoto provenance flag must be boolean")
     if scene.get("facades_photogrammetric") or manifest.get("building_facades_photogrammetric"):
         errors.append("Unexpected unsupported photogrammetric facade claim")
     if scene.get("private_avatar_included"):
