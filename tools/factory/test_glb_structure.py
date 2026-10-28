@@ -207,6 +207,29 @@ class GLBQuality(unittest.TestCase):
         valid["accessors"][0]["normalized"] = False
         self.assertEqual(inspect_glb(pack(valid))["drawable_primitives"], 1)
 
+    def test_unsupported_gltf_asset_versions_never_count_geometry(self):
+        # A valid GLB container cannot make an unsupported glTF payload drawable.
+        for version in ("1.0", "2.1", 2.0, None, True):
+            with self.subTest(version=version):
+                payload = valid_payload()
+                payload["asset"]["version"] = version
+                result = inspect_glb(pack(payload))
+                self.assertFalse(result["json_valid"])
+                self.assertEqual(result["drawable_primitives"], 0)
+                self.assertEqual(result["position_vertices"], 0)
+                self.assertTrue(any("Unsupported" in e for e in result["errors"]))
+
+    def test_missing_gltf_asset_version_fails_closed(self):
+        payload = valid_payload()
+        del payload["asset"]["version"]
+        result = inspect_glb(pack(payload))
+        self.assertTrue(result["header_valid"])
+        self.assertFalse(result["json_valid"])
+        self.assertEqual(result["meshes"], 0)
+        self.assertEqual(result["drawable_primitives"], 0)
+        self.assertTrue(result["errors"])
+        self.assertEqual(inspect_glb(pack(valid_payload()))["drawable_primitives"], 1)
+
     def test_bad_file_and_unsupported_version(self):
         self.assertFalse(inspect_glb(b"bad")["header_valid"])
         b=bytearray(pack(valid_payload()))
