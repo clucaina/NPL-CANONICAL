@@ -173,6 +173,40 @@ class GLBQuality(unittest.TestCase):
         self.assertEqual(corrupted["drawable_primitives"], 0)
         self.assertTrue(any("padding" in error for error in corrupted["errors"]))
 
+    def test_nonfinite_position_coordinates_fail_closed(self):
+        payload = valid_payload()
+        finite = struct.pack("<9f", 0, 0, 0, 1, 0, 0, 0, 1, 0)
+        self.assertEqual(inspect_glb(pack(payload, finite))["drawable_primitives"], 1)
+        for value in (float("nan"), float("inf"), float("-inf")):
+            with self.subTest(value=value):
+                corrupted = bytearray(finite)
+                struct.pack_into("<f", corrupted, 12, value)
+                result = inspect_glb(pack(payload, bytes(corrupted)))
+                self.assertEqual(result["drawable_primitives"], 0)
+                self.assertTrue(result["errors"])
+        interleaved = valid_payload()
+        interleaved["bufferViews"][0].update(byteStride=16, byteLength=48)
+        interleaved["buffers"][0]["byteLength"] = 48
+        binary = b"".join(struct.pack("<4f", *xyz, 42) for xyz in
+                          ((0, 0, 0), (1, 0, 0), (0, 1, 0)))
+        self.assertEqual(inspect_glb(pack(interleaved, binary))["drawable_primitives"], 1)
+        bad = bytearray(binary)
+        struct.pack_into("<f", bad, 16, float("nan"))
+        self.assertEqual(inspect_glb(pack(interleaved, bytes(bad)))["drawable_primitives"], 0)
+
+    def test_sparse_or_normalized_position_accessors_are_not_miscounted(self):
+        for field, value in (("sparse", {"count": 1}),
+                             ("normalized", True)):
+            with self.subTest(field=field):
+                payload = valid_payload()
+                payload["accessors"][0][field] = value
+                result = inspect_glb(pack(payload))
+                self.assertEqual(result["drawable_primitives"], 0)
+                self.assertTrue(result["errors"])
+        valid = valid_payload()
+        valid["accessors"][0]["normalized"] = False
+        self.assertEqual(inspect_glb(pack(valid))["drawable_primitives"], 1)
+
     def test_bad_file_and_unsupported_version(self):
         self.assertFalse(inspect_glb(b"bad")["header_valid"])
         b=bytearray(pack(valid_payload()))
