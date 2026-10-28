@@ -123,8 +123,8 @@ def inspect_glb(data):
         return result
     if gltf["asset"].get("version")!="2.0":
         errors.append("Unsupported or missing glTF 2.0 asset")
-    else:
-        result["json_valid"]=True
+        return result
+    result["json_valid"]=True
     meshes=gltf.get("meshes",[])
     accessors=gltf.get("accessors",[])
     buffers=gltf.get("buffers",[])
