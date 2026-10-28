@@ -11,6 +11,14 @@ def pack(payload,binary=b"\x00"*36):
     data+=struct.pack("<I4s",len(binary),b"BIN\x00")+binary
     return data
 
+def pack_raw_json(source, binary=b"\\x00"*36):
+    """Build a synthetic GLB without json.dumps erasing duplicate keys."""
+    raw=source.encode("utf-8")
+    raw+=b" " * ((-len(raw))%4)
+    body=struct.pack("<I4s",len(raw),b"JSON")+raw
+    body+=struct.pack("<I4s",len(binary),b"BIN\\x00")+binary
+    return b"glTF"+struct.pack("<II",2,12+len(body))+body
+
 def valid_payload():
     return {"asset":{"version":"2.0"},"meshes":[{"primitives":[{"attributes":{"POSITION":0}}]}],
             "accessors":[{"type":"VEC3","count":3,"componentType":5126,"bufferView":0}],
@@ -229,6 +237,27 @@ class GLBQuality(unittest.TestCase):
         self.assertEqual(result["drawable_primitives"], 0)
         self.assertTrue(result["errors"])
         self.assertEqual(inspect_glb(pack(valid_payload()))["drawable_primitives"], 1)
+
+    def test_duplicate_root_glb_json_keys_fail_closed(self):
+        source=json.dumps(valid_payload(),separators=(",",":"))
+        source=source.replace('"asset":{"version":"2.0"}',
+                              '"asset":{"version":"2.0"},"asset":{"version":"1.0"}',1)
+        result=inspect_glb(pack_raw_json(source))
+        self.assertTrue(result["header_valid"])
+        self.assertFalse(result["json_valid"])
+        self.assertEqual(result["drawable_primitives"],0)
+        self.assertTrue(any("Malformed GLB JSON" in e for e in result["errors"]))
+
+    def test_duplicate_nested_glb_json_keys_fail_closed(self):
+        source=json.dumps(valid_payload(),separators=(",",":"))
+        source=source.replace('"asset":{"version":"2.0"}',
+                              '"asset":{"version":"2.0","version":"2.0"}',1)
+        result=inspect_glb(pack_raw_json(source))
+        self.assertTrue(result["header_valid"])
+        self.assertFalse(result["json_valid"])
+        self.assertEqual(result["position_vertices"],0)
+        self.assertTrue(any("Malformed GLB JSON" in e for e in result["errors"]))
+        self.assertEqual(inspect_glb(pack(valid_payload()))["errors"],[])
 
     def test_bad_file_and_unsupported_version(self):
         self.assertFalse(inspect_glb(b"bad")["header_valid"])
