@@ -14,7 +14,7 @@ button:hover{background:#2e6474}
 #stat{left:15px;bottom:15px}#cameraMode{color:#ffd790}
 @media(max-width:680px){header{width:calc(100% - 30px);top:66px}#panelControls{left:12px;right:auto;top:9px}#info{bottom:70px;min-width:80%}}
 </style></head><body>
-<canvas id="game"></canvas>
+<canvas id="game" role="img" aria-label="Escena tridimensional de Alicante, exploración con teclado o puntero; el contenido puede estar incompleto sin los archivos locales."></canvas>
 <header class="panel"><strong>N✦ NPL WORLD</strong><p>Explanada de Alicante · Edificios OSM y escena 3D con vestuario y paisaje mediterráneo.<br><small>Ciudad y semejanza facial aún no fotogramétricas.</small></p></header>
 <div id="panelControls" class="panel"><button id="cam">◉ Cámara (C)</button><button id="face">◎ Ver rostro</button><button id="fidelity">◈ Calidad</button><button id="reset">↻ Centrar</button></div>
 <div id="loading"><h2>Cargando recursos locales 3D</h2><p id="progress">Preparando motor gráfico…</p><p>No se descargan personas ni edificios al abrir. Los modelos ya están en el paquete.</p></div>
@@ -27,4 +27,4 @@ document.querySelector('#face').onclick=()=>{
  }
 };
 </script>
-<script src="./game.js"></script></body></html>
+<script src="./dist/game.js" onerror="document.getElementById('progress').textContent='No se encuentra el visor compilado. Ejecuta npm run build en visual_viewer antes de abrir esta página.';document.getElementById('loading').setAttribute('role','alert');"></script></body></html>
