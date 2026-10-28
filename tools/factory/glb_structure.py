@@ -3,11 +3,14 @@
 Designed to reject GLB files with syntactically valid headers but no drawable 3D.
 """
 import json
+import math
 import struct
 
-def _position_buffer_valid(accessor, views, buffers, bin_length):
-    """Verify that FLOAT VEC3 positions actually fit inside an embedded GLB buffer."""
-    if not isinstance(accessor, dict) or accessor.get("type") != "VEC3" or accessor.get("componentType") != 5126:
+def _position_buffer_valid(accessor, views, buffers, bin_data):
+    """Verify that embedded FLOAT VEC3 positions exist and are finite."""
+    if (not isinstance(accessor, dict) or accessor.get("type") != "VEC3"
+            or accessor.get("componentType") != 5126 or "sparse" in accessor
+            or accessor.get("normalized", False) is not False):
         return False
     count = accessor.get("count")
     view_id = accessor.get("bufferView")
@@ -27,8 +30,17 @@ def _position_buffer_valid(accessor, views, buffers, bin_length):
             or view_start % 4 or item_start % 4 or stride < 12 or stride > 252 or stride % 4):
         return False
     last_byte = item_start + (count - 1) * stride + 12
-    return (last_byte <= view_length and view_start + view_length <= declared
-            and declared <= bin_length)
+    if not (last_byte <= view_length and view_start + view_length <= declared
+            and declared <= len(bin_data)):
+        return False
+    # The byte range alone cannot establish usable geometry: NaN/Inf
+    # positions are not valid finite 3D coordinates.
+    start = view_start + item_start
+    for i in range(count):
+        xyz = struct.unpack_from("<3f", bin_data, start + i * stride)
+        if not all(math.isfinite(value) for value in xyz):
+            return False
+    return True
 
 def _index_buffer_valid(accessor, views, buffers, bin_data, position_count, mode):
     """Check indexed triangle primitives against real embedded index bytes."""
@@ -152,7 +164,7 @@ def inspect_glb(data):
             pos=attrs.get("POSITION")
             if type(pos) is not int or not 0<=pos<len(accessors):continue
             accessor=accessors[pos]
-            if not _position_buffer_valid(accessor,views,buffers,result["bin_bytes"]):continue
+            if not _position_buffer_valid(accessor,views,buffers,bin_chunk or b""):continue
             # An indexed primitive must also have real, in-range embedded indices.
             # A plausible POSITION accessor cannot rescue a broken index stream.
             if "indices" in primitive:
