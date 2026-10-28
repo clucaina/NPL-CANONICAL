@@ -154,6 +154,25 @@ class GLBQuality(unittest.TestCase):
                 self.assertEqual(outcome["drawable_primitives"], 0)
                 self.assertTrue(outcome["errors"])
 
+    def test_bin_chunk_rejects_four_unaccounted_trailing_bytes(self):
+        payload = valid_payload()
+        # A GLB BIN chunk may only contain up to 3 padding bytes beyond
+        # buffers[0].byteLength. Four zero bytes are not valid padding.
+        excess = inspect_glb(pack(payload, b"\x00" * 40))
+        self.assertEqual(excess["drawable_primitives"], 0)
+        self.assertTrue(any("padding" in error for error in excess["errors"]))
+        self.assertEqual(inspect_glb(pack(payload, b"\x00" * 36))["errors"], [])
+
+    def test_bin_padding_must_be_zero_even_within_three_byte_allowance(self):
+        payload = valid_payload()
+        payload["buffers"][0]["byteLength"] = 37
+        valid = inspect_glb(pack(payload, b"\x00" * 40))
+        self.assertEqual(valid["drawable_primitives"], 1)
+        self.assertEqual(valid["errors"], [])
+        corrupted = inspect_glb(pack(payload, b"\x00" * 39 + b"\x01"))
+        self.assertEqual(corrupted["drawable_primitives"], 0)
+        self.assertTrue(any("padding" in error for error in corrupted["errors"]))
+
     def test_bad_file_and_unsupported_version(self):
         self.assertFalse(inspect_glb(b"bad")["header_valid"])
         b=bytearray(pack(valid_payload()))
