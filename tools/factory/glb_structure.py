@@ -120,8 +120,24 @@ def inspect_glb(data):
     if not all(isinstance(v,list) for v in (meshes,accessors,buffers,views)):
         errors.append("Malformed glTF mesh, accessor, buffer or view collections")
         return result
-    result["meshes"]=len(meshes)
     result["bin_bytes"]=len(bin_chunk) if bin_chunk is not None else 0
+    # GLB allows at most three zero bytes beyond the declared buffer length.
+    # Unaccounted bytes must not be mistaken for a harmless BIN padding area:
+    # they could conceal unrelated data in a supposedly verified asset.
+    if (len(buffers)!=1 or not isinstance(buffers[0],dict)
+            or "uri" in buffers[0] or type(buffers[0].get("byteLength")) is not int
+            or buffers[0]["byteLength"] < 0):
+        errors.append("GLB must declare one valid embedded binary buffer")
+        return result
+    declared = buffers[0]["byteLength"]
+    if bin_chunk is None or declared > len(bin_chunk):
+        errors.append("Declared binary buffer exceeds embedded GLB BIN chunk")
+        return result
+    padding = bin_chunk[declared:]
+    if len(padding) > 3 or any(padding):
+        errors.append("GLB BIN chunk has unaccounted or nonzero padding bytes")
+        return result
+    result["meshes"]=len(meshes)
     for mesh in meshes:
         if not isinstance(mesh,dict):continue
         primitives=mesh.get("primitives",[])
@@ -151,10 +167,4 @@ def inspect_glb(data):
             result["position_vertices"]+=accessor["count"]
     if result["drawable_primitives"]==0:
         errors.append("GLB has no triangle geometry with valid POSITION accessors")
-    if (len(buffers)!=1 or not isinstance(buffers[0],dict)
-            or "uri" in buffers[0] or type(buffers[0].get("byteLength")) is not int
-            or buffers[0]["byteLength"] < 0):
-        errors.append("GLB must declare one valid embedded binary buffer")
-    elif buffers[0]["byteLength"]>result["bin_bytes"]:
-        errors.append("Declared binary buffer exceeds embedded GLB BIN chunk")
     return result
