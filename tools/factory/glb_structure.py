@@ -6,6 +6,15 @@ import json
 import math
 import struct
 
+def _reject_duplicate_json_keys(pairs):
+    """Fail closed on ambiguous glTF metadata, including nested JSON objects."""
+    obj = {}
+    for key, value in pairs:
+        if key in obj:
+            raise ValueError("Duplicate glTF JSON object key")
+        obj[key] = value
+    return obj
+
 def _position_buffer_valid(accessor, views, buffers, bin_data):
     """Verify that embedded FLOAT VEC3 positions exist and are finite."""
     if (not isinstance(accessor, dict) or accessor.get("type") != "VEC3"
@@ -114,7 +123,7 @@ def inspect_glb(data):
         errors.append("Missing GLB JSON chunk")
         return result
     try:
-        gltf=json.loads(json_chunk.decode("utf-8"))
+        gltf=json.loads(json_chunk.decode("utf-8"), object_pairs_hook=_reject_duplicate_json_keys)
     except (UnicodeError,ValueError):
         errors.append("Malformed GLB JSON chunk")
         return result
