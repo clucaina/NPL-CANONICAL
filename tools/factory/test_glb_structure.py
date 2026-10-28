@@ -11,12 +11,12 @@ def pack(payload,binary=b"\x00"*36):
     data+=struct.pack("<I4s",len(binary),b"BIN\x00")+binary
     return data
 
-def pack_raw_json(source, binary=b"\\x00"*36):
+def pack_raw_json(source, binary=b"\x00"*36):
     """Build a synthetic GLB without json.dumps erasing duplicate keys."""
     raw=source.encode("utf-8")
     raw+=b" " * ((-len(raw))%4)
     body=struct.pack("<I4s",len(raw),b"JSON")+raw
-    body+=struct.pack("<I4s",len(binary),b"BIN\\x00")+binary
+    body+=struct.pack("<I4s",len(binary),b"BIN\x00")+binary
     return b"glTF"+struct.pack("<II",2,12+len(body))+body
 
 def valid_payload():
