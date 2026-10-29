@@ -75,7 +75,7 @@ def audit_batch(batch,spec,as_of=date.today()):
             "human_source_review_completed":False,
             "note":"Automated syntactic checks only, not verification of truth, originality, reuse rights, denominators, causality or clinical validity."}
 PUBLIC_REPO_PATH="/clucaina/psicologia-politica/"
-PUBLIC_JSON=re.compile(r"^.+/database/[A-Z0-9_-]+\\.json$")
+PUBLIC_JSON=re.compile(r"^.+/database/[A-Z0-9_-]+\.json$")
 def validate_public_source_url(url,public_path=None):
     """Fail closed before any fetch: exact public origin, path and catalog entry."""
     if not isinstance(url,str) or len(url)>512:
@@ -90,7 +90,7 @@ def validate_public_source_url(url,public_path=None):
         raise ValueError("Public JSON path not allowlisted")
     if public_path is not None:
         if (not isinstance(public_path,str)
-            or not re.fullmatch(r"database/[A-Z0-9_-]+\\.json",public_path)
+            or not re.fullmatch(r"database/[A-Z0-9_-]+\.json",public_path)
             or not suffix.endswith("/"+public_path)):
             raise ValueError("Catalog path does not match source URL")
     return url
