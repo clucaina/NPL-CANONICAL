@@ -13,8 +13,9 @@ from hashlib import sha256
 import json
 import math
 from pathlib import Path
-from urllib.request import Request,urlopen
+from urllib.request import Request,urlopen,build_opener,HTTPRedirectHandler
 from urllib.error import HTTPError,URLError
+from urllib.parse import urlsplit
 import re
 
 PERIOD=re.compile(r"^(?:19|20)\d{2}(?:-(?:Q[1-4]|0[1-9]|1[0-2]))?$")
@@ -73,17 +74,46 @@ def audit_batch(batch,spec,as_of=date.today()):
             "ready_for_publication":False,
             "human_source_review_completed":False,
             "note":"Automated syntactic checks only, not verification of truth, originality, reuse rights, denominators, causality or clinical validity."}
-def open_public_source(url,fetcher=urlopen):
-    if not url.startswith("https://raw.githubusercontent.com/clucaina/psicologia-politica/"):
+PUBLIC_REPO_PATH="/clucaina/psicologia-politica/"
+PUBLIC_JSON=re.compile(r"^.+/database/[A-Z0-9_-]+\\.json$")
+def validate_public_source_url(url,public_path=None):
+    """Fail closed before any fetch: exact public origin, path and catalog entry."""
+    if not isinstance(url,str) or len(url)>512:
+        raise ValueError("Invalid public URL")
+    parts=urlsplit(url)
+    if (parts.scheme!="https" or parts.netloc!="raw.githubusercontent.com"
+        or parts.query or parts.fragment or not parts.path.startswith(PUBLIC_REPO_PATH)):
         raise ValueError("Public origin not allowlisted")
+    suffix=parts.path[len(PUBLIC_REPO_PATH):]
+    if (not PUBLIC_JSON.fullmatch(suffix) or "%" in suffix or "\\\\" in suffix
+        or any(part in ("",".","..") for part in suffix.split("/"))):
+        raise ValueError("Public JSON path not allowlisted")
+    if public_path is not None:
+        if (not isinstance(public_path,str)
+            or not re.fullmatch(r"database/[A-Z0-9_-]+\\.json",public_path)
+            or not suffix.endswith("/"+public_path)):
+            raise ValueError("Catalog path does not match source URL")
+    return url
+
+class _NoPublicRedirect(HTTPRedirectHandler):
+    def redirect_request(self,req,fp,code,msg,headers,newurl):
+        return None
+
+def open_public_source(url,fetcher=None):
+    validate_public_source_url(url)
     req=Request(url,headers={"User-Agent":"Neurohuerto-PublicData/1.0","Accept":"application/json"})
-    with fetcher(req,timeout=20) as stream:raw=stream.read(MAX_BATCH+1)
+    opener=fetcher if fetcher is not None else build_opener(_NoPublicRedirect()).open
+    with opener(req,timeout=20) as stream:
+        if hasattr(stream,"geturl") and stream.geturl()!=url:
+            raise ValueError("Redirected public source rejected")
+        raw=stream.read(MAX_BATCH+1)
     if len(raw)>MAX_BATCH:raise ValueError("Source over 2 MB bound")
     return json.loads(raw.decode("utf-8")),sha256(raw).hexdigest()
 def run(spec,fetcher=open_public_source):
     results=[]
     for item in spec["sources"]:
         try:
+            validate_public_source_url(item["raw_url"],item["public_path"])
             batch,digest=fetcher(item["raw_url"])
             result=audit_batch(batch,item)
             result["source_sha256"]=digest
