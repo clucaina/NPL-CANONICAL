@@ -1,7 +1,7 @@
 import json
 import unittest
 from pathlib import Path
-from data_garden import audit_batch,run,open_public_source
+from data_garden import audit_batch,run,open_public_source,validate_public_source_url,_NoPublicRedirect
 class SourceGardenTests(unittest.TestCase):
     def setUp(self):
         self.spec={"batch_id":"T_TEST","license":"CC BY 4.0","source_family":"INE","public_path":"database/T_TEST.json","raw_url":"https://raw.githubusercontent.com/clucaina/psicologia-politica/test/database/T_TEST.json"}
@@ -40,4 +40,30 @@ class SourceGardenTests(unittest.TestCase):
         self.assertEqual(report["sources_with_errors"],1)
         self.assertEqual(report["candidates"][0]["status"],"SOURCE_UNAVAILABLE")
         self.assertNotIn("secret",json.dumps(report))
+    def test_public_json_origin_path_and_redirects_fail_closed(self):
+        from io import BytesIO
+        url=self.spec["raw_url"]
+        self.assertEqual(validate_public_source_url(url,self.spec["public_path"]),url)
+        for bad in (
+            "https://raw.githubusercontent.com.evil.example/clucaina/psicologia-politica/main/database/T_TEST.json",
+            "https://raw.githubusercontent.com/clucaina/psicologia-politica/main/../database/T_TEST.json",
+            "https://raw.githubusercontent.com/clucaina/psicologia-politica/main/database/%54_TEST.json",
+            "https://raw.githubusercontent.com/clucaina/psicologia-politica/main/database/T_TEST.json?token=secret",
+            "https://raw.githubusercontent.com/clucaina/psicologia-politica/main/other/T_TEST.json",
+            "https://raw.githubusercontent.com/clucaina/psicologia-politica/main/database/T_TEST.json#fragment",
+        ):
+            with self.subTest(bad=bad),self.assertRaises(ValueError):
+                validate_public_source_url(bad,self.spec["public_path"])
+        with self.assertRaises(ValueError):
+            validate_public_source_url(url,"database/OTHER.json")
+        attempts=[]
+        poisoned={**self.spec,"raw_url":url+"?unsafe=1"}
+        report=run({"sources":[poisoned]},fetcher=lambda u:attempts.append(u))
+        self.assertEqual(attempts,[])
+        self.assertEqual(report["candidates"][0]["status"],"SOURCE_UNAVAILABLE")
+        self.assertIsNone(_NoPublicRedirect().redirect_request(None,None,302,"redirect",{},"https://other.example"))
+        class Redirected(BytesIO):
+            def geturl(self):return "https://other.example"
+        with self.assertRaises(ValueError):
+            open_public_source(url,fetcher=lambda req,timeout:Redirected(b'{}'))
 if __name__=="__main__":unittest.main()
