@@ -3,7 +3,7 @@ import struct
 import tempfile
 import unittest
 from pathlib import Path
-from city_quality import audit
+from city_quality import audit, valid_building_footprint
 
 class CityQualityTests(unittest.TestCase):
     def test_real_provenance_pass_and_false_height_claim_fails(self):
@@ -113,6 +113,19 @@ class CityQualityTests(unittest.TestCase):
             self.assertEqual(result["gate"], "FAIL")
             scene.write_text(json.dumps({**valid_scene, "heights_directly_measured": 0}))
             self.assertEqual(audit(osm, manifest, scene, glb)["gate"], "PASS_PROVENANCE_ONLY")
+    def test_crossing_osm_building_with_nonzero_area_is_rejected(self):
+        # Synthetic polygon: its signed area is nonzero but two walls cross.
+        crossing = [(0, 0), (4, 4), (0, 4), (4, 0), (5, 3)]
+        concave = [(0, 0), (4, 0), (4, 4), (2, 2), (0, 4)]
+        def footprint(vertices):
+            nodes = {str(i): (38.3 + x / 10000, -0.48 + y / 10000)
+                     for i, (x, y) in enumerate(vertices)}
+            refs = list(nodes) + ["0"]
+            return valid_building_footprint(refs, nodes)
+        self.assertFalse(footprint(crossing))
+        self.assertTrue(footprint(concave))
+        self.assertFalse(footprint([(0, 0), (4, 0), (4, 4), (0, 4), (4, 0)]))
+
     def test_empty_or_invalid_glb_fails(self):
         with tempfile.TemporaryDirectory() as d:
             p=Path(d)
