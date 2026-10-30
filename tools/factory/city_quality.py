@@ -10,7 +10,7 @@ from pathlib import Path
 from glb_structure import inspect_glb
 
 def valid_building_footprint(refs, nodes):
-    """Require a closed, non-degenerate OSM polygon with real geographic nodes."""
+    """Require a closed, non-degenerate, non-self-intersecting OSM polygon."""
     if len(refs) < 4 or refs[0] != refs[-1] or len(set(refs[:-1])) < 3:
         return False
     points = [nodes.get(ref) for ref in refs]
@@ -23,7 +23,45 @@ def valid_building_footprint(refs, nodes):
         - (points[i + 1][1] - lon0) * (points[i][0] - lat0)
         for i in range(1, len(points) - 2)
     )
-    return abs(twice_area) > 1e-14
+    if abs(twice_area) <= 1e-14:
+        return False
+
+    # Nonzero signed area alone cannot exclude self-crossing building walls.
+    # Reject intersections between nonadjacent edges, including shared points.
+    def orientation(a, b, c):
+        return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+
+    def on_segment(a, b, c):
+        return (min(a[0], b[0]) <= c[0] <= max(a[0], b[0])
+                and min(a[1], b[1]) <= c[1] <= max(a[1], b[1]))
+
+    def intersects(a, b, c, d):
+        if (max(a[0], b[0]) < min(c[0], d[0])
+                or max(c[0], d[0]) < min(a[0], b[0])
+                or max(a[1], b[1]) < min(c[1], d[1])
+                or max(c[1], d[1]) < min(a[1], b[1])):
+            return False
+        ab_c, ab_d = orientation(a, b, c), orientation(a, b, d)
+        cd_a, cd_b = orientation(c, d, a), orientation(c, d, b)
+        if ((ab_c == 0 and on_segment(a, b, c))
+                or (ab_d == 0 and on_segment(a, b, d))
+                or (cd_a == 0 and on_segment(c, d, a))
+                or (cd_b == 0 and on_segment(c, d, b))):
+            return True
+        return (ab_c > 0) != (ab_d > 0) and (cd_a > 0) != (cd_b > 0)
+
+    vertices = points[:-1]
+    n = len(vertices)
+    for i in range(n):
+        a, b = vertices[i], vertices[(i + 1) % n]
+        if a == b:
+            return False
+        for j in range(i + 2, n):
+            if i == 0 and j == n - 1:
+                continue  # The first and last edges share a legal endpoint.
+            if intersects(a, b, vertices[j], vertices[(j + 1) % n]):
+                return False
+    return True
 
 def audit(osm_file, manifest_file, scene_file, glb_file):
     manifest = json.loads(Path(manifest_file).read_text(encoding="utf-8"))
