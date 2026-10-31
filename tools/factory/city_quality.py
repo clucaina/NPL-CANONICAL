@@ -70,16 +70,20 @@ def audit(osm_file, manifest_file, scene_file, glb_file):
     # A node ID alone is not evidence of a usable geographic coordinate.
     nodes = {}
     for node in xml.findall("node"):
+        node_id = node.attrib.get("id")
+        if not node_id or not node_id.strip():
+            continue  # Missing OSM IDs cannot support a georeferenced footprint.
         try:
             lat, lon = float(node.attrib["lat"]), float(node.attrib["lon"])
             if math.isfinite(lat) and math.isfinite(lon) and -90 <= lat <= 90 and -180 <= lon <= 180:
-                nodes[node.attrib["id"]] = (lat, lon)
+                nodes[node_id] = (lat, lon)
         except (KeyError, TypeError, ValueError):
             continue
     buildings, explicit_heights, complete, roads = 0, 0, 0, 0
     for way in xml.findall("way"):
         tags = {t.attrib.get("k"): t.attrib.get("v") for t in way.findall("tag")}
-        refs = [n.attrib["ref"] for n in way.findall("nd")]
+        # Missing nd refs are invalid geometry, not an exception that aborts QA.
+        refs = [n.attrib.get("ref") for n in way.findall("nd")]
         if tags.get("building") not in (None, "no"):
             buildings += 1
             # Height tags on unusable footprints are not evidence for exported buildings.
