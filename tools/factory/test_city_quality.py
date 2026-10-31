@@ -88,6 +88,10 @@ class CityQualityTests(unittest.TestCase):
                 "missing_latitude": original_osm.replace('lat="38.35"', 'lat=""'),
                 "collinear_nodes": original_osm.replace('lat="38.35" lon="-0.48"', 'lat="38.34" lon="-0.46"'),
                 "same_position_twice": original_osm.replace('lat="38.35" lon="-0.48"', 'lat="38.34" lon="-0.48"'),
+                "missing_way_reference": original_osm.replace('<nd ref="3"/>', '<nd/>'),
+                "empty_way_reference": original_osm.replace('<nd ref="3"/>', '<nd ref=""/>'),
+                "missing_node_id": original_osm.replace('<node id="3"', '<node'),
+                "empty_node_id": original_osm.replace('<node id="3"', '<node id=""'),
             }
             for reason, bad_osm in invalid_footprints.items():
                 with self.subTest(reason=reason):
